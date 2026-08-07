@@ -2,6 +2,7 @@ package com.victor2319.ioscalendar.data
 
 import androidx.room.withTransaction
 import com.victor2319.ioscalendar.domain.CalendarDelta
+import com.victor2319.ioscalendar.domain.CalendarEvent
 import com.victor2319.ioscalendar.domain.CalendarRepository
 import com.victor2319.ioscalendar.domain.CalendarSnapshot
 import com.victor2319.ioscalendar.domain.CalendarSummary
@@ -53,6 +54,7 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
 
     override suspend fun replaceCalendarSnapshot(snapshot: CalendarSnapshot) {
         database.withTransaction {
+            validatePayload(snapshot.calendar.id, snapshot.events, snapshot.instances)
             val existing = calendarDao.find(snapshot.calendar.id)
             calendarDao.upsert(
                 snapshot.calendar.copy(
@@ -65,7 +67,7 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
             if (overlappingIds.isNotEmpty()) {
                 eventDao.deleteInstances(snapshot.calendar.id, overlappingIds)
             }
-            if (snapshot.events.isNotEmpty()) eventDao.upsertEvents(snapshot.events.map { it.toEntity() })
+            upsertEvents(snapshot.events)
             if (snapshot.instances.isNotEmpty()) {
                 eventDao.upsertInstances(snapshot.instances.map { it.toEntity() })
             }
@@ -76,7 +78,8 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
 
     override suspend fun applyCalendarDelta(delta: CalendarDelta) {
         database.withTransaction {
-            if (delta.upsertEvents.isNotEmpty()) eventDao.upsertEvents(delta.upsertEvents.map { it.toEntity() })
+            validatePayload(delta.calendarId, delta.upsertEvents, delta.upsertInstances)
+            upsertEvents(delta.upsertEvents)
             if (delta.upsertInstances.isNotEmpty()) {
                 eventDao.upsertInstances(delta.upsertInstances.map { it.toEntity() })
             }
@@ -100,6 +103,49 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
 
     override suspend fun clearCalendarCache() {
         database.withTransaction { calendarDao.deleteAll() }
+    }
+
+    private suspend fun validatePayload(
+        calendarId: String,
+        events: List<CalendarEvent>,
+        instances: List<EventInstance>,
+    ) {
+        require(events.all { it.calendarId == calendarId }) {
+            "Every event must belong to calendar $calendarId"
+        }
+        require(instances.all { it.calendarId == calendarId }) {
+            "Every instance must belong to calendar $calendarId"
+        }
+
+        val payloadEvents = events.associateBy(CalendarEvent::id)
+        for (event in events) {
+            val storedEvent = eventDao.findEvent(event.id)
+            require(storedEvent == null || storedEvent.calendarId == calendarId) {
+                "Event ${event.id} is owned by another calendar"
+            }
+        }
+        for (instance in instances) {
+            val storedInstance = eventDao.findInstance(instance.instanceId)
+            require(storedInstance == null || storedInstance.calendarId == calendarId) {
+                "Instance ${instance.instanceId} is owned by another calendar"
+            }
+            val ownerCalendarId = payloadEvents[instance.eventId]?.calendarId
+                ?: eventDao.findEvent(instance.eventId)?.calendarId
+            require(ownerCalendarId == null || ownerCalendarId == calendarId) {
+                "Instance ${instance.instanceId} references an event owned by another calendar"
+            }
+        }
+    }
+
+    private suspend fun upsertEvents(events: List<CalendarEvent>) {
+        for (event in events) {
+            val entity = event.toEntity()
+            if (eventDao.findEvent(event.id) == null) {
+                eventDao.insertEvent(entity)
+            } else {
+                eventDao.updateEvent(entity)
+            }
+        }
     }
 
     private suspend fun mergeCoverage(calendarId: String, range: TimeRange) {

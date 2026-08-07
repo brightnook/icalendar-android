@@ -1,14 +1,19 @@
 package com.victor2319.ioscalendar.data
 
 import androidx.room.Dao
+import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface EventDao {
-    @Upsert
-    suspend fun upsertEvents(events: List<EventEntity>)
+    @Insert
+    suspend fun insertEvent(event: EventEntity)
+
+    @Update
+    suspend fun updateEvent(event: EventEntity)
 
     @Upsert
     suspend fun upsertInstances(instances: List<EventInstanceEntity>)
@@ -24,6 +29,9 @@ interface EventDao {
 
     @Query("SELECT * FROM event_masters WHERE id = :eventId")
     suspend fun findEvent(eventId: String): EventEntity?
+
+    @Query("SELECT * FROM event_instances WHERE instanceId = :instanceId")
+    suspend fun findInstance(instanceId: String): EventInstanceEntity?
 
     @Query("SELECT COUNT(*) FROM event_masters")
     suspend fun eventCount(): Int

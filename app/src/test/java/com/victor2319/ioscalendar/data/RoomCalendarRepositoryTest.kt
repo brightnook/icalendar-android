@@ -169,6 +169,54 @@ class RoomCalendarRepositoryTest {
     }
 
     @Test
+    fun boundedSnapshotRemovesOnlyOverlappingAllDayInstancesUsingHalfOpenDates() = runTest {
+        // Catches skipping all-day replacement or treating end/start boundary equality as overlap.
+        val overlapping = event("all-day-overlap", allDay = true)
+        val endsAtStart = event("all-day-ends-at-start", allDay = true)
+        val startsAtEnd = event("all-day-starts-at-end", allDay = true)
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(overlapping, endsAtStart, startsAtEnd),
+                instances = listOf(
+                    allDayInstance(
+                        "all-day-overlap",
+                        LocalDate.parse("2026-01-10"),
+                        LocalDate.parse("2026-01-11"),
+                    ),
+                    allDayInstance(
+                        "all-day-ends-at-start",
+                        LocalDate.parse("2026-01-09"),
+                        LocalDate.parse("2026-01-10"),
+                    ),
+                    allDayInstance(
+                        "all-day-starts-at-end",
+                        LocalDate.parse("2026-01-11"),
+                        LocalDate.parse("2026-01-12"),
+                    ),
+                ),
+                coverage = TimeRange(
+                    Instant.parse("2026-01-09T00:00:00Z"),
+                    Instant.parse("2026-01-12T00:00:00Z"),
+                ),
+            ),
+        )
+        val tokyoDay = TimeRange(
+            Instant.parse("2026-01-09T15:00:00Z"),
+            Instant.parse("2026-01-10T15:00:00Z"),
+            ZoneId.of("Asia/Tokyo"),
+        )
+
+        repository.replaceCalendarSnapshot(
+            snapshot(events = emptyList(), instances = emptyList(), coverage = tokyoDay),
+        )
+
+        assertNull(database.eventDao().findInstance("all-day-overlap-instance"))
+        assertNotNull(database.eventDao().findInstance("all-day-ends-at-start-instance"))
+        assertNotNull(database.eventDao().findInstance("all-day-starts-at-end-instance"))
+        assertNotNull(database.eventDao().findEvent(overlapping.id))
+    }
+
+    @Test
     fun calendarDeltaUpsertsAndDeletesByUidAndInstanceId() = runTest {
         // Catches a partial delta that deletes only masters or ignores explicit instance tombstones.
         repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents())
@@ -191,6 +239,152 @@ class RoomCalendarRepositoryTest {
         assertNull(database.eventDao().findEvent("09:00-event"))
         assertNotNull(database.eventDao().findEvent("14:00-event"))
         assertEquals("delta-token", database.syncStateDao().find("work")!!.syncToken)
+    }
+
+    @Test
+    fun snapshotRejectsInstanceOwnedByAnotherCalendarWithoutChangingEitherCalendar() = runTest {
+        // Catches a snapshot advancing calendar A while an instance targets a master owned by B.
+        repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents().copy(syncToken = "work-before"))
+        val personalEvent = event("personal-existing", calendarId = "personal")
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(personalEvent),
+                instances = listOf(
+                    timedInstance(
+                        title = "personal-existing",
+                        start = "2026-01-10T11:00:00Z",
+                        end = "2026-01-10T12:00:00Z",
+                        calendarId = "personal",
+                    ),
+                ),
+                calendar = personalCalendar,
+                syncToken = "personal-before",
+            ),
+        )
+        val crossOwnedInstance = timedInstance(
+            title = "cross-owned",
+            start = "2026-01-10T16:00:00Z",
+            end = "2026-01-10T17:00:00Z",
+            calendarId = "work",
+            eventId = personalEvent.id,
+        )
+
+        val failure = runCatching {
+            repository.replaceCalendarSnapshot(
+                snapshot(
+                    events = emptyList(),
+                    instances = listOf(crossOwnedInstance),
+                    calendar = workCalendar.copy(name = "Mutated work"),
+                    syncToken = "work-after",
+                ),
+            )
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalArgumentException)
+        assertEquals("Work", repository.observeCalendars().first().single { it.id == "work" }.name)
+        assertEquals("work-before", database.syncStateDao().find("work")!!.syncToken)
+        assertEquals("personal-before", database.syncStateDao().find("personal")!!.syncToken)
+        assertEquals(
+            listOf("all-day", "09:00", "14:00"),
+            repository.observeAgenda(dayRange, setOf("work")).first().map { it.title },
+        )
+        assertEquals(
+            listOf("personal-existing"),
+            repository.observeAgenda(dayRange, setOf("personal")).first().map { it.title },
+        )
+    }
+
+    @Test
+    fun deltaRejectsForeignCalendarRowsWithoutChangingEitherCalendar() = runTest {
+        // Catches a delta for A silently upserting B while advancing or deleting from A.
+        repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents().copy(syncToken = "work-before"))
+        val personalEvent = event("personal-existing", calendarId = "personal")
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(personalEvent),
+                instances = listOf(
+                    timedInstance(
+                        title = "personal-existing",
+                        start = "2026-01-10T11:00:00Z",
+                        end = "2026-01-10T12:00:00Z",
+                        calendarId = "personal",
+                    ),
+                ),
+                calendar = personalCalendar,
+                syncToken = "personal-before",
+            ),
+        )
+        val foreignEvent = event("foreign-delta", calendarId = "personal")
+
+        val failure = runCatching {
+            repository.applyCalendarDelta(
+                CalendarDelta(
+                    calendarId = "work",
+                    upsertEvents = listOf(foreignEvent),
+                    upsertInstances = listOf(
+                        timedInstance(
+                            title = "foreign-delta",
+                            start = "2026-01-10T16:00:00Z",
+                            end = "2026-01-10T17:00:00Z",
+                            calendarId = "personal",
+                        ),
+                    ),
+                    deletedEventUids = setOf("09:00-uid"),
+                    deletedInstanceIds = setOf("14:00-instance"),
+                    syncToken = "work-after",
+                ),
+            )
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalArgumentException)
+        assertEquals("work-before", database.syncStateDao().find("work")!!.syncToken)
+        assertEquals("personal-before", database.syncStateDao().find("personal")!!.syncToken)
+        assertNull(database.eventDao().findEvent(foreignEvent.id))
+        assertEquals(
+            listOf("all-day", "09:00", "14:00"),
+            repository.observeAgenda(dayRange, setOf("work")).first().map { it.title },
+        )
+        assertEquals(
+            listOf("personal-existing"),
+            repository.observeAgenda(dayRange, setOf("personal")).first().map { it.title },
+        )
+    }
+
+    @Test
+    fun failedDeltaForeignKeyRollsBackUpsertsAndPreservesPriorState() = runTest {
+        // Catches removing the outer transaction when a later instance insert violates a foreign key.
+        repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents().copy(syncToken = "before-delta"))
+        val validUpsert = event("atomic-new")
+        val orphanInstance = timedInstance(
+            title = "atomic-orphan",
+            start = "2026-01-10T16:00:00Z",
+            end = "2026-01-10T17:00:00Z",
+            eventId = "missing-master",
+        )
+
+        val failure = runCatching {
+            repository.applyCalendarDelta(
+                CalendarDelta(
+                    calendarId = "work",
+                    upsertEvents = listOf(validUpsert),
+                    upsertInstances = listOf(orphanInstance),
+                    deletedEventUids = setOf("09:00-uid"),
+                    deletedInstanceIds = setOf("14:00-instance"),
+                    syncToken = "after-delta",
+                ),
+            )
+        }.exceptionOrNull()
+
+        assertNotNull(failure)
+        assertTrue(failure!!.hasCauseNamed("SQLiteConstraintException"))
+        assertNull(database.eventDao().findEvent(validUpsert.id))
+        assertEquals(
+            listOf("all-day", "09:00", "14:00"),
+            repository.observeAgenda(dayRange, setOf("work")).first().map { it.title },
+        )
+        assertNotNull(database.eventDao().findEvent("09:00-event"))
+        assertNotNull(database.eventDao().findInstance("14:00-instance"))
+        assertEquals("before-delta", database.syncStateDao().find("work")!!.syncToken)
     }
 
     @Test
@@ -239,6 +433,59 @@ class RoomCalendarRepositoryTest {
         assertEquals(0, database.eventDao().instanceCount())
         assertEquals(0, database.syncStateDao().syncStateCount())
         assertEquals(0, database.syncStateDao().coverageCount())
+    }
+
+    @Test
+    fun recurrenceKeyIsUniqueWithinCalendarAndLegalAcrossCalendars() = runTest {
+        // Catches removing the composite recurrence index or accidentally making it global.
+        val personalShared = event(
+            title = "personal-shared",
+            calendarId = "personal",
+            uid = "shared-uid",
+            recurrenceId = "20260110T090000Z",
+        )
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(personalShared),
+                instances = emptyList(),
+                calendar = personalCalendar,
+                syncToken = "personal-token",
+            ),
+        )
+        val workShared = event(
+            title = "work-shared",
+            uid = "shared-uid",
+            recurrenceId = "20260110T090000Z",
+        )
+        repository.replaceCalendarSnapshot(
+            snapshot(events = listOf(workShared), instances = emptyList(), syncToken = "work-before"),
+        )
+        val duplicateWorkKey = event(
+            title = "work-duplicate",
+            uid = "shared-uid",
+            recurrenceId = "20260110T090000Z",
+        )
+
+        val failure = runCatching {
+            repository.replaceCalendarSnapshot(
+                snapshot(
+                    events = listOf(workShared.copy(title = "mutated"), duplicateWorkKey),
+                    instances = emptyList(),
+                    calendar = workCalendar.copy(name = "Mutated work"),
+                    syncToken = "work-after",
+                ),
+            )
+        }.exceptionOrNull()
+
+        assertNotNull(failure)
+        assertTrue(failure!!.hasCauseNamed("SQLiteConstraintException"))
+        assertEquals("Work", repository.observeCalendars().first().single { it.id == "work" }.name)
+        assertEquals("work-shared", database.eventDao().findEvent(workShared.id)!!.title)
+        assertNull(database.eventDao().findEvent(duplicateWorkKey.id))
+        assertEquals("work-before", database.syncStateDao().find("work")!!.syncToken)
+        assertEquals("personal-token", database.syncStateDao().find("personal")!!.syncToken)
+        assertNotNull(database.eventDao().findEvent(personalShared.id))
+        assertEquals(1, database.syncStateDao().coverageForCalendar("work").size)
     }
 
     @Test
@@ -307,13 +554,21 @@ class RoomCalendarRepositoryTest {
         instances: List<EventInstance>,
         coverage: TimeRange = dayRange,
         syncToken: String? = "sync-token",
-    ) = CalendarSnapshot(workCalendar, events, instances, syncToken, coverage)
+        calendar: CalendarSummary = workCalendar,
+    ) = CalendarSnapshot(calendar, events, instances, syncToken, coverage)
 
-    private fun event(title: String, allDay: Boolean = false) = CalendarEvent(
-        id = "$title-event",
-        calendarId = "work",
-        uid = "$title-uid",
-        recurrenceId = null,
+    private fun event(
+        title: String,
+        allDay: Boolean = false,
+        calendarId: String = "work",
+        uid: String = "$title-uid",
+        recurrenceId: String? = null,
+        id: String = "$title-event",
+    ) = CalendarEvent(
+        id = id,
+        calendarId = calendarId,
+        uid = uid,
+        recurrenceId = recurrenceId,
         title = title,
         location = if (title == "09:00") "Room 9" else null,
         notes = "notes-$title",
@@ -323,10 +578,17 @@ class RoomCalendarRepositoryTest {
         status = EventStatus.CONFIRMED,
     )
 
-    private fun timedInstance(title: String, start: String, end: String) = EventInstance(
-        instanceId = "$title-instance",
-        eventId = "$title-event",
-        calendarId = "work",
+    private fun timedInstance(
+        title: String,
+        start: String,
+        end: String,
+        calendarId: String = "work",
+        eventId: String = "$title-event",
+        instanceId: String = "$title-instance",
+    ) = EventInstance(
+        instanceId = instanceId,
+        eventId = eventId,
+        calendarId = calendarId,
         title = title,
         calendarColorArgb = workCalendar.colorArgb,
         isAllDay = false,
@@ -337,10 +599,17 @@ class RoomCalendarRepositoryTest {
         location = if (title == "09:00") "Room 9" else null,
     )
 
-    private fun allDayInstance(title: String, start: LocalDate, end: LocalDate) = EventInstance(
-        instanceId = "$title-instance",
-        eventId = "$title-event",
-        calendarId = "work",
+    private fun allDayInstance(
+        title: String,
+        start: LocalDate,
+        end: LocalDate,
+        calendarId: String = "work",
+        eventId: String = "$title-event",
+        instanceId: String = "$title-instance",
+    ) = EventInstance(
+        instanceId = instanceId,
+        eventId = eventId,
+        calendarId = calendarId,
         title = title,
         calendarColorArgb = workCalendar.colorArgb,
         isAllDay = true,
@@ -356,5 +625,6 @@ class RoomCalendarRepositoryTest {
 
     private companion object {
         val workCalendar = CalendarSummary("work", "Work", 0xFF3366CC.toInt(), true)
+        val personalCalendar = CalendarSummary("personal", "Personal", 0xFFAA3366.toInt(), true)
     }
 }
