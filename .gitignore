@@ -1,3 +1,5 @@
+.worktrees/
+.superpowers/
 .gradle/
 .idea/
 build/
