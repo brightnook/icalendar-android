@@ -41,6 +41,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
@@ -63,5 +67,10 @@ dependencies {
     implementation(libs.ical4j)
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit4)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
     testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.junit.vintage.engine)
 }

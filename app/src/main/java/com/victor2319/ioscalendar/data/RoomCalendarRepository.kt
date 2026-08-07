@@ -1,0 +1,139 @@
+package com.victor2319.ioscalendar.data
+
+import androidx.room.withTransaction
+import com.victor2319.ioscalendar.domain.CalendarDelta
+import com.victor2319.ioscalendar.domain.CalendarRepository
+import com.victor2319.ioscalendar.domain.CalendarSnapshot
+import com.victor2319.ioscalendar.domain.CalendarSummary
+import com.victor2319.ioscalendar.domain.EventDetail
+import com.victor2319.ioscalendar.domain.EventInstance
+import com.victor2319.ioscalendar.domain.TimeRange
+import java.time.LocalDate
+import java.time.ZoneId
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+
+class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarRepository {
+    private val calendarDao = database.calendarDao()
+    private val eventDao = database.eventDao()
+    private val syncStateDao = database.syncStateDao()
+
+    override fun observeCalendars(): Flow<List<CalendarSummary>> =
+        calendarDao.observeAll().map { calendars -> calendars.map(CalendarEntity::toDomain) }
+
+    override fun observeAgenda(
+        range: TimeRange,
+        calendarIds: Set<String>,
+    ): Flow<List<EventInstance>> {
+        if (calendarIds.isEmpty()) return flowOf(emptyList())
+        val dates = range.localDateBounds()
+        return eventDao.observeAgenda(
+            calendarIds = calendarIds,
+            startEpochMillis = range.start.toEpochMilli(),
+            endEpochMillis = range.endExclusive.toEpochMilli(),
+            startDate = dates.first.toString(),
+            endDateExclusive = dates.second.toString(),
+        ).map { rows -> rows.map(EventInstanceRow::toDomain) }
+    }
+
+    override fun observeDay(day: LocalDate, zoneId: ZoneId): Flow<List<EventInstance>> {
+        val start = day.atStartOfDay(zoneId).toInstant()
+        val end = day.plusDays(1).atStartOfDay(zoneId).toInstant()
+        return eventDao.observeVisibleRange(
+            startEpochMillis = start.toEpochMilli(),
+            endEpochMillis = end.toEpochMilli(),
+            startDate = day.toString(),
+            endDateExclusive = day.plusDays(1).toString(),
+        ).map { rows -> rows.map(EventInstanceRow::toDomain) }
+    }
+
+    override fun observeEvent(instanceId: String): Flow<EventDetail?> =
+        eventDao.observeEvent(instanceId).map { it?.toDomain() }
+
+    override suspend fun replaceCalendarSnapshot(snapshot: CalendarSnapshot) {
+        database.withTransaction {
+            val existing = calendarDao.find(snapshot.calendar.id)
+            calendarDao.upsert(
+                snapshot.calendar.copy(
+                    isVisible = existing?.isVisible ?: snapshot.calendar.isVisible,
+                ).toEntity(),
+            )
+            val overlappingIds = eventDao.instancesForCalendar(snapshot.calendar.id)
+                .filter { it.overlaps(snapshot.coverage) }
+                .map(EventInstanceEntity::instanceId)
+            if (overlappingIds.isNotEmpty()) {
+                eventDao.deleteInstances(snapshot.calendar.id, overlappingIds)
+            }
+            if (snapshot.events.isNotEmpty()) eventDao.upsertEvents(snapshot.events.map { it.toEntity() })
+            if (snapshot.instances.isNotEmpty()) {
+                eventDao.upsertInstances(snapshot.instances.map { it.toEntity() })
+            }
+            syncStateDao.upsert(SyncStateEntity(snapshot.calendar.id, snapshot.syncToken))
+            mergeCoverage(snapshot.calendar.id, snapshot.coverage)
+        }
+    }
+
+    override suspend fun applyCalendarDelta(delta: CalendarDelta) {
+        database.withTransaction {
+            if (delta.upsertEvents.isNotEmpty()) eventDao.upsertEvents(delta.upsertEvents.map { it.toEntity() })
+            if (delta.upsertInstances.isNotEmpty()) {
+                eventDao.upsertInstances(delta.upsertInstances.map { it.toEntity() })
+            }
+            if (delta.deletedEventUids.isNotEmpty()) {
+                eventDao.deleteEventsByUid(delta.calendarId, delta.deletedEventUids)
+            }
+            if (delta.deletedInstanceIds.isNotEmpty()) {
+                eventDao.deleteInstances(delta.calendarId, delta.deletedInstanceIds)
+            }
+            syncStateDao.upsert(SyncStateEntity(delta.calendarId, delta.syncToken))
+        }
+    }
+
+    override suspend fun setCalendarVisible(calendarId: String, visible: Boolean) {
+        calendarDao.setVisible(calendarId, visible)
+    }
+
+    override suspend fun recordCoverage(calendarId: String, range: TimeRange) {
+        database.withTransaction { mergeCoverage(calendarId, range) }
+    }
+
+    override suspend fun clearCalendarCache() {
+        database.withTransaction { calendarDao.deleteAll() }
+    }
+
+    private suspend fun mergeCoverage(calendarId: String, range: TimeRange) {
+        val zoneId = range.zoneId.id
+        val ranges = syncStateDao.coverageForCalendar(calendarId)
+            .filter { it.zoneId == zoneId }
+            .plus(range.toCoverageEntity(calendarId))
+            .sortedBy(CoverageEntity::startEpochMillis)
+        val merged = ranges.fold(mutableListOf<CoverageEntity>()) { result, next ->
+            val current = result.lastOrNull()
+            if (current != null && next.startEpochMillis <= current.endEpochMillis) {
+                result[result.lastIndex] = current.copy(
+                    endEpochMillis = maxOf(current.endEpochMillis, next.endEpochMillis),
+                )
+            } else {
+                result += next
+            }
+            result
+        }
+        syncStateDao.deleteCoverageForZone(calendarId, zoneId)
+        syncStateDao.upsertCoverage(merged)
+    }
+}
+
+private fun TimeRange.localDateBounds(): Pair<LocalDate, LocalDate> {
+    val startDate = start.atZone(zoneId).toLocalDate()
+    val endDateExclusive = endExclusive.minusNanos(1).atZone(zoneId).toLocalDate().plusDays(1)
+    return startDate to endDateExclusive
+}
+
+private fun EventInstanceEntity.overlaps(range: TimeRange): Boolean = if (isAllDay) {
+    val bounds = range.localDateBounds()
+    LocalDate.parse(startDate).isBefore(bounds.second) && LocalDate.parse(endDateExclusive).isAfter(bounds.first)
+} else {
+    requireNotNull(startEpochMillis) < range.endExclusive.toEpochMilli() &&
+        requireNotNull(endEpochMillis) > range.start.toEpochMilli()
+}
