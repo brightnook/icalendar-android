@@ -73,4 +73,10 @@ dependencies {
     testImplementation(libs.robolectric)
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit.vintage.engine)
+
+    androidTestImplementation(libs.androidx.test.core.ktx)
+    androidTestImplementation(libs.androidx.test.ext.junit.ktx)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.junit4)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }
