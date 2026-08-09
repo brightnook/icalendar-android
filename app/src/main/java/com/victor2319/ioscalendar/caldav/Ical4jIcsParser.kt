@@ -66,7 +66,7 @@ class Ical4jIcsParser : IcsParser {
         val expanded = mutableListOf<ParsedInstance>()
 
         masters.filter { it.parsed.status != EventStatus.CANCELLED }.forEach { master ->
-            recurrenceExpander.expand(master.component, range, displayZone)
+            recurrenceExpander.expand(master.component, master.sourceSpan, range, displayZone)
                 .asSequence()
                 .filterNot { canonicalTemporalIdentity(it.identity) in overrideKeys }
                 .map { master.toInstance(it, displayZone) }
@@ -75,7 +75,12 @@ class Ical4jIcsParser : IcsParser {
         }
 
         overrides.filter { it.parsed.status != EventStatus.CANCELLED }.forEach { override ->
-            val occurrence = recurrenceExpander.expand(override.component, range, displayZone).singleOrNull()
+            val occurrence = recurrenceExpander.expand(
+                override.component,
+                override.sourceSpan,
+                range,
+                displayZone,
+            ).singleOrNull()
                 ?: override.singleOccurrence()
             override.toInstance(occurrence, displayZone)
                 .takeIf { it.overlaps(range, displayZone) }
@@ -247,8 +252,6 @@ class Ical4jIcsParser : IcsParser {
         val sourceSpan: SourceSpan,
     )
 
-    private data class SourceSpan(val start: Temporal, val endExclusive: Temporal)
-
     companion object {
         private val MAX_EXPANSION_RANGE: Duration = Duration.ofDays(400)
         private const val SECONDS_PER_DAY = 86_400L
@@ -260,3 +263,5 @@ class Ical4jIcsParser : IcsParser {
 
     }
 }
+
+internal data class SourceSpan(val start: Temporal, val endExclusive: Temporal)

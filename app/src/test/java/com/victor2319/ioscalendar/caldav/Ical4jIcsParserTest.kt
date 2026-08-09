@@ -328,6 +328,59 @@ class Ical4jIcsParserTest {
     }
 
     @Test
+    fun distantSparseDailyCountFailsBeforeIcal4jCanSilentlyTruncate() {
+        val ics = singleEventWithTimeProperties(
+            "DTSTART:20000101T090000Z",
+            "DTEND:20000101T100000Z",
+            "RRULE:FREQ=DAILY;COUNT=100000;BYMONTH=2;BYMONTHDAY=29",
+        )
+
+        assertThrows(IcsParseException::class.java) {
+            parser.parse(
+                ics,
+                utcRange("2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z"),
+                ZoneId.of("UTC"),
+            )
+        }
+    }
+
+    @Test
+    fun distantDenseHourlyCountFailsBeforeScanningHundredsOfThousandsOfIntervals() {
+        val ics = singleEventWithTimeProperties(
+            "DTSTART:20000101T090000Z",
+            "DTEND:20000101T100000Z",
+            "RRULE:FREQ=HOURLY;COUNT=1000000",
+        )
+
+        assertTimeoutPreemptively(Duration.ofSeconds(5)) {
+            assertThrows(IcsParseException::class.java) {
+                parser.parse(
+                    ics,
+                    utcRange("2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z"),
+                    ZoneId.of("UTC"),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun longDurationRecurrenceFailsBeforeExpandingItsEffectiveQueryWindow() {
+        val ics = singleEventWithTimeProperties(
+            "DTSTART:20260810T090000Z",
+            "DURATION:P10001D",
+            "RRULE:FREQ=DAILY;COUNT=2",
+        )
+
+        assertThrows(IcsParseException::class.java) {
+            parser.parse(
+                ics,
+                utcRange("2026-08-10T00:00:00Z", "2026-08-11T00:00:00Z"),
+                ZoneId.of("UTC"),
+            )
+        }
+    }
+
+    @Test
     fun malformedIcsFailsWithTypedParseException() {
         val error = assertThrows(IcsParseException::class.java) {
             parser.parse(
