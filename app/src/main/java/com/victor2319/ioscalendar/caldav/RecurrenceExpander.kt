@@ -64,7 +64,7 @@ internal class RecurrenceExpander {
                 throw IcsParseException("Filtered HOURLY recurrence rules are not supported safely")
             }
             val interval = max(1, recur.interval)
-            val iterationWork = recurrenceSteps(
+            val distanceWork = recurrenceSteps(
                 sourceSpan.start,
                 queryWindow.endExclusive,
                 recur.frequency,
@@ -74,10 +74,19 @@ internal class RecurrenceExpander {
                 recurrenceSteps(queryWindow.start, queryWindow.endExclusive, recur.frequency, interval),
                 recurrenceSteps(sourceSpan.start, sourceSpan.endExclusive, recur.frequency, interval),
             )
-            if (iterationWork > MAX_RECURRENCE_WORK || effectiveWindowWork > MAX_RECURRENCE_WORK) {
+            val potentiallyEmpty = hasPotentiallyEmptyIncrement(recur)
+            val seedTraversalWork = when {
+                potentiallyEmpty -> distanceWork
+                recur.count > 0 -> minOf(
+                    distanceWork,
+                    saturatedAdd(recur.count.toLong(), WORK_MARGIN),
+                )
+                else -> saturatedAdd(fastForwardWork(distanceWork), effectiveWindowWork)
+            }
+            if (seedTraversalWork > MAX_RECURRENCE_WORK || effectiveWindowWork > MAX_RECURRENCE_WORK) {
                 throw IcsParseException("Recurrence expansion exceeds $MAX_RECURRENCE_WORK work units")
             }
-            if (hasPotentiallyEmptyIncrement(recur) && iterationWork > MAX_SAFE_EMPTY_INCREMENT_WORK) {
+            if (potentiallyEmpty && distanceWork > MAX_SAFE_EMPTY_INCREMENT_WORK) {
                 throw IcsParseException("Filtered recurrence may exceed iCal4j's safe increment limit")
             }
 
@@ -107,7 +116,9 @@ internal class RecurrenceExpander {
             recur.yearDayList.isNotEmpty()
 
     private fun hasPotentiallyEmptyIncrement(recur: net.fortuna.ical4j.model.Recur<Temporal>): Boolean =
-        hasCalendarDateFilter(recur) || recur.setPosList.isNotEmpty()
+        hasCalendarDateFilter(recur) ||
+            recur.setPosList.isNotEmpty() ||
+            (recur.frequency == Frequency.HOURLY && recur.hourList.isNotEmpty())
 
     private fun recurrenceSteps(
         start: Temporal,
@@ -146,6 +157,17 @@ internal class RecurrenceExpander {
             ChronoUnit.DAYS.between(startDateTime.toLocalDate(), endDateTime.toLocalDate()).coerceAtLeast(0L),
             WORK_MARGIN,
         )
+    }
+
+    private fun fastForwardWork(distanceWork: Long): Long {
+        if (distanceWork > MAX_ICAL_FAST_FORWARD_STEPS) return BUDGET_OVERFLOW
+        var remaining = distanceWork
+        var binarySearchDepth = 0L
+        while (remaining > 1L) {
+            remaining = ceilDiv(remaining, 2L)
+            binarySearchDepth += 1L
+        }
+        return saturatedAdd(saturatedMultiply(binarySearchDepth, 2L), WORK_MARGIN)
     }
 
     private fun Temporal.toBudgetDateTime(): LocalDateTime = when (this) {
@@ -234,6 +256,7 @@ internal class RecurrenceExpander {
         const val WORK_MARGIN = 2L
         const val DAYS_PER_WEEK = 7L
         const val BUDGET_OVERFLOW = Long.MAX_VALUE
+        const val MAX_ICAL_FAST_FORWARD_STEPS = (1L shl 30) - 1L
         val UTC: ZoneId = ZoneId.of("UTC")
         val SAFE_FREQUENCIES = setOf(
             Frequency.HOURLY,

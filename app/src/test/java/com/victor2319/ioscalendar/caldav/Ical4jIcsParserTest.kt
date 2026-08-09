@@ -364,6 +364,58 @@ class Ical4jIcsParserTest {
     }
 
     @Test
+    fun distantUnfilteredHourlySmallCountStopsBeforeTheRequestedRange() {
+        val parsed = parser.parse(
+            singleEventWithTimeProperties(
+                "DTSTART:20000101T090000Z",
+                "DURATION:P15D",
+                "RRULE:FREQ=HOURLY;COUNT=2",
+            ),
+            utcRange("2026-01-01T00:00:00Z", "2027-02-05T00:00:00Z"),
+            ZoneId.of("UTC"),
+        )
+
+        assertTrue(parsed.instances.isEmpty())
+    }
+
+    @Test
+    fun distantUnfilteredHourlyWithoutCountFastForwardsToTheBoundedWindow() {
+        val parsed = parser.parse(
+            singleEventWithTimeProperties(
+                "DTSTART:20000101T090000Z",
+                "DTEND:20000101T100000Z",
+                "RRULE:FREQ=HOURLY",
+            ),
+            utcRange("2026-03-01T00:00:00Z", "2026-03-01T03:00:00Z"),
+            ZoneId.of("UTC"),
+        )
+
+        assertEquals(
+            listOf(
+                Instant.parse("2026-03-01T00:00:00Z"),
+                Instant.parse("2026-03-01T01:00:00Z"),
+                Instant.parse("2026-03-01T02:00:00Z"),
+            ),
+            parsed.instances.map { it.startInstant },
+        )
+    }
+
+    @Test
+    fun distantHourlyByHourFilterRetainsTheStrictEmptyIncrementGuard() {
+        assertThrows(IcsParseException::class.java) {
+            parser.parse(
+                singleEventWithTimeProperties(
+                    "DTSTART:20000101T090000Z",
+                    "DTEND:20000101T100000Z",
+                    "RRULE:FREQ=HOURLY;COUNT=2;BYHOUR=9",
+                ),
+                utcRange("2026-03-01T00:00:00Z", "2026-03-01T03:00:00Z"),
+                ZoneId.of("UTC"),
+            )
+        }
+    }
+
+    @Test
     fun longDurationRecurrenceFailsBeforeExpandingItsEffectiveQueryWindow() {
         val ics = singleEventWithTimeProperties(
             "DTSTART:20260810T090000Z",
