@@ -5,6 +5,8 @@ import com.victor2319.ioscalendar.domain.EventInstance
 import com.victor2319.ioscalendar.domain.EventStatus
 import java.time.Instant
 import java.time.LocalDate
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 
 data class ParsedEvent(
     val id: String,
@@ -19,7 +21,7 @@ data class ParsedEvent(
     val status: EventStatus,
 ) {
     fun toDomain(calendarId: String): CalendarEvent = CalendarEvent(
-        id = id,
+        id = stableId("domain-event", calendarId, id),
         calendarId = calendarId,
         uid = uid,
         recurrenceId = recurrenceId,
@@ -47,8 +49,8 @@ data class ParsedInstance(
     val endDateExclusive: LocalDate?,
 ) {
     fun toDomain(calendarId: String, calendarColorArgb: Int): EventInstance = EventInstance(
-        instanceId = instanceId,
-        eventId = eventId,
+        instanceId = stableId("domain-instance", calendarId, instanceId),
+        eventId = stableId("domain-event", calendarId, eventId),
         calendarId = calendarId,
         title = title,
         calendarColorArgb = calendarColorArgb,
@@ -59,4 +61,20 @@ data class ParsedInstance(
         endDateExclusive = endDateExclusive,
         location = location,
     )
+}
+
+internal fun parsedEventId(uid: String, canonicalRecurrenceIdentity: String?): String =
+    stableId("parsed-event", uid, canonicalRecurrenceIdentity ?: "MASTER")
+
+internal fun parsedInstanceId(uid: String, canonicalOccurrenceIdentity: String): String =
+    stableId("parsed-instance", uid, canonicalOccurrenceIdentity)
+
+private fun stableId(namespace: String, vararg parts: String): String {
+    val material = buildString {
+        append(namespace.length).append(':').append(namespace)
+        parts.forEach { part -> append(part.length).append(':').append(part) }
+    }
+    return MessageDigest.getInstance("SHA-256")
+        .digest(material.toByteArray(StandardCharsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
 }
