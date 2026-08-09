@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.room.Room
 import com.victor2319.ioscalendar.auth.CredentialsStore
 import com.victor2319.ioscalendar.auth.KeystoreCredentialsStore
+import com.victor2319.ioscalendar.caldav.CalDavGateway
+import com.victor2319.ioscalendar.caldav.ICloudCalDavGateway
 import com.victor2319.ioscalendar.data.CalendarDatabase
 import com.victor2319.ioscalendar.data.RoomCalendarRepository
 import com.victor2319.ioscalendar.domain.CalendarRepository
@@ -15,4 +17,5 @@ class AppContainer(val application: Application) {
 
     val calendarRepository: CalendarRepository by lazy { RoomCalendarRepository(database) }
     val credentialsStore: CredentialsStore by lazy { KeystoreCredentialsStore(application) }
+    val calDavGateway: CalDavGateway by lazy { ICloudCalDavGateway() }
 }

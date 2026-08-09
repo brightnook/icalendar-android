@@ -38,6 +38,7 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 okhttp = { module = "com.squareup.okhttp3:okhttp" }
 okhttp-bom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp" }
+okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 [plugins]

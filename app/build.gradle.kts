@@ -70,6 +70,7 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.robolectric)
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit.vintage.engine)
