@@ -6,11 +6,13 @@ import com.victor2319.ioscalendar.domain.CalendarEvent
 import com.victor2319.ioscalendar.domain.CalendarRepository
 import com.victor2319.ioscalendar.domain.CalendarSnapshot
 import com.victor2319.ioscalendar.domain.CalendarSummary
+import com.victor2319.ioscalendar.domain.CalendarSyncState
 import com.victor2319.ioscalendar.domain.EventDetail
 import com.victor2319.ioscalendar.domain.EventInstance
 import com.victor2319.ioscalendar.domain.TimeRange
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -52,6 +54,17 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
     override fun observeEvent(instanceId: String): Flow<EventDetail?> =
         eventDao.observeEvent(instanceId).map { it?.toDomain() }
 
+    override suspend fun getSyncState(calendarId: String): CalendarSyncState = CalendarSyncState(
+        syncToken = syncStateDao.find(calendarId)?.syncToken,
+        coverage = syncStateDao.coverageForCalendar(calendarId).map { coverage ->
+            TimeRange(
+                start = Instant.ofEpochMilli(coverage.startEpochMillis),
+                endExclusive = Instant.ofEpochMilli(coverage.endEpochMillis),
+                zoneId = ZoneId.of(coverage.zoneId),
+            )
+        },
+    )
+
     override suspend fun replaceCalendarSnapshot(snapshot: CalendarSnapshot) {
         database.withTransaction {
             validatePayload(snapshot.calendar.id, snapshot.events, snapshot.instances)
@@ -79,6 +92,9 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
     override suspend fun applyCalendarDelta(delta: CalendarDelta) {
         database.withTransaction {
             validatePayload(delta.calendarId, delta.upsertEvents, delta.upsertInstances)
+            if (delta.deletedResourceHrefs.isNotEmpty()) {
+                eventDao.deleteEventsByResourceHref(delta.calendarId, delta.deletedResourceHrefs)
+            }
             upsertEvents(delta.upsertEvents)
             if (delta.upsertInstances.isNotEmpty()) {
                 eventDao.upsertInstances(delta.upsertInstances.map { it.toEntity() })

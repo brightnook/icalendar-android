@@ -242,6 +242,159 @@ class RoomCalendarRepositoryTest {
     }
 
     @Test
+    fun getSyncStateReturnsCommittedTokenAndCoverageAsDomainRanges() = runTest {
+        // Catches the coordinator seeing DAO entities, losing zones, or reading an uncommitted token separately.
+        val tokyoRange = TimeRange(
+            Instant.parse("2026-01-31T15:00:00Z"),
+            Instant.parse("2026-02-28T15:00:00Z"),
+            ZoneId.of("Asia/Tokyo"),
+        )
+        repository.replaceCalendarSnapshot(
+            snapshot(emptyList(), emptyList(), coverage = tokyoRange, syncToken = "committed"),
+        )
+
+        val state = repository.getSyncState("work")
+
+        assertEquals("committed", state.syncToken)
+        assertEquals(listOf(tokyoRange), state.coverage)
+        assertEquals(null, repository.getSyncState("missing").syncToken)
+        assertTrue(repository.getSyncState("missing").coverage.isEmpty())
+    }
+
+    @Test
+    fun resourceTombstoneDeletesEveryMasterInThatResourceOnlyForTheTargetCalendar() = runTest {
+        // Catches UID guessing, deleting only one VEVENT, or deleting another calendar that reuses the href.
+        val sharedHref = "https://caldav.icloud.com/resource/shared.ics"
+        val first = event("first").copy(remoteResourceHref = sharedHref)
+        val override = event("override", uid = first.uid, recurrenceId = "20260110T100000Z")
+            .copy(remoteResourceHref = sharedHref)
+        val kept = event("kept").copy(remoteResourceHref = "https://caldav.icloud.com/resource/kept.ics")
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(first, override, kept),
+                instances = listOf(
+                    timedInstance("first", "2026-01-10T08:00:00Z", "2026-01-10T09:00:00Z"),
+                    timedInstance(
+                        "override",
+                        "2026-01-10T10:00:00Z",
+                        "2026-01-10T11:00:00Z",
+                        eventId = override.id,
+                    ),
+                    timedInstance("kept", "2026-01-10T12:00:00Z", "2026-01-10T13:00:00Z"),
+                ),
+                syncToken = "work-before",
+            ),
+        )
+        val personal = event("personal", calendarId = "personal").copy(remoteResourceHref = sharedHref)
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(personal),
+                instances = listOf(
+                    timedInstance(
+                        "personal",
+                        "2026-01-10T14:00:00Z",
+                        "2026-01-10T15:00:00Z",
+                        calendarId = "personal",
+                    ),
+                ),
+                calendar = personalCalendar,
+                syncToken = "personal-before",
+            ),
+        )
+
+        repository.applyCalendarDelta(
+            CalendarDelta(
+                calendarId = "work",
+                upsertEvents = emptyList(),
+                upsertInstances = emptyList(),
+                deletedEventUids = emptySet(),
+                deletedInstanceIds = emptySet(),
+                deletedResourceHrefs = setOf(sharedHref),
+                syncToken = "work-after",
+            ),
+        )
+
+        assertNull(database.eventDao().findEvent(first.id))
+        assertNull(database.eventDao().findEvent(override.id))
+        assertNull(database.eventDao().findInstance("first-instance"))
+        assertNull(database.eventDao().findInstance("override-instance"))
+        assertNotNull(database.eventDao().findEvent(kept.id))
+        assertNotNull(database.eventDao().findEvent(personal.id))
+        assertEquals("work-after", database.syncStateDao().find("work")!!.syncToken)
+        assertEquals("personal-before", database.syncStateDao().find("personal")!!.syncToken)
+    }
+
+    @Test
+    fun failedDeltaRollsBackResourceDeletionAndTokenTogether() = runTest {
+        // Catches resource tombstones or tokens escaping the repository transaction when a later upsert fails.
+        val href = "https://caldav.icloud.com/resource/atomic.ics"
+        val existing = event("atomic-existing").copy(remoteResourceHref = href)
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                listOf(existing),
+                listOf(
+                    timedInstance(
+                        "atomic-existing",
+                        "2026-01-10T09:00:00Z",
+                        "2026-01-10T10:00:00Z",
+                    ),
+                ),
+                syncToken = "before",
+            ),
+        )
+        val orphan = timedInstance(
+            "atomic-orphan",
+            "2026-01-10T11:00:00Z",
+            "2026-01-10T12:00:00Z",
+            eventId = "missing-master",
+        )
+
+        val failure = runCatching {
+            repository.applyCalendarDelta(
+                CalendarDelta(
+                    calendarId = "work",
+                    upsertEvents = emptyList(),
+                    upsertInstances = listOf(orphan),
+                    deletedEventUids = emptySet(),
+                    deletedInstanceIds = emptySet(),
+                    deletedResourceHrefs = setOf(href),
+                    syncToken = "after",
+                ),
+            )
+        }.exceptionOrNull()
+
+        assertNotNull(failure)
+        assertNotNull(database.eventDao().findEvent(existing.id))
+        assertNotNull(database.eventDao().findInstance("atomic-existing-instance"))
+        assertEquals("before", database.syncStateDao().find("work")!!.syncToken)
+    }
+
+    @Test
+    fun resourceTombstoneDeletesTheOldResourceBeforeApplyingItsReplacement() = runTest {
+        // Catches deleting a freshly upserted replacement by processing the resource tombstone after upserts.
+        val href = "https://caldav.icloud.com/resource/rebuilt.ics"
+        val old = event("old-resource").copy(remoteResourceHref = href)
+        repository.replaceCalendarSnapshot(snapshot(listOf(old), emptyList(), syncToken = "before"))
+        val replacement = event("replacement-resource").copy(remoteResourceHref = href)
+
+        repository.applyCalendarDelta(
+            CalendarDelta(
+                calendarId = "work",
+                upsertEvents = listOf(replacement),
+                upsertInstances = emptyList(),
+                deletedEventUids = emptySet(),
+                deletedInstanceIds = emptySet(),
+                deletedResourceHrefs = setOf(href),
+                syncToken = "after",
+            ),
+        )
+
+        assertNull(database.eventDao().findEvent(old.id))
+        assertNotNull(database.eventDao().findEvent(replacement.id))
+        assertEquals("after", database.syncStateDao().find("work")!!.syncToken)
+    }
+
+    @Test
     fun snapshotRejectsInstanceOwnedByAnotherCalendarWithoutChangingEitherCalendar() = runTest {
         // Catches a snapshot advancing calendar A while an instance targets a master owned by B.
         repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents().copy(syncToken = "work-before"))
@@ -522,6 +675,9 @@ class RoomCalendarRepositoryTest {
                 endDateExclusive = LocalDate.parse("2026-01-11"),
                 location = null,
             )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            event("blank-resource").copy(remoteResourceHref = "   ")
         }
     }
 

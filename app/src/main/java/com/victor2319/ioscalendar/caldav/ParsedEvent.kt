@@ -20,7 +20,7 @@ data class ParsedEvent(
     val recurrenceRule: String?,
     val status: EventStatus,
 ) {
-    fun toDomain(calendarId: String): CalendarEvent = CalendarEvent(
+    fun toDomain(calendarId: String, remoteResourceHref: String? = null): CalendarEvent = CalendarEvent(
         id = stableId("domain-event", calendarId, id),
         calendarId = calendarId,
         uid = uid,
@@ -32,6 +32,7 @@ data class ParsedEvent(
         isAllDay = isAllDay,
         recurrenceRule = recurrenceRule,
         status = status,
+        remoteResourceHref = remoteResourceHref,
     )
 }
 

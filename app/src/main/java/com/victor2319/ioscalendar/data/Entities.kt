@@ -27,6 +27,7 @@ data class CalendarEntity(
         Index("calendarId"),
         Index(value = ["id", "calendarId"], unique = true),
         Index(value = ["calendarId", "uid", "recurrenceKey"], unique = true),
+        Index(value = ["calendarId", "remoteResourceHref"]),
     ],
 )
 data class EventEntity(
@@ -41,6 +42,7 @@ data class EventEntity(
     val isAllDay: Boolean,
     val recurrenceRule: String?,
     val status: String,
+    val remoteResourceHref: String?,
 )
 
 @Entity(

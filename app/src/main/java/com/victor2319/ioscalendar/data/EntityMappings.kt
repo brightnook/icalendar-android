@@ -25,6 +25,7 @@ internal fun CalendarEvent.toEntity() = EventEntity(
     isAllDay = isAllDay,
     recurrenceRule = recurrenceRule,
     status = status.name,
+    remoteResourceHref = remoteResourceHref,
 )
 
 internal fun EventEntity.toDomain() = CalendarEvent(
@@ -39,6 +40,7 @@ internal fun EventEntity.toDomain() = CalendarEvent(
     isAllDay = isAllDay,
     recurrenceRule = recurrenceRule,
     status = EventStatus.valueOf(status),
+    remoteResourceHref = remoteResourceHref,
 )
 
 internal fun EventInstance.toEntity() = EventInstanceEntity(

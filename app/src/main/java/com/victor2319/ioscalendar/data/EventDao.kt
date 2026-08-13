@@ -27,6 +27,9 @@ interface EventDao {
     @Query("DELETE FROM event_masters WHERE calendarId = :calendarId AND uid IN (:uids)")
     suspend fun deleteEventsByUid(calendarId: String, uids: Collection<String>)
 
+    @Query("DELETE FROM event_masters WHERE calendarId = :calendarId AND remoteResourceHref IN (:resourceHrefs)")
+    suspend fun deleteEventsByResourceHref(calendarId: String, resourceHrefs: Collection<String>)
+
     @Query("SELECT * FROM event_masters WHERE id = :eventId")
     suspend fun findEvent(eventId: String): EventEntity?
 

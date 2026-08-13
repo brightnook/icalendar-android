@@ -33,6 +33,8 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+
+    sourceSets["debug"].assets.directories.add("$projectDir/schemas")
 }
 
 kotlin {

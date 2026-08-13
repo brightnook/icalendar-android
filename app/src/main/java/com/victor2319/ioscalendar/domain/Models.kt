@@ -26,7 +26,14 @@ data class CalendarEvent(
     val isAllDay: Boolean,
     val recurrenceRule: String?,
     val status: EventStatus,
-)
+    val remoteResourceHref: String? = null,
+) {
+    init {
+        require(remoteResourceHref == null || remoteResourceHref.isNotBlank()) {
+            "Remote resource href must be null or nonblank"
+        }
+    }
+}
 
 data class EventInstance(
     val instanceId: String,
@@ -107,6 +114,12 @@ data class CalendarDelta(
     val deletedEventUids: Set<String>,
     val deletedInstanceIds: Set<String>,
     val syncToken: String?,
+    val deletedResourceHrefs: Set<String> = emptySet(),
+)
+
+data class CalendarSyncState(
+    val syncToken: String? = null,
+    val coverage: List<TimeRange> = emptyList(),
 )
 
 private fun requireValidEventTimes(
