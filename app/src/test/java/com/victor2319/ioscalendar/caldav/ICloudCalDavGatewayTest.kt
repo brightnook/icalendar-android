@@ -525,6 +525,97 @@ class ICloudCalDavGatewayTest {
     }
 
     @Test
+    fun rejectsResponseThatMixesStatusAndPropstatInEitherOrder() {
+        val propstat = """
+            <d:propstat><d:prop><d:getetag>&quot;live&quot;</d:getetag></d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+        """.trimIndent()
+        listOf(
+            "<d:status>HTTP/1.1 404 Not Found</d:status>$propstat",
+            "$propstat<d:status>HTTP/1.1 404 Not Found</d:status>",
+        ).forEach { controls ->
+            assertInvalidMultistatus(
+                "<d:response><d:href>/calendar/event.ics</d:href>$controls</d:response>",
+            )
+        }
+    }
+
+    @Test
+    fun rejectsRepeatedPropstatStatusAndPropControls() {
+        val repeatedStatus = """
+            <d:response><d:href>/calendar/event.ics</d:href><d:propstat>
+              <d:prop><d:getetag>&quot;live&quot;</d:getetag></d:prop>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat></d:response>
+        """.trimIndent()
+        val repeatedProp = """
+            <d:response><d:href>/calendar/event.ics</d:href><d:propstat>
+              <d:prop><d:getetag>&quot;first&quot;</d:getetag></d:prop>
+              <d:prop><d:getetag>&quot;second&quot;</d:getetag></d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat></d:response>
+        """.trimIndent()
+
+        assertInvalidMultistatus(repeatedStatus)
+        assertInvalidMultistatus(repeatedProp)
+    }
+
+    @Test
+    fun rejectsRepeatedResponseHrefAndStatusControls() {
+        val repeatedHref = """
+            <d:response>
+              <d:href>/calendar/first.ics</d:href><d:href>/calendar/second.ics</d:href>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+            </d:response>
+        """.trimIndent()
+        val repeatedStatus = """
+            <d:response><d:href>/calendar/event.ics</d:href>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:response>
+        """.trimIndent()
+
+        assertInvalidMultistatus(repeatedHref)
+        assertInvalidMultistatus(repeatedStatus)
+    }
+
+    @Test
+    fun rejectsResponseAndPropstatMissingRequiredControls() {
+        listOf(
+            "<d:response><d:href>/calendar/event.ics</d:href></d:response>",
+            """
+                <d:response><d:href>/calendar/event.ics</d:href><d:propstat>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat></d:response>
+            """.trimIndent(),
+            """
+                <d:response><d:href>/calendar/event.ics</d:href><d:propstat>
+                  <d:prop><d:getetag>&quot;live&quot;</d:getetag></d:prop>
+                </d:propstat></d:response>
+            """.trimIndent(),
+        ).forEach(::assertInvalidMultistatus)
+    }
+
+    @Test
+    fun acceptsMultiplePropstatsAndUsesOnlySuccessfulProperties() {
+        val result = CalDavXml.parse(
+            multistatus(
+                """
+                    <d:response><d:href>/calendar/event.ics</d:href>
+                      <d:propstat><d:prop><d:getetag>&quot;ignored&quot;</d:getetag></d:prop>
+                        <d:status>HTTP/1.1 404 Not Found</d:status></d:propstat>
+                      <d:propstat><d:prop><d:getetag>&quot;accepted&quot;</d:getetag></d:prop>
+                        <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+                    </d:response>
+                """.trimIndent(),
+            ),
+        )
+
+        assertEquals("\"accepted\"", result.responses.single().properties["getetag"])
+    }
+
+    @Test
     fun rejectsMoreThanOneThousandDavResponses() {
         val responses = (1..1_001).map { index ->
             response(
@@ -787,6 +878,12 @@ class ICloudCalDavGatewayTest {
           $suffix
         </d:multistatus>
     """.trimIndent()
+
+    private fun assertInvalidMultistatus(response: String) {
+        assertThrows(CalDavFailure.InvalidServerData::class.java) {
+            CalDavXml.parse(multistatus(response))
+        }
+    }
 
     private fun xml(value: String): String = value
         .replace("&", "&amp;")

@@ -54,9 +54,7 @@ internal object CalDavXml {
         val stack = ArrayDeque<XmlName>()
         val responses = mutableListOf<DavResponse>()
         var current: ResponseBuilder? = null
-        var inPropstat = false
-        var propstatStatus: Int? = null
-        var propstatProperties = mutableMapOf<String, String>()
+        var currentPropstat: PropstatBuilder? = null
         var activeProperty: XmlName? = null
         var propertyText: StringBuilder? = null
         var directHrefText: StringBuilder? = null
@@ -78,8 +76,8 @@ internal object CalDavXml {
                         when (name) {
                             MULTISTATUS -> invalid()
                             RESPONSE -> if (parent != MULTISTATUS || current != null) invalid()
-                            PROPSTAT -> if (parent != RESPONSE || current == null || inPropstat) invalid()
-                            PROP -> if (parent != PROPSTAT || !inPropstat) invalid()
+                            PROPSTAT -> if (parent != RESPONSE || current == null || currentPropstat != null) invalid()
+                            PROP -> if (parent != PROPSTAT || currentPropstat == null) invalid()
                             STATUS -> if (parent != RESPONSE && parent != PROPSTAT) invalid()
                             HREF -> if (parent != RESPONSE && parent != CURRENT_USER_PRINCIPAL && parent != CALENDAR_HOME_SET) invalid()
                             SYNC_TOKEN -> if (parent != PROP && parent != MULTISTATUS) invalid()
@@ -89,14 +87,37 @@ internal object CalDavXml {
                     when {
                         name == RESPONSE -> current = ResponseBuilder()
                         name == PROPSTAT -> {
-                            inPropstat = true
-                            propstatStatus = null
-                            propstatProperties = mutableMapOf()
+                            val response = current ?: invalid()
+                            if (response.mode == ResponseMode.STATUS) invalid()
+                            response.mode = ResponseMode.PROPSTAT
+                            response.propstatCount++
+                            currentPropstat = PropstatBuilder()
                         }
-                        name == HREF && parent == RESPONSE -> directHrefText = StringBuilder()
+                        name == PROP -> {
+                            val propstat = currentPropstat ?: invalid()
+                            if (propstat.sawProp) invalid()
+                            propstat.sawProp = true
+                        }
+                        name == HREF && parent == RESPONSE -> {
+                            val response = current ?: invalid()
+                            if (response.sawHref) invalid()
+                            response.sawHref = true
+                            directHrefText = StringBuilder()
+                        }
                         name == STATUS -> {
+                            if (parent == PROPSTAT) {
+                                val propstat = currentPropstat ?: invalid()
+                                if (propstat.sawStatus) invalid()
+                                propstat.sawStatus = true
+                                statusIsPropstat = true
+                            } else {
+                                val response = current ?: invalid()
+                                if (response.mode == ResponseMode.PROPSTAT || response.sawStatus) invalid()
+                                response.mode = ResponseMode.STATUS
+                                response.sawStatus = true
+                                statusIsPropstat = false
+                            }
                             statusText = StringBuilder()
-                            statusIsPropstat = parent == PROPSTAT
                         }
                         parent == PROP && name in TEXT_PROPERTIES -> {
                             activeProperty = name
@@ -104,9 +125,9 @@ internal object CalDavXml {
                         }
                         name == SYNC_TOKEN && parent == MULTISTATUS -> rootSyncText = StringBuilder()
                     }
-                    if (current != null && inPropstat && activeProperty == RESOURCE_TYPE) {
-                        if (name == CALENDAR) propstatProperties["resourcetype.calendar"] = "true"
-                        if (name == COLLECTION) propstatProperties["resourcetype.collection"] = "true"
+                    if (currentPropstat != null && activeProperty == RESOURCE_TYPE) {
+                        if (name == CALENDAR) currentPropstat.properties["resourcetype.calendar"] = "true"
+                        if (name == COLLECTION) currentPropstat.properties["resourcetype.collection"] = "true"
                     }
                 }
 
@@ -127,21 +148,29 @@ internal object CalDavXml {
                         }
                         name == STATUS && statusText != null -> {
                             val parsed = parseStatus(statusText.toString())
-                            if (statusIsPropstat) propstatStatus = parsed else current?.status = parsed
+                            if (statusIsPropstat) currentPropstat?.status = parsed else current?.status = parsed
                             statusText = null
                         }
                         name == activeProperty && propertyText != null -> {
-                            propstatProperties[propertyKey(name)] = propertyText.toString().trim()
+                            currentPropstat?.properties?.set(propertyKey(name), propertyText.toString().trim())
+                                ?: invalid()
                             activeProperty = null
                             propertyText = null
                         }
                         name == PROPSTAT -> {
-                            if (propstatStatus in 200..299) current?.properties?.putAll(propstatProperties)
-                            inPropstat = false
+                            val propstat = currentPropstat ?: invalid()
+                            if (!propstat.sawProp || !propstat.sawStatus || propstat.status == null) invalid()
+                            if (propstat.status in 200..299) current?.properties?.putAll(propstat.properties)
+                            currentPropstat = null
                         }
                         name == RESPONSE -> {
                             val completed = current ?: invalid()
-                            val href = completed.href?.takeIf { it.isNotEmpty() } ?: invalid()
+                            val href = completed.href?.takeIf { completed.sawHref && it.isNotEmpty() } ?: invalid()
+                            when (completed.mode) {
+                                ResponseMode.UNSET -> invalid()
+                                ResponseMode.STATUS -> if (!completed.sawStatus || completed.status == null) invalid()
+                                ResponseMode.PROPSTAT -> if (completed.propstatCount == 0 || completed.sawStatus) invalid()
+                            }
                             responses += DavResponse(href, completed.status, completed.properties.toMap())
                             if (responses.size > MAX_RESPONSES) invalid()
                             current = null
@@ -157,7 +186,7 @@ internal object CalDavXml {
             }
             parser.nextToken()
         }
-        if (!rootClosed || stack.isNotEmpty() || current != null || inPropstat) invalid()
+        if (!rootClosed || stack.isNotEmpty() || current != null || currentPropstat != null) invalid()
         return DavMultistatus(responses, rootSyncToken)
     }
 
@@ -183,9 +212,22 @@ internal object CalDavXml {
 
     private class ResponseBuilder {
         var href: String? = null
+        var sawHref = false
+        var status: Int? = null
+        var sawStatus = false
+        var propstatCount = 0
+        var mode = ResponseMode.UNSET
+        val properties = mutableMapOf<String, String>()
+    }
+
+    private class PropstatBuilder {
+        var sawProp = false
+        var sawStatus = false
         var status: Int? = null
         val properties = mutableMapOf<String, String>()
     }
+
+    private enum class ResponseMode { UNSET, PROPSTAT, STATUS }
 
     private data class XmlName(val namespace: String, val local: String)
 
