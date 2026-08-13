@@ -603,16 +603,40 @@ class ICloudCalDavGatewayTest {
             multistatus(
                 """
                     <d:response><d:href>/calendar/event.ics</d:href>
-                      <d:propstat><d:prop><d:getetag>&quot;ignored&quot;</d:getetag></d:prop>
-                        <d:status>HTTP/1.1 404 Not Found</d:status></d:propstat>
                       <d:propstat><d:prop><d:getetag>&quot;accepted&quot;</d:getetag></d:prop>
                         <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+                      <d:propstat><d:prop><d:displayname>failed-only</d:displayname></d:prop>
+                        <d:status>HTTP/1.1 404 Not Found</d:status></d:propstat>
                     </d:response>
                 """.trimIndent(),
             ),
         )
 
-        assertEquals("\"accepted\"", result.responses.single().properties["getetag"])
+        val properties = result.responses.single().properties
+        assertEquals("\"accepted\"", properties["getetag"])
+        assertFalse(properties.containsKey("displayname"))
+    }
+
+    @Test
+    fun acceptsUnknownExtensionsWithoutChangingKnownProperties() {
+        val result = CalDavXml.parse(
+            multistatus(
+                """
+                    <d:response xmlns:e="urn:example:extension">
+                      <d:href>/calendar/event.ics</d:href>
+                      <e:response-note>opaque metadata</e:response-note>
+                      <d:propstat><d:prop>
+                        <d:getetag>&quot;accepted&quot;</d:getetag>
+                        <e:vendor-property><e:value>opaque value</e:value></e:vendor-property>
+                      </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+                    </d:response>
+                """.trimIndent(),
+            ),
+        )
+
+        val response = result.responses.single()
+        assertEquals("/calendar/event.ics", response.href)
+        assertEquals(mapOf("getetag" to "\"accepted\""), response.properties)
     }
 
     @Test
