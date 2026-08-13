@@ -7,18 +7,24 @@ import java.io.StringReader
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
+import java.time.Duration
 import java.time.format.DateTimeFormatter
 import java.util.Base64
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.fortuna.ical4j.data.CalendarBuilder
 import net.fortuna.ical4j.model.Component
 import net.fortuna.ical4j.model.component.VEvent
 import okhttp3.HttpUrl
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.Buffer
 
@@ -31,8 +37,8 @@ class ICloudCalDavGateway private constructor(
         .followRedirects(false)
         .followSslRedirects(false)
         .build()
-    @Volatile
-    private var activeCredentials: StoredCredentials? = null
+    private val sessionMutex = Mutex()
+    private var activeSession: Session? = null
 
     constructor() : this(
         OkHttpClient.Builder()
@@ -44,11 +50,12 @@ class ICloudCalDavGateway private constructor(
         CalDavUrlPolicy.production(),
     )
 
-    override suspend fun authenticate(credentials: Credentials): Principal {
+    override suspend fun authenticate(credentials: Credentials): Principal = sessionMutex.withLock {
         val pending = StoredCredentials(
             appleId = credentials.appleId,
             password = credentials.appSpecificPassword.copyOf(),
         )
+        var installed = false
         try {
             val result = propfind(
                 url = baseUrl,
@@ -60,18 +67,21 @@ class ICloudCalDavGateway private constructor(
                 it.properties["current-user-principal"]
             }?.takeIf(String::isNotBlank) ?: invalid()
             urlPolicy.resolve(baseUrl, href)
-            val previous = activeCredentials
-            activeCredentials = pending
-            previous?.clear()
-            return Principal(href)
+            val sessionId = UUID.randomUUID().toString()
+            val previous = activeSession
+            activeSession = Session(sessionId, pending)
+            installed = true
+            previous?.credentials?.clear()
+            return Principal(href, sessionId)
         } catch (failure: Throwable) {
-            if (activeCredentials !== pending) pending.clear()
+            if (!installed) pending.clear()
             throw failure
         }
     }
 
-    override suspend fun discoverCalendars(principal: Principal): List<RemoteCalendar> {
-        val credentials = credentials()
+    override suspend fun discoverCalendars(principal: Principal): List<RemoteCalendar> = sessionMutex.withLock {
+        val session = session(principal.sessionId)
+        val credentials = session.credentials
         val principalUrl = urlPolicy.resolve(baseUrl, principal.href)
         val homeResult = propfind(principalUrl, "0", CALENDAR_HOME, credentials)
         val homeHref = homeResult.responses.firstNotNullOfOrNull {
@@ -91,12 +101,18 @@ class ICloudCalDavGateway private constructor(
                     displayName = response.properties["displayname"].orEmpty().ifBlank { "Calendar" },
                     color = response.properties["calendar-color"],
                     syncToken = response.properties["sync-token"],
+                    sessionId = principal.sessionId,
                 )
             }
             .toList()
     }
 
-    override suspend fun fetchRange(calendar: RemoteCalendar, range: TimeRange): RemoteSnapshot {
+    override suspend fun fetchRange(calendar: RemoteCalendar, range: TimeRange): RemoteSnapshot = sessionMutex.withLock {
+        val session = session(calendar.sessionId)
+        if (Duration.between(range.start, range.endExclusive) > MAX_FETCH_RANGE) invalid()
+        val startYear = range.start.atOffset(ZoneOffset.UTC).year
+        val endYear = range.endExclusive.atOffset(ZoneOffset.UTC).year
+        if (startYear !in BASIC_YEAR_RANGE || endYear !in BASIC_YEAR_RANGE) invalid()
         val target = urlPolicy.resolve(baseUrl, calendar.href)
         val start = UTC_BASIC.format(range.start)
         val end = UTC_BASIC.format(range.endExclusive)
@@ -104,7 +120,7 @@ class ICloudCalDavGateway private constructor(
             target,
             "1",
             CALENDAR_QUERY.format(start, end),
-            credentials(),
+            session.credentials,
         )
         val resources = result.responses.mapNotNull { response ->
             if (response.effectiveStatus !in 200..299) return@mapNotNull null
@@ -116,14 +132,16 @@ class ICloudCalDavGateway private constructor(
         return RemoteSnapshot(resources, result.syncToken ?: calendar.syncToken)
     }
 
-    override suspend fun fetchDelta(calendar: RemoteCalendar, syncToken: String): RemoteDelta {
+    override suspend fun fetchDelta(calendar: RemoteCalendar, syncToken: String): RemoteDelta = sessionMutex.withLock {
+        val session = session(calendar.sessionId)
         val target = urlPolicy.resolve(baseUrl, calendar.href)
         val result = report(
             target,
             "1",
             SYNC_COLLECTION.format(xmlEscape(syncToken)),
-            credentials(),
+            session.credentials,
         )
+        val newSyncToken = result.syncToken?.takeIf(String::isNotBlank) ?: invalid()
         val upserts = mutableListOf<RemoteResource>()
         val tombstones = mutableListOf<RemoteTombstone>()
         val missingData = mutableListOf<String>()
@@ -145,25 +163,35 @@ class ICloudCalDavGateway private constructor(
         }
         if (missingData.size > MAX_DELTA_HREFS) invalid()
         missingData.chunked(MULTIGET_CHUNK_SIZE).forEach { chunk ->
+            val requested = chunk.toSet()
+            if (requested.size != chunk.size) invalid()
             val hrefs = chunk.joinToString("") { "<d:href>${xmlEscape(it)}</d:href>" }
             val multiget = report(
                 target,
                 "1",
                 CALENDAR_MULTIGET.format(hrefs),
-                credentials(),
+                session.credentials,
             )
+            val accounted = mutableSetOf<String>()
             multiget.responses.forEach { response ->
-                if (response.effectiveStatus !in 200..299) invalid()
                 val href = safeHref(target, response.href)
-                val data = response.properties["calendar-data"] ?: invalid()
-                validateCalendarData(data)
-                upserts += RemoteResource(href, response.properties["getetag"], data)
+                if (href !in requested || !accounted.add(href)) invalid()
+                when (response.effectiveStatus) {
+                    404, 410 -> tombstones += RemoteTombstone(href)
+                    in 200..299 -> {
+                        val data = response.properties["calendar-data"] ?: invalid()
+                        validateCalendarData(data)
+                        upserts += RemoteResource(href, response.properties["getetag"], data)
+                    }
+                    else -> invalid()
+                }
             }
+            if (accounted != requested) invalid()
         }
         return RemoteDelta(
             upserts = upserts.distinctBy(RemoteResource::href),
             tombstones = tombstones.distinctBy(RemoteTombstone::href),
-            syncToken = result.syncToken,
+            syncToken = newSyncToken,
         )
     }
 
@@ -201,44 +229,70 @@ class ICloudCalDavGateway private constructor(
         return CalDavXml.parse(responseText)
     }
 
-    private suspend fun execute(request: Request): String = withContext(Dispatchers.IO) {
-        try {
-            client.newCall(request).execute().use { response ->
-                when (response.code) {
-                    401, 403 -> throw CalDavFailure.AuthenticationRejected()
-                    408, 429 -> throw CalDavFailure.Temporary(retryAfter(response.header("Retry-After")))
-                    in 500..599 -> throw CalDavFailure.Temporary(retryAfter(response.header("Retry-After")))
-                    !in 200..299 -> invalid()
+    private suspend fun execute(request: Request): String = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (!continuation.isActive) return
+                val cancellation = e.causeSequence().filterIsInstance<CancellationException>().firstOrNull()
+                continuation.resumeWith(
+                    Result.failure(cancellation ?: CalDavFailure.NetworkUnavailable()),
+                )
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!continuation.isActive) {
+                    response.close()
+                    return
                 }
-                val body = response.body
-                if (body.contentLength() > MAX_RESPONSE_BYTES) invalid()
-                val source = body.source()
-                val buffer = Buffer()
-                var total = 0L
-                while (total <= MAX_RESPONSE_BYTES) {
-                    val read = source.read(
-                        buffer,
-                        minOf(8_192L, MAX_RESPONSE_BYTES + 1L - total),
-                    )
-                    if (read == -1L) break
-                    total += read
-                }
-                val bytes = buffer.readByteArray()
                 try {
-                    if (bytes.size > MAX_RESPONSE_BYTES) invalid()
-                    String(bytes, StandardCharsets.UTF_8)
-                } finally {
-                    bytes.fill(0)
+                    val result = response.use(::readResponse)
+                    continuation.resume(result) { _, _, _ -> }
+                } catch (failure: Throwable) {
+                    if (!continuation.isActive) return
+                    val mapped = when (failure) {
+                        is CalDavFailure -> failure
+                        is IOException -> CalDavFailure.NetworkUnavailable()
+                        else -> CalDavFailure.InvalidServerData()
+                    }
+                    continuation.resumeWith(Result.failure(mapped))
                 }
             }
-        } catch (failure: CancellationException) {
-            throw failure
-        } catch (failure: CalDavFailure) {
-            throw failure
-        } catch (failure: IOException) {
-            throw CalDavFailure.NetworkUnavailable(failure)
+        })
+    }
+
+    private fun readResponse(response: Response): String {
+        when (response.code) {
+            401, 403 -> throw CalDavFailure.AuthenticationRejected()
+            408, 429 -> throw CalDavFailure.Temporary(retryAfter(response.header("Retry-After")))
+            in 500..599 -> throw CalDavFailure.Temporary(retryAfter(response.header("Retry-After")))
+            !in 200..299 -> invalid()
+        }
+        val body = response.body
+        if (body.contentLength() > MAX_RESPONSE_BYTES) invalid()
+        val source = body.source()
+        val buffer = Buffer()
+        var total = 0L
+        while (total <= MAX_RESPONSE_BYTES) {
+            val read = source.read(
+                buffer,
+                minOf(8_192L, MAX_RESPONSE_BYTES + 1L - total),
+            )
+            if (read == -1L) break
+            total += read
+        }
+        val bytes = buffer.readByteArray()
+        try {
+            if (bytes.size > MAX_RESPONSE_BYTES) invalid()
+            return String(bytes, StandardCharsets.UTF_8)
+        } finally {
+            bytes.fill(0)
         }
     }
+
+    private fun Throwable.causeSequence(): Sequence<Throwable> =
+        generateSequence(this) { current -> current.cause?.takeUnless { it === current } }
 
     private fun safeHref(context: HttpUrl, href: String): String =
         normalizedHref(urlPolicy.resolve(context, href))
@@ -272,7 +326,8 @@ class ICloudCalDavGateway private constructor(
         }
     }
 
-    private fun credentials(): StoredCredentials = activeCredentials ?: invalid()
+    private fun session(expectedId: String): Session =
+        activeSession?.takeIf { it.id == expectedId } ?: invalid()
 
     private fun retryAfter(value: String?): Long? =
         value?.toLongOrNull()?.takeIf { it in 0..MAX_RETRY_AFTER_SECONDS }
@@ -294,6 +349,8 @@ class ICloudCalDavGateway private constructor(
         private const val MULTIGET_CHUNK_SIZE = 50
         private const val MAX_DELTA_HREFS = 500
         private const val MAX_RETRY_AFTER_SECONDS = 86_400L
+        private val MAX_FETCH_RANGE = Duration.ofDays(400)
+        private val BASIC_YEAR_RANGE = 1..9_999
 
         private val CURRENT_USER_PRINCIPAL = """
             <?xml version="1.0" encoding="utf-8"?>
@@ -372,6 +429,8 @@ class ICloudCalDavGateway private constructor(
         fun clear() = password.fill('\u0000')
         override fun toString(): String = "StoredCredentials(<redacted>)"
     }
+
+    private data class Session(val id: String, val credentials: StoredCredentials)
 }
 
 internal class CalDavUrlPolicy private constructor(

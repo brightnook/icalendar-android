@@ -4,13 +4,26 @@ import com.victor2319.ioscalendar.auth.Credentials
 import com.victor2319.ioscalendar.domain.TimeRange
 import java.io.IOException
 import java.time.Instant
+import java.time.Duration
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.RecordedRequest
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -150,11 +163,11 @@ class ICloudCalDavGatewayTest {
             server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
             server.enqueue(xmlResponse(queryResponse(attacker.url("/stolen.ics").toString(), VALID_ICS)))
             val gateway = gateway()
-            gateway.authenticate(credentials)
+            val principal = gateway.authenticate(credentials)
 
             assertSuspendThrows<CalDavFailure.InvalidServerData> {
                 gateway.fetchRange(
-                    calendar(),
+                    calendar(principal.sessionId),
                     TimeRange(Instant.parse("2026-08-10T00:00:00Z"), Instant.parse("2026-08-11T00:00:00Z")),
                 )
             }
@@ -170,10 +183,10 @@ class ICloudCalDavGatewayTest {
         server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
         server.enqueue(xmlResponse(queryResponse("event-1.ics", VALID_ICS)))
         val gateway = gateway()
-        gateway.authenticate(credentials)
+        val principal = gateway.authenticate(credentials)
 
         val snapshot = gateway.fetchRange(
-            calendar(),
+            calendar(principal.sessionId),
             TimeRange(
                 Instant.parse("2026-08-10T00:00:00Z"),
                 Instant.parse("2026-08-11T00:00:00Z"),
@@ -193,6 +206,62 @@ class ICloudCalDavGatewayTest {
     }
 
     @Test
+    fun fetchRangeAcceptsExactlyFourHundredDays() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(xmlResponse(multistatus()))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val start = Instant.parse("2026-01-01T00:00:00Z")
+
+        gateway.fetchRange(
+            calendar(principal.sessionId),
+            TimeRange(start, start.plus(Duration.ofDays(400))),
+        )
+
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun fetchRangeRejectsMoreThanFourHundredDaysWithoutReport() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(xmlResponse(multistatus()))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val requestsBefore = server.requestCount
+        val start = Instant.parse("2026-01-01T00:00:00Z")
+
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.fetchRange(
+                calendar(principal.sessionId),
+                TimeRange(start, start.plus(Duration.ofDays(400)).plusSeconds(1)),
+            )
+        }
+
+        assertEquals(requestsBefore, server.requestCount)
+    }
+
+    @Test
+    fun fetchRangeRejectsUtcYearsOutsideFourDigitBasicFormatWithoutReport() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(xmlResponse(multistatus()))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val requestsBefore = server.requestCount
+
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.fetchRange(
+                calendar(principal.sessionId),
+                TimeRange(
+                    Instant.parse("+10000-01-01T00:00:00Z"),
+                    Instant.parse("+10000-01-02T00:00:00Z"),
+                ),
+            )
+        }
+
+        assertEquals(requestsBefore, server.requestCount)
+    }
+
+    @Test
     fun deltaProducesTombstonesAndMultigetsLiveHrefsInBoundedChunks() = runTest {
         val hrefs = (1..51).map { "/calendars/owner/work/e$it.ics" }
         server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
@@ -200,9 +269,9 @@ class ICloudCalDavGatewayTest {
         server.enqueue(xmlResponse(multigetResponse(hrefs.take(50))))
         server.enqueue(xmlResponse(multigetResponse(hrefs.drop(50))))
         val gateway = gateway()
-        gateway.authenticate(credentials)
+        val principal = gateway.authenticate(credentials)
 
-        val delta = gateway.fetchDelta(calendar(), "old-token")
+        val delta = gateway.fetchDelta(calendar(principal.sessionId), "old-token")
 
         assertEquals(51, delta.upserts.size)
         assertEquals(listOf("/calendars/owner/work/deleted.ics"), delta.tombstones.map { it.href })
@@ -223,9 +292,9 @@ class ICloudCalDavGatewayTest {
         server.enqueue(xmlResponse(syncResponse(listOf(href), null)))
         server.enqueue(xmlResponse(multigetResponse(listOf("/calendars/owner/work/a&b.ics"))))
         val gateway = gateway()
-        gateway.authenticate(credentials)
+        val principal = gateway.authenticate(credentials)
 
-        gateway.fetchDelta(calendar(), "token&amp;old")
+        gateway.fetchDelta(calendar(principal.sessionId), "token&amp;old")
 
         server.takeRequest()
         val sync = server.takeRequest().body.readUtf8()
@@ -233,6 +302,70 @@ class ICloudCalDavGatewayTest {
         assertTrue(sync.contains("token&amp;amp;old"))
         assertTrue(multiget.contains("a&amp;b.ics"))
         assertFalse(multiget.contains("a&b.ics"))
+    }
+
+    @Test
+    fun deltaRejectsMultigetWithMissingRequestedHref() = runTest {
+        val requested = listOf("/calendars/owner/work/a.ics", "/calendars/owner/work/b.ics")
+        val (gateway, calendar) = authenticatedGatewayForDelta(requested)
+        server.enqueue(xmlResponse(multigetResponse(requested.take(1))))
+
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.fetchDelta(calendar, "old-token")
+        }
+    }
+
+    @Test
+    fun deltaRejectsMultigetWithDuplicateRequestedHref() = runTest {
+        val requested = listOf("/calendars/owner/work/a.ics")
+        val (gateway, calendar) = authenticatedGatewayForDelta(requested)
+        server.enqueue(xmlResponse(multistatus(
+            resourceResponse(requested.single()),
+            resourceResponse(requested.single()),
+        )))
+
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.fetchDelta(calendar, "old-token")
+        }
+    }
+
+    @Test
+    fun deltaRejectsMultigetWithUnrequestedExtraHref() = runTest {
+        val requested = listOf("/calendars/owner/work/a.ics")
+        val (gateway, calendar) = authenticatedGatewayForDelta(requested)
+        server.enqueue(xmlResponse(multistatus(
+            resourceResponse(requested.single()),
+            resourceResponse("/calendars/owner/work/extra.ics"),
+        )))
+
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.fetchDelta(calendar, "old-token")
+        }
+    }
+
+    @Test
+    fun deltaTurnsMultigetDeleteRaceIntoTombstone() = runTest {
+        val requested = listOf("/calendars/owner/work/deleted-during-fetch.ics")
+        val (gateway, calendar) = authenticatedGatewayForDelta(requested)
+        server.enqueue(xmlResponse(multistatus(statusResponse(requested.single(), 404))))
+
+        val delta = gateway.fetchDelta(calendar, "old-token")
+
+        assertTrue(delta.upserts.isEmpty())
+        assertEquals(requested, delta.tombstones.map(RemoteTombstone::href))
+        assertEquals("token-next", delta.syncToken)
+    }
+
+    @Test
+    fun deltaRejectsSuccessfulSyncCollectionWithoutNewToken() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(xmlResponse(multistatus()))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.fetchDelta(calendar(principal.sessionId), "old-token")
+        }
     }
 
     @Test
@@ -270,6 +403,72 @@ class ICloudCalDavGatewayTest {
     }
 
     @Test
+    fun cancellingCoroutineCancelsRealInFlightOkHttpCallPromptly() = runTest {
+        val failed = CountDownLatch(1)
+        val observedCall = AtomicReference<Call>()
+        val client = OkHttpClient.Builder()
+            .eventListener(object : EventListener() {
+                override fun callFailed(call: Call, ioe: IOException) {
+                    observedCall.set(call)
+                    failed.countDown()
+                }
+            })
+            .build()
+        val gateway = gateway(client)
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val authentication = async(Dispatchers.Default) {
+            gateway.authenticate(credentials)
+        }
+        assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(2, TimeUnit.SECONDS) })
+
+        authentication.cancel()
+        withContext(Dispatchers.Default) {
+            withTimeout(2_000) { authentication.join() }
+        }
+
+        assertTrue(authentication.isCancelled)
+        assertTrue(await(failed))
+        assertTrue(observedCall.get().isCanceled())
+
+        server.enqueue(xmlResponse(principalResponse("/principal/")))
+        val principal = withContext(Dispatchers.Default) {
+            withTimeout(2_000) { gateway.authenticate(credentials) }
+        }
+        assertEquals("/principal/", principal.href)
+    }
+
+    @Test
+    fun networkUnavailableDropsSensitiveIOExceptionCauseChain() {
+        val secrets = listOf(
+            "leaked-owner@example.test",
+            "leaked-app-password",
+            "Basic dG90YWxseS1mYWtl",
+        )
+        val logs = mutableListOf<String>()
+        val rawFailure = IOException("offline for ${secrets[0]}").apply {
+            initCause(IOException("${secrets[1]} ${secrets[2]}"))
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(SensitiveLoggingInterceptor(logs::add))
+            .addInterceptor { throw rawFailure }
+            .build()
+
+        val failure = assertThrows(CalDavFailure.NetworkUnavailable::class.java) {
+            runTest { gateway(client).authenticate(credentials) }
+        }
+        val rendered = buildString {
+            append(failure.toString())
+            append(failure.stackTraceToString())
+            generateSequence(failure.cause) { it.cause }.forEach { append(it.toString()) }
+            append(logs.joinToString("\n"))
+        }
+
+        secrets.forEach { secret ->
+            assertFalse(rendered.contains(secret), "sensitive failure data leaked")
+        }
+    }
+
+    @Test
     fun rejectsMalformedDtdAndOversizedXmlAsInvalidServerData() {
         val payloads = listOf(
             "<d:multistatus xmlns:d=\"DAV:\"><broken>",
@@ -278,6 +477,47 @@ class ICloudCalDavGatewayTest {
         )
         payloads.forEach { body ->
             server.enqueue(xmlResponse(body))
+            assertThrows(CalDavFailure.InvalidServerData::class.java) {
+                runTest { gateway().authenticate(credentials) }
+            }
+        }
+    }
+
+    @Test
+    fun rejectsWrongRootAndNamespaceImpostors() {
+        val payloads = listOf(
+            """
+                <e:multistatus xmlns:e="urn:evil">
+                  <e:response><e:href>/</e:href><e:propstat><e:prop>
+                    <e:current-user-principal><e:href>/principals/evil/</e:href></e:current-user-principal>
+                  </e:prop><e:status>HTTP/1.1 200 OK</e:status></e:propstat></e:response>
+                </e:multistatus>
+            """.trimIndent(),
+            """
+                <d:multistatus xmlns:d="DAV:" xmlns:e="urn:evil">
+                  <d:response><d:href>/</d:href><d:propstat><d:prop>
+                    <e:current-user-principal><d:href>/principals/evil/</d:href></e:current-user-principal>
+                  </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                </d:multistatus>
+            """.trimIndent(),
+            """
+                <e:wrapper xmlns:e="urn:evil" xmlns:d="DAV:">
+                  <d:multistatus><d:response><d:href>/</d:href><d:propstat><d:prop>
+                    <d:current-user-principal><d:href>/principals/evil/</d:href></d:current-user-principal>
+                  </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>
+                </e:wrapper>
+            """.trimIndent(),
+            """
+                <d:multistatus xmlns:d="DAV:" xmlns:e="urn:evil">
+                  <e:wrapper><d:response><d:href>/</d:href><d:propstat><d:prop>
+                    <d:current-user-principal><d:href>/principals/evil/</d:href></d:current-user-principal>
+                  </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></e:wrapper>
+                </d:multistatus>
+            """.trimIndent(),
+        )
+
+        payloads.forEach { payload ->
+            server.enqueue(xmlResponse(payload))
             assertThrows(CalDavFailure.InvalidServerData::class.java) {
                 runTest { gateway().authenticate(credentials) }
             }
@@ -309,10 +549,10 @@ class ICloudCalDavGatewayTest {
             server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
             server.enqueue(xmlResponse(queryResponse("bad.ics", ics)))
             val gateway = gateway()
-            gateway.authenticate(credentials)
+            val principal = gateway.authenticate(credentials)
             assertSuspendThrows<CalDavFailure.InvalidServerData> {
                 gateway.fetchRange(
-                    calendar(),
+                    calendar(principal.sessionId),
                     TimeRange(Instant.parse("2026-08-10T00:00:00Z"), Instant.parse("2026-08-11T00:00:00Z")),
                 )
             }
@@ -368,16 +608,110 @@ class ICloudCalDavGatewayTest {
         assertTrue(rendered.contains("<redacted>"))
     }
 
+    @Test
+    fun concurrentAuthenticationRequestsAreSerializedIntoDistinctSessions() = runTest {
+        val firstReachedServer = CountDownLatch(1)
+        val secondReachedServer = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val requestNumber = AtomicInteger()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                return when (requestNumber.incrementAndGet()) {
+                    1 -> {
+                        firstReachedServer.countDown()
+                        releaseFirst.await(2, TimeUnit.SECONDS)
+                        xmlResponse(principalResponse("/principals/users/first/"))
+                    }
+                    else -> {
+                        secondReachedServer.countDown()
+                        xmlResponse(principalResponse("/principals/users/second/"))
+                    }
+                }
+            }
+        }
+        val firstPassword = "first-app-password".toCharArray()
+        val secondPassword = "second-app-password".toCharArray()
+        try {
+            val gateway = gateway()
+            val first = async(Dispatchers.Default) {
+                gateway.authenticate(Credentials("first@example.test", firstPassword))
+            }
+            assertTrue(await(firstReachedServer))
+            val second = async(Dispatchers.Default) {
+                gateway.authenticate(Credentials("second@example.test", secondPassword))
+            }
+
+            val secondArrivedWhileFirstWasInFlight = await(secondReachedServer, 200)
+            releaseFirst.countDown()
+            val firstPrincipal = first.await()
+            val secondPrincipal = second.await()
+
+            assertFalse(secondArrivedWhileFirstWasInFlight)
+            assertFalse(firstPrincipal.sessionId == secondPrincipal.sessionId)
+        } finally {
+            releaseFirst.countDown()
+            firstPassword.fill('\u0000')
+            secondPassword.fill('\u0000')
+        }
+    }
+
+    @Test
+    fun reauthenticationRejectsStalePrincipalAndCalendarWithoutNetworkRequests() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/first/")))
+        server.enqueue(xmlResponse(homeResponse("../../../calendars/owner/")))
+        server.enqueue(xmlResponse(calendarListingResponse()))
+        server.enqueue(xmlResponse(principalResponse("/principals/users/second/")))
+        val gateway = gateway()
+        val firstPrincipal = gateway.authenticate(credentials)
+        val firstCalendar = gateway.discoverCalendars(firstPrincipal).single()
+
+        val secondPassword = "second-app-password".toCharArray()
+        try {
+            gateway.authenticate(Credentials("second@example.test", secondPassword))
+            val requestsBeforeStaleCalls = server.requestCount
+
+            assertSuspendThrows<CalDavFailure.InvalidServerData> {
+                gateway.discoverCalendars(firstPrincipal)
+            }
+            assertSuspendThrows<CalDavFailure.InvalidServerData> {
+                gateway.fetchRange(firstCalendar, oneDayRange())
+            }
+
+            assertEquals(requestsBeforeStaleCalls, server.requestCount)
+        } finally {
+            secondPassword.fill('\u0000')
+        }
+    }
+
     private fun gateway(client: OkHttpClient = OkHttpClient()): ICloudCalDavGateway =
         ICloudCalDavGateway.forTesting(client, server.url("/"))
 
-    private fun calendar() = RemoteCalendar(
+    private fun calendar(sessionId: String) = RemoteCalendar(
         id = "work",
         href = "/calendars/owner/work/",
         displayName = "Work",
         color = "#1a2b3c",
         syncToken = "token-1",
+        sessionId = sessionId,
     )
+
+    private fun oneDayRange() = TimeRange(
+        Instant.parse("2026-08-10T00:00:00Z"),
+        Instant.parse("2026-08-11T00:00:00Z"),
+    )
+
+    private suspend fun await(latch: CountDownLatch, timeoutMillis: Long = 2_000): Boolean =
+        withContext(Dispatchers.IO) { latch.await(timeoutMillis, TimeUnit.MILLISECONDS) }
+
+    private suspend fun authenticatedGatewayForDelta(
+        changedHrefs: List<String>,
+    ): Pair<ICloudCalDavGateway, RemoteCalendar> {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(xmlResponse(syncResponse(changedHrefs, null)))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        return gateway to calendar(principal.sessionId)
+    }
 
     private fun xmlResponse(body: String) = MockResponse()
         .setResponseCode(207)
@@ -426,11 +760,13 @@ class ICloudCalDavGatewayTest {
 
     private fun multigetResponse(hrefs: List<String>) = multistatus(
         *hrefs.mapIndexed { index, href ->
-            response(
-                href,
-                "<d:getetag>&quot;e$index&quot;</d:getetag><c:calendar-data>${xml(VALID_ICS)}</c:calendar-data>",
-            )
+            resourceResponse(href, index)
         }.toTypedArray(),
+    )
+
+    private fun resourceResponse(href: String, index: Int = 0) = response(
+        href,
+        "<d:getetag>&quot;e$index&quot;</d:getetag><c:calendar-data>${xml(VALID_ICS)}</c:calendar-data>",
     )
 
     private fun response(href: String, props: String) = """

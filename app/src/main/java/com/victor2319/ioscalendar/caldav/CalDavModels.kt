@@ -1,6 +1,9 @@
 package com.victor2319.ioscalendar.caldav
 
-data class Principal(val href: String)
+data class Principal(
+    val href: String,
+    val sessionId: String,
+)
 
 data class RemoteCalendar(
     val id: String,
@@ -8,6 +11,7 @@ data class RemoteCalendar(
     val displayName: String,
     val color: String?,
     val syncToken: String?,
+    val sessionId: String,
 )
 
 data class RemoteResource(
