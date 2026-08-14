@@ -92,8 +92,9 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
     override suspend fun applyCalendarDelta(delta: CalendarDelta) {
         database.withTransaction {
             validatePayload(delta.calendarId, delta.upsertEvents, delta.upsertInstances)
-            if (delta.deletedResourceHrefs.isNotEmpty()) {
-                eventDao.deleteEventsByResourceHref(delta.calendarId, delta.deletedResourceHrefs)
+            val removedResourceHrefs = delta.deletedResourceHrefs + delta.replacedResourceHrefs
+            if (removedResourceHrefs.isNotEmpty()) {
+                eventDao.deleteEventsByResourceHref(delta.calendarId, removedResourceHrefs)
             }
             upsertEvents(delta.upsertEvents)
             if (delta.upsertInstances.isNotEmpty()) {

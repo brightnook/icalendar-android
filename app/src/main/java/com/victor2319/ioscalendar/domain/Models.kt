@@ -115,6 +115,7 @@ data class CalendarDelta(
     val deletedInstanceIds: Set<String>,
     val syncToken: String?,
     val deletedResourceHrefs: Set<String> = emptySet(),
+    val replacedResourceHrefs: Set<String> = emptySet(),
 )
 
 data class CalendarSyncState(

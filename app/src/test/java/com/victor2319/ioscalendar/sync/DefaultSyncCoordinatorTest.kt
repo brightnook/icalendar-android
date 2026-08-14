@@ -191,6 +191,130 @@ class DefaultSyncCoordinatorTest {
     }
 
     @Test
+    fun refreshRebuildsChangedResourcesAcrossEveryCommittedCoverageChunk() = runTest {
+        // Catches parsing a delta only in the initial window or passing more than 400 days to the parser.
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(
+            calendars = listOf(calendar),
+            deltas = mutableMapOf(
+                "work" to RemoteDelta(
+                    upserts = listOf(resource("/calendars/work/a.ics", "shared")),
+                    tombstones = emptyList(),
+                    syncToken = "next-token",
+                ),
+            ),
+        )
+        val repository = FakeRepository()
+        val id = stableIdFor(calendar)
+        repository.states[id] = CalendarSyncState(
+            syncToken = "saved-token",
+            coverage = listOf(
+                TimeRange(
+                    Instant.parse("2025-01-01T00:00:00Z"),
+                    Instant.parse("2026-02-06T00:00:00Z"),
+                    tokyo,
+                ),
+                TimeRange(
+                    Instant.parse("2027-01-01T00:00:00Z"),
+                    Instant.parse("2027-01-02T00:00:00Z"),
+                    tokyo,
+                ),
+            ),
+        )
+        val parser = FakeParser()
+
+        val result = coordinator(gateway, parser, repository).sync(SyncRequest.Refresh)
+
+        assertTrue(result is SyncResult.Success)
+        assertEquals(
+            listOf(
+                TimeRange(
+                    Instant.parse("2025-01-01T00:00:00Z"),
+                    Instant.parse("2026-02-05T00:00:00Z"),
+                    tokyo,
+                ),
+                TimeRange(
+                    Instant.parse("2026-02-05T00:00:00Z"),
+                    Instant.parse("2026-02-06T00:00:00Z"),
+                    tokyo,
+                ),
+                TimeRange(
+                    Instant.parse("2027-01-01T00:00:00Z"),
+                    Instant.parse("2027-01-02T00:00:00Z"),
+                    tokyo,
+                ),
+            ),
+            parser.calls.map { it.range },
+        )
+        assertTrue(parser.calls.all { it.zoneId == tokyo })
+        assertEquals("next-token", repository.states.getValue(id).syncToken)
+    }
+
+    @Test
+    fun refreshRejectsTheSameStableEventIdFromTwoCanonicalResourcesWithoutAdvancingToken() = runTest {
+        // Catches list-order ownership of one UID when two resources produce the same stable event and instance IDs.
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(
+            calendars = listOf(calendar),
+            deltas = mutableMapOf(
+                "work" to RemoteDelta(
+                    upserts = listOf(
+                        resource("/calendars/work/a.ics", "shared"),
+                        resource("/calendars/work/b.ics", "shared"),
+                    ),
+                    tombstones = emptyList(),
+                    syncToken = "must-not-commit",
+                ),
+            ),
+        )
+        val repository = FakeRepository()
+        val id = stableIdFor(calendar)
+        repository.states[id] = CalendarSyncState("saved-token", emptyList())
+
+        val result = coordinator(gateway, FakeParser(), repository).sync(SyncRequest.Refresh)
+
+        assertTrue(result is SyncResult.PartialSuccess)
+        assertEquals(
+            mapOf(id to SyncFailureCategory.INVALID_DATA),
+            (result as SyncResult.PartialSuccess).failures,
+        )
+        assertTrue(repository.deltas.isEmpty())
+        assertEquals("saved-token", repository.states.getValue(id).syncToken)
+    }
+
+    @Test
+    fun refreshRejectsTheSameStableInstanceIdFromTwoCanonicalResourcesWithoutAdvancingToken() = runTest {
+        // Catches independently deduplicating instances and pairing one resource's instance with another owner.
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(
+            calendars = listOf(calendar),
+            deltas = mutableMapOf(
+                "work" to RemoteDelta(
+                    upserts = listOf(
+                        resource("/calendars/work/a.ics", "a"),
+                        resource("/calendars/work/b.ics", "b"),
+                    ),
+                    tombstones = emptyList(),
+                    syncToken = "must-not-commit",
+                ),
+            ),
+        )
+        val repository = FakeRepository()
+        val id = stableIdFor(calendar)
+        repository.states[id] = CalendarSyncState("saved-token", emptyList())
+
+        val result = coordinator(gateway, InstanceCollisionParser(), repository).sync(SyncRequest.Refresh)
+
+        assertTrue(result is SyncResult.PartialSuccess)
+        assertEquals(
+            mapOf(id to SyncFailureCategory.INVALID_DATA),
+            (result as SyncResult.PartialSuccess).failures,
+        )
+        assertTrue(repository.deltas.isEmpty())
+        assertEquals("saved-token", repository.states.getValue(id).syncToken)
+    }
+
+    @Test
     fun repositoryFailureDoesNotPublishTheNewTokenAndOtherCalendarsContinue() = runTest {
         // Catches saving a token before its transaction or aborting the loop after one calendar fails.
         val failed = remote("failed", "/calendars/failed/")
@@ -389,6 +513,41 @@ private class FakeParser(private val failContent: String? = null) : IcsParser {
         calls += ParseCall(ics, range, displayZone)
         if (ics == failContent) throw IcsParseException("invalid fixture")
         return parsed(ics)
+    }
+}
+
+private class InstanceCollisionParser : IcsParser {
+    override fun parse(ics: String, range: TimeRange, displayZone: ZoneId): ParsedCalendar {
+        val event = ParsedEvent(
+            id = "event-$ics",
+            uid = "uid-$ics",
+            recurrenceId = null,
+            title = "title-$ics",
+            location = null,
+            notes = null,
+            originalTimeZoneId = null,
+            isAllDay = false,
+            recurrenceRule = null,
+            status = EventStatus.CONFIRMED,
+        )
+        return ParsedCalendar(
+            events = listOf(event),
+            instances = listOf(
+                ParsedInstance(
+                    instanceId = "shared-instance",
+                    eventId = event.id,
+                    uid = event.uid,
+                    recurrenceId = null,
+                    title = event.title,
+                    location = null,
+                    isAllDay = false,
+                    startInstant = Instant.parse("2026-03-15T09:00:00Z"),
+                    endInstant = Instant.parse("2026-03-15T10:00:00Z"),
+                    startDate = null,
+                    endDateExclusive = null,
+                ),
+            ),
+        )
     }
 }
 

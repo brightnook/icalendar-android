@@ -89,3 +89,74 @@ The fresh build emitted the host's SDK XML/JDK native-access notices and lint re
 
 - Android instrumentation tests were compiled and packaged but not executed because no connected-device run was requested.
 - Debug builds package the exported Room schemas so the Robolectric migration integration test can construct a true v1 database; the schema files contain structure only, not user data.
+
+## Fix Round 1: changed-resource replacement and ownership validation
+
+### Root cause and RED evidence
+
+- `DefaultSyncCoordinator.refresh` parsed delta upserts only over the initial range, while `RoomCalendarRepository.applyCalendarDelta` deleted only server tombstones. An ordinary changed resource therefore upserted its new master/instances without deleting old instances from the same href; a cancelled resource similarly left old instances behind, and the token advanced in the same otherwise-successful transaction.
+- The coordinator independently used `distinctBy` for event and instance identifiers. Two canonical resource hrefs producing the same stable ID were silently resolved by list order, allowing mixed ownership and later data loss.
+
+Changed-resource/coverage RED:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorRoomTest" --tests "*DefaultSyncCoordinatorTest.refreshRebuildsChangedResourcesAcrossEveryCommittedCoverageChunk"
+BUILD FAILED in 33s
+4 tests, 4 failures (AssertionError at lines 86, 72, 99, and 194)
+```
+
+The four failures proved that moved and cancelled resources retained stale rows, a forced changed-resource delete failure did not roll back the token because no delete was attempted, and refresh did not parse every committed coverage chunk.
+
+Cross-resource ownership RED:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest.refreshRejectsTheSameStableEventIdFromTwoCanonicalResourcesWithoutAdvancingToken" --tests "*DefaultSyncCoordinatorTest.refreshRejectsTheSameStableInstanceIdFromTwoCanonicalResourcesWithoutAdvancingToken"
+BUILD FAILED in 5s
+2 tests, 2 failures (AssertionError at lines 254 and 286)
+```
+
+Both requests incorrectly returned success and published the next token before the fix.
+
+### GREEN and behavioral evidence
+
+- `CalendarDelta.replacedResourceHrefs` explicitly distinguishes ordinary changed resources from server tombstones while retaining existing deletion contracts.
+- Room unions deleted and replaced hrefs, deletes their existing masters first, and then performs upserts and token persistence inside the existing single transaction. Real Room/coordinator tests prove a moved resource has only its new occurrence, a cancelled resource has no remaining occurrence, and an injected SQLite delete failure preserves both the old occurrence and old token.
+- Delta resources are parsed across every committed coverage range, split into parser chunks no longer than 400 days and retaining each range's display zone. With no committed coverage, refresh retains the bounded initial fallback.
+- Parsed events and instances retain their canonical resource owner during aggregation. A stable event or instance ID attributed to more than one href, conflicting repeated values, or an instance whose event belongs to another href throws safe invalid-data failure before the repository transaction; tests prove no delta or token is committed.
+
+Focused GREEN commands:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorRoomTest" --tests "*DefaultSyncCoordinatorTest.refreshRebuildsChangedResourcesAcrossEveryCommittedCoverageChunk"
+BUILD SUCCESSFUL in 16s
+4 tests, 0 failures
+
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest.refreshRejectsTheSameStableEventIdFromTwoCanonicalResourcesWithoutAdvancingToken" --tests "*DefaultSyncCoordinatorTest.refreshRejectsTheSameStableInstanceIdFromTwoCanonicalResourcesWithoutAdvancingToken"
+BUILD SUCCESSFUL in 6s
+2 tests, 0 failures
+```
+
+Affected suites:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest" --tests "*DefaultSyncCoordinatorRoomTest" --tests "*RoomCalendarRepositoryTest" --tests "*CalendarDatabaseMigrationTest" --tests "*ICloudCalDavGatewayTest" --tests "*Ical4jIcsParserTest"
+BUILD SUCCESSFUL in 14s
+113 tests, 0 failures, 0 errors, 0 skipped
+```
+
+Fresh verification matrix:
+
+```text
+.\gradlew.bat testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks
+BUILD SUCCESSFUL in 43s
+90 actionable tasks: 90 executed
+123 unit tests, 0 failures, 0 errors, 0 skipped
+app-debug.apk generated
+app-debug-androidTest.apk generated
+```
+
+`git diff --check` exited 0. The build emitted the same non-blocking host native-access/native-library notices. The user-owned `gradle.properties` modification and untracked `gradle/gradle-daemon-jvm.properties` were not modified or included in this fix.
+
+Fix files: `domain/Models.kt`, `data/RoomCalendarRepository.kt`, `sync/DefaultSyncCoordinator.kt`, `sync/DefaultSyncCoordinatorTest.kt`, and the new real-Room `sync/DefaultSyncCoordinatorRoomTest.kt`.
+
+Fix commit: `fix: replace changed calendar resources atomically`.

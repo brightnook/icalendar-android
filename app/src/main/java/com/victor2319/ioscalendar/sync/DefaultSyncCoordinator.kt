@@ -8,10 +8,12 @@ import com.victor2319.ioscalendar.caldav.IcsParser
 import com.victor2319.ioscalendar.caldav.RemoteCalendar
 import com.victor2319.ioscalendar.caldav.RemoteResource
 import com.victor2319.ioscalendar.domain.CalendarDelta
+import com.victor2319.ioscalendar.domain.CalendarEvent
 import com.victor2319.ioscalendar.domain.CalendarRepository
 import com.victor2319.ioscalendar.domain.CalendarSnapshot
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.ClockProvider
+import com.victor2319.ioscalendar.domain.EventInstance
 import com.victor2319.ioscalendar.domain.TimeRange
 import java.net.URI
 import java.nio.charset.StandardCharsets
@@ -87,10 +89,12 @@ class DefaultSyncCoordinator(
         calendarId: String,
         parseRange: TimeRange,
     ): SyncCounts {
-        val token = repository.getSyncState(calendarId).syncToken?.takeIf(String::isNotBlank)
+        val state = repository.getSyncState(calendarId)
+        val token = state.syncToken?.takeIf(String::isNotBlank)
             ?: return replaceSnapshot(calendar, calendarId, parseRange)
         val delta = gateway.fetchDelta(calendar, token)
-        val parsed = parseResources(delta.upserts, calendarId, calendarColor(calendar.color), parseRange)
+        val parseRanges = state.coverage.ifEmpty { listOf(parseRange) }.flatMap(TimeRange::chunks)
+        val parsed = parseResources(delta.upserts, calendarId, calendarColor(calendar.color), parseRanges)
         repository.applyCalendarDelta(
             CalendarDelta(
                 calendarId = calendarId,
@@ -100,6 +104,7 @@ class DefaultSyncCoordinator(
                 deletedInstanceIds = emptySet(),
                 syncToken = delta.syncToken,
                 deletedResourceHrefs = delta.tombstones.mapTo(linkedSetOf()) { canonicalHref(it.href) },
+                replacedResourceHrefs = delta.upserts.mapTo(linkedSetOf()) { canonicalHref(it.href) },
             ),
         )
         return SyncCounts(1, parsed.events.size, parsed.instances.size)
@@ -133,7 +138,12 @@ class DefaultSyncCoordinator(
             syncToken = snapshot.syncToken ?: syncToken
         }
         val colorArgb = calendarColor(calendar.color)
-        val parsed = parseResources(resources.distinctBy(RemoteResource::href), calendarId, colorArgb, range)
+        val parsed = parseResources(
+            resources.distinctBy(RemoteResource::href),
+            calendarId,
+            colorArgb,
+            range.chunks(),
+        )
         repository.replaceCalendarSnapshot(
             CalendarSnapshot(
                 calendar = CalendarSummary(
@@ -155,18 +165,37 @@ class DefaultSyncCoordinator(
         resources: List<RemoteResource>,
         calendarId: String,
         calendarColorArgb: Int,
-        range: TimeRange,
+        ranges: List<TimeRange>,
     ): ParsedPayload {
-        val parsedResources = resources.map { resource ->
+        val parsedResources = resources.flatMap { resource ->
             val href = canonicalHref(resource.href)
-            href to parser.parse(resource.calendarData, range, clock.zoneId)
+            ranges.map { range ->
+                href to parser.parse(resource.calendarData, range, range.zoneId)
+            }
         }
-        val events = parsedResources.flatMap { (href, parsed) ->
-            parsed.events.map { it.toDomain(calendarId, href) }
-        }.distinctBy { it.id }
-        val instances = parsedResources.flatMap { (_, parsed) ->
-            parsed.instances.map { it.toDomain(calendarId, calendarColorArgb) }
-        }.distinctBy { it.instanceId }
+        val ownedEvents = parsedResources.flatMap { (href, parsed) ->
+            parsed.events.map { OwnedEvent(href, it.toDomain(calendarId, href)) }
+        }
+        val events = ownedEvents.groupBy { it.event.id }.map { (_, values) ->
+            if (values.map { it.href }.distinct().size != 1 || values.map { it.event }.distinct().size != 1) {
+                throw IcsParseException("Conflicting iCalendar event identifiers")
+            }
+            values.first().event
+        }
+        val eventOwners = ownedEvents.associate { it.event.id to it.href }
+        val ownedInstances = parsedResources.flatMap { (href, parsed) ->
+            parsed.instances.map { OwnedInstance(href, it.toDomain(calendarId, calendarColorArgb)) }
+        }
+        val instances = ownedInstances.groupBy { it.instance.instanceId }.map { (_, values) ->
+            if (
+                values.map { it.href }.distinct().size != 1 ||
+                values.map { it.instance }.distinct().size != 1 ||
+                values.any { eventOwners[it.instance.eventId] != it.href }
+            ) {
+                throw IcsParseException("Conflicting iCalendar instance identifiers")
+            }
+            values.first().instance
+        }
         return ParsedPayload(events, instances)
     }
 
@@ -187,9 +216,13 @@ class DefaultSyncCoordinator(
 }
 
 private data class ParsedPayload(
-    val events: List<com.victor2319.ioscalendar.domain.CalendarEvent>,
-    val instances: List<com.victor2319.ioscalendar.domain.EventInstance>,
+    val events: List<CalendarEvent>,
+    val instances: List<EventInstance>,
 )
+
+private data class OwnedEvent(val href: String, val event: CalendarEvent)
+
+private data class OwnedInstance(val href: String, val instance: EventInstance)
 
 private fun TimeRange.chunks(): List<TimeRange> {
     val chunks = mutableListOf<TimeRange>()
