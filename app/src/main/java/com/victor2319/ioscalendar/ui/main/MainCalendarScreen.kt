@@ -33,6 +33,7 @@ fun MainCalendarScreen(
     onSelectDate: (java.time.LocalDate) -> Unit,
     onShowMonth: (java.time.YearMonth) -> Unit,
     onRefresh: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onOpenEvent: (String) -> Unit,
     onCloseEvent: () -> Unit,
     onOpenExternalAction: (ExternalAction) -> Unit,
@@ -54,6 +55,7 @@ fun MainCalendarScreen(
                 style = MaterialTheme.typography.titleMedium,
             )
             Button(onClick = onRefresh) { Text(stringResource(R.string.calendar_refresh)) }
+            Button(onClick = onOpenSettings) { Text(stringResource(R.string.settings_title)) }
         }
         state.message?.let {
             Text(

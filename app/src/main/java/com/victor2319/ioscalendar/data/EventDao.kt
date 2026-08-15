@@ -42,6 +42,12 @@ interface EventDao {
     @Query("SELECT COUNT(*) FROM event_instances")
     suspend fun instanceCount(): Int
 
+    @Query("DELETE FROM event_instances WHERE (isAllDay = 0 AND endEpochMillis <= :cutoffEpochMillis) OR (isAllDay = 1 AND endDateExclusive <= :cutoffDate)")
+    suspend fun deleteHistoryBefore(cutoffEpochMillis: Long, cutoffDate: String)
+
+    @Query("DELETE FROM event_masters WHERE NOT EXISTS (SELECT 1 FROM event_instances WHERE event_instances.eventId = event_masters.id AND event_instances.calendarId = event_masters.calendarId)")
+    suspend fun deleteOrphanedEvents()
+
     @Query(
         """
         SELECT i.instanceId, i.eventId, i.calendarId, e.title,

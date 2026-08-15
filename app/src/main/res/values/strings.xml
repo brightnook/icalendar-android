@@ -48,4 +48,25 @@
     <string name="calendar_recurrence_last_weekday">last %1$s</string>
     <plurals name="calendar_recurrence_nth_weekday"><item quantity="one">occurrence %1$d of %2$s</item><item quantity="other">occurrence %1$d of %2$s</item></plurals>
     <plurals name="calendar_recurrence_nth_weekday_from_end"><item quantity="one">occurrence %1$d from the end of %2$s</item><item quantity="other">occurrence %1$d from the end of %2$s</item></plurals>
+    <string name="settings_title">Settings</string>
+    <string name="settings_account_signed_out">Not connected</string>
+    <string name="settings_sync_mode">Sync mode</string>
+    <string name="settings_mode_manual">Manual</string>
+    <string name="settings_mode_hourly">Hourly (approximately every hour)</string>
+    <string name="settings_mode_daily">Daily (approximately once a day)</string>
+    <string name="settings_mode_disabled">Disabled</string>
+    <string name="settings_calendars">Calendars</string>
+    <string name="settings_clear_history">Clear history</string>
+    <string name="settings_clear_cache">Delete cache</string>
+    <string name="settings_logout">Sign out</string>
+    <string name="settings_cleanup_warning">Signed out, but some local calendar data could not be removed.</string>
+    <string name="settings_operation_failed">This settings change could not be completed.</string>
+    <string name="settings_clear_history_title">Clear older history?</string>
+    <string name="settings_clear_history_message">Events before this month will be removed. Current and future events will stay.</string>
+    <string name="settings_clear_cache_title">Delete cached calendar data?</string>
+    <string name="settings_clear_cache_message">All locally cached calendars and events will be removed.</string>
+    <string name="settings_logout_title">Sign out?</string>
+    <string name="settings_logout_message">Your saved iCloud credentials will be removed from this device.</string>
+    <string name="settings_delete">Delete</string>
+    <string name="settings_cancel">Cancel</string>
 </resources>

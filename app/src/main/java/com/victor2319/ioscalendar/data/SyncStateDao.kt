@@ -18,6 +18,12 @@ interface SyncStateDao {
     @Query("DELETE FROM sync_coverage WHERE calendarId = :calendarId AND zoneId = :zoneId")
     suspend fun deleteCoverageForZone(calendarId: String, zoneId: String)
 
+    @Query("DELETE FROM sync_coverage WHERE endEpochMillis <= :cutoffEpochMillis")
+    suspend fun deleteCoverageEndingBefore(cutoffEpochMillis: Long)
+
+    @Query("UPDATE sync_coverage SET startEpochMillis = :cutoffEpochMillis WHERE startEpochMillis < :cutoffEpochMillis AND endEpochMillis > :cutoffEpochMillis")
+    suspend fun trimCoverageBefore(cutoffEpochMillis: Long)
+
     @Upsert
     suspend fun upsertCoverage(coverage: List<CoverageEntity>)
 

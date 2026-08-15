@@ -48,4 +48,25 @@
     <string name="calendar_recurrence_last_weekday">最后一个%1$s</string>
     <plurals name="calendar_recurrence_nth_weekday"><item quantity="other">第 %1$d 个%2$s</item></plurals>
     <plurals name="calendar_recurrence_nth_weekday_from_end"><item quantity="other">倒数第 %1$d 个%2$s</item></plurals>
+    <string name="settings_title">设置</string>
+    <string name="settings_account_signed_out">未连接</string>
+    <string name="settings_sync_mode">同步方式</string>
+    <string name="settings_mode_manual">手动</string>
+    <string name="settings_mode_hourly">每小时（大约每小时一次）</string>
+    <string name="settings_mode_daily">每天（大约每天一次）</string>
+    <string name="settings_mode_disabled">已禁用</string>
+    <string name="settings_calendars">日历</string>
+    <string name="settings_clear_history">清除历史记录</string>
+    <string name="settings_clear_cache">删除缓存</string>
+    <string name="settings_logout">退出登录</string>
+    <string name="settings_cleanup_warning">已退出登录，但部分本地日历数据无法删除。</string>
+    <string name="settings_operation_failed">无法完成此设置更改。</string>
+    <string name="settings_clear_history_title">清除较早的历史记录？</string>
+    <string name="settings_clear_history_message">本月之前的事件将被删除；当前和未来事件会保留。</string>
+    <string name="settings_clear_cache_title">删除已缓存的日历数据？</string>
+    <string name="settings_clear_cache_message">所有本地缓存的日历和事件都将被删除。</string>
+    <string name="settings_logout_title">退出登录？</string>
+    <string name="settings_logout_message">此设备上保存的 iCloud 凭据将被删除。</string>
+    <string name="settings_delete">删除</string>
+    <string name="settings_cancel">取消</string>
 </resources>

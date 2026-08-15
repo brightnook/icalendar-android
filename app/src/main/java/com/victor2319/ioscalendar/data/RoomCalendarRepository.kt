@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.victor2319.ioscalendar.domain.CalendarDelta
 import com.victor2319.ioscalendar.domain.CalendarEvent
 import com.victor2319.ioscalendar.domain.CalendarRepository
+import com.victor2319.ioscalendar.domain.CalendarHistoryBoundary
 import com.victor2319.ioscalendar.domain.CalendarSnapshot
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.CalendarSyncState
@@ -116,6 +117,15 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
 
     override suspend fun recordCoverage(calendarId: String, range: TimeRange) {
         database.withTransaction { mergeCoverage(calendarId, range) }
+    }
+
+    override suspend fun clearCalendarHistory(before: CalendarHistoryBoundary) {
+        database.withTransaction {
+            eventDao.deleteHistoryBefore(before.instant.toEpochMilli(), before.localDate.toString())
+            eventDao.deleteOrphanedEvents()
+            syncStateDao.deleteCoverageEndingBefore(before.instant.toEpochMilli())
+            syncStateDao.trimCoverageBefore(before.instant.toEpochMilli())
+        }
     }
 
     override suspend fun clearCalendarCache() {

@@ -395,6 +395,7 @@ private class FlowRepository(
     override suspend fun applyCalendarDelta(delta: CalendarDelta) = Unit
     override suspend fun setCalendarVisible(calendarId: String, visible: Boolean) = Unit
     override suspend fun recordCoverage(calendarId: String, range: TimeRange) = Unit
+    override suspend fun clearCalendarHistory(before: com.victor2319.ioscalendar.domain.CalendarHistoryBoundary) = Unit
     override suspend fun clearCalendarCache() = Unit
 }
 

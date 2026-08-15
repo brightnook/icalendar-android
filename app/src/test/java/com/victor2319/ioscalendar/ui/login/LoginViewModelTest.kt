@@ -81,6 +81,25 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun successfulInitialSyncMarksTheAccountAuthenticatedBeforeCalendarRouting() = runTest {
+        // Catches exposing the calendar destination before AppRoot's AccountManager gate can become authenticated.
+        val marked = mutableListOf<String>()
+        val store = RecordingCredentialsStore()
+        val viewModel = LoginViewModel(
+            RecordingLoginCoordinator(LoginResult.Success),
+            store,
+            SyncAfterStored(store),
+            onAuthenticated = { marked += it },
+        )
+
+        viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
+        advanceUntilIdle()
+
+        assertEquals(listOf("person@example.test"), marked)
+        assertEquals(LoginDestination.CALENDAR, viewModel.uiState.value.destination)
+    }
+
+    @Test
     fun authenticationNetworkAndServerFailuresHaveDifferentVisibleMessages() = runTest {
         // Catches collapsing distinct recovery actions into one unhelpful error state.
         val cases = listOf(
@@ -153,6 +172,7 @@ class LoginViewModelTest {
     }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule : TestWatcher() {
     private val dispatcher = UnconfinedTestDispatcher()
 

@@ -21,6 +21,7 @@ class LoginViewModel(
     private val loginCoordinator: LoginCoordinator,
     private val credentialsStore: CredentialsStore,
     private val syncCoordinator: SyncCoordinator,
+    private val onAuthenticated: suspend (String) -> Unit = {},
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = mutableUiState.asStateFlow()
@@ -57,10 +58,13 @@ class LoginViewModel(
 
             mutableUiState.value = LoginUiState(phase = LoginPhase.SYNCING)
             when (val result = syncCoordinator.sync(SyncRequest.Initial)) {
-                is SyncResult.Success -> mutableUiState.value = LoginUiState(
-                    phase = LoginPhase.COMPLETE,
-                    destination = LoginDestination.CALENDAR,
-                )
+                is SyncResult.Success -> {
+                    onAuthenticated(appleId)
+                    mutableUiState.value = LoginUiState(
+                        phase = LoginPhase.COMPLETE,
+                        destination = LoginDestination.CALENDAR,
+                    )
+                }
 
                 is SyncResult.PartialSuccess -> fail(LoginError.PARTIAL_SYNC)
                 is SyncResult.AuthenticationRequired -> fail(LoginError.AUTHENTICATION)
@@ -88,11 +92,12 @@ class LoginViewModelFactory(
     private val loginCoordinator: LoginCoordinator,
     private val credentialsStore: CredentialsStore,
     private val syncCoordinator: SyncCoordinator,
+    private val onAuthenticated: suspend (String) -> Unit = {},
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(LoginViewModel::class.java))
-        return LoginViewModel(loginCoordinator, credentialsStore, syncCoordinator) as T
+        return LoginViewModel(loginCoordinator, credentialsStore, syncCoordinator, onAuthenticated) as T
     }
 }
 
