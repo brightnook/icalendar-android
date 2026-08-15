@@ -23,3 +23,7 @@ Concerns: Android instrumentation tests compile but were not run because no devi
 - Added Room recurring-instance history test. It was RED after temporarily omitting the history deletion call, then GREEN after restoring it: past instance is purged while the current instance and recurring master remain, and coverage starts at the explicit boundary.
 
 Round-1 focused GREEN evidence: `testDebugUnitTest` for AppRoot routing, LocalAccountManager (2 tests), and the Room recurring-history test. The isolated cache download was required for Robolectric's Android runtime. Subsequent Android-test assembly retry hit a task-owned debug-keystore lock; no Android device was available for runtime instrumentation.
+
+## Device verification follow-up
+
+ADB device `aaf08081` was online. The current debug and test APKs installed successfully. Running `AppRootAuthenticationRouteTest` on-device executed both tests but both failed before assertions because the test package cannot resolve the Compose fixture activity: `Unable to resolve activity ... com.victor2319.ioscalendar.test/androidx.activity.ComponentActivity`. This is an Android-test manifest/fixture issue, not an AppRoot authentication-route failure. No production or test code was changed during this verification-only follow-up; Settings instrumentation was not run because it uses the same Compose fixture and would fail at the same setup point.
