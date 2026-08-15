@@ -5,15 +5,30 @@ import com.victor2319.ioscalendar.auth.CredentialsStore
 import com.victor2319.ioscalendar.auth.LoginCoordinator
 import com.victor2319.ioscalendar.auth.LoginResult
 import com.victor2319.ioscalendar.sync.SyncCoordinator
+import com.victor2319.ioscalendar.sync.SyncCounts
+import com.victor2319.ioscalendar.sync.SyncFailureCategory
 import com.victor2319.ioscalendar.sync.SyncRequest
 import com.victor2319.ioscalendar.sync.SyncResult
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Rule
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
     @Test
     fun emptyFieldsAreRejectedBeforeContactingICloud() = runTest {
         // Catches sending blank credentials to the server or writing them to secure storage.
@@ -23,6 +38,7 @@ class LoginViewModelTest {
 
         val suppliedPassword = "   ".toCharArray()
         viewModel.connect("   ", suppliedPassword)
+        advanceUntilIdle()
 
         assertEquals(LoginError.EMPTY_FIELDS, viewModel.uiState.value.error)
         assertEquals(1L, viewModel.uiState.value.passwordClearToken)
@@ -40,6 +56,7 @@ class LoginViewModelTest {
         val suppliedPassword = "abcd-efgh-ijkl-mnop".toCharArray()
 
         viewModel.connect(" person@example.test ", suppliedPassword)
+        advanceUntilIdle()
 
         assertEquals(LoginError.AUTHENTICATION, viewModel.uiState.value.error)
         assertEquals(1L, viewModel.uiState.value.passwordClearToken)
@@ -55,6 +72,7 @@ class LoginViewModelTest {
         val viewModel = LoginViewModel(coordinator, store, SyncAfterStored(store))
 
         viewModel.connect(" person@example.test ", " abcd-efgh-ijkl-mnop ".toCharArray())
+        advanceUntilIdle()
 
         assertEquals("person@example.test", store.saved?.appleId)
         assertEquals("abcd-efgh-ijkl-mnop", store.saved?.appSpecificPassword?.concatToString())
@@ -77,11 +95,73 @@ class LoginViewModelTest {
             val viewModel = LoginViewModel(coordinator, store, SyncAfterStored(store))
 
             viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
+            advanceUntilIdle()
 
             assertEquals(expectedError, viewModel.uiState.value.error)
             assertEquals(1L, viewModel.uiState.value.passwordClearToken)
             assertNull(store.saved)
         }
+    }
+
+    @Test
+    fun partialFirstSyncStaysOnLoginWithAnExplicitRetryMessage() = runTest {
+        // Catches navigating to a misleading completed state when calendars still failed to synchronize.
+        val store = RecordingCredentialsStore()
+        val viewModel = LoginViewModel(
+            RecordingLoginCoordinator(LoginResult.Success),
+            store,
+            SyncAfterStored(
+                store,
+                SyncResult.PartialSuccess(
+                    counts = SyncCounts(calendars = 1),
+                    calendarIds = setOf("saved"),
+                    failures = mapOf("failed" to SyncFailureCategory.INVALID_DATA),
+                ),
+            ),
+        )
+
+        viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
+        advanceUntilIdle()
+
+        assertEquals(LoginDestination.LOGIN, viewModel.uiState.value.destination)
+        assertEquals(LoginError.PARTIAL_SYNC, viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun initialSyncFailureCategoriesMapToDistinctSafeMessages() = runTest {
+        // Catches treating a temporary server failure as a local network outage or losing auth guidance.
+        val cases = listOf(
+            SyncResult.RetryableFailure(SyncFailureCategory.AUTHENTICATION) to LoginError.AUTHENTICATION,
+            SyncResult.RetryableFailure(SyncFailureCategory.NETWORK) to LoginError.NETWORK,
+            SyncResult.RetryableFailure(SyncFailureCategory.TEMPORARY) to LoginError.SERVER,
+        )
+
+        cases.forEach { (syncResult, expectedError) ->
+            val store = RecordingCredentialsStore()
+            val viewModel = LoginViewModel(
+                RecordingLoginCoordinator(LoginResult.Success),
+                store,
+                SyncAfterStored(store, syncResult),
+            )
+
+            viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
+            advanceUntilIdle()
+
+            assertEquals(expectedError, viewModel.uiState.value.error)
+            assertEquals(LoginDestination.LOGIN, viewModel.uiState.value.destination)
+        }
+    }
+}
+
+class MainDispatcherRule : TestWatcher() {
+    private val dispatcher = UnconfinedTestDispatcher()
+
+    override fun starting(description: Description) {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    override fun finished(description: Description) {
+        Dispatchers.resetMain()
     }
 }
 
@@ -115,10 +195,11 @@ private class RecordingCredentialsStore : CredentialsStore {
 
 private class SyncAfterStored(
     private val store: RecordingCredentialsStore,
+    private val result: SyncResult = SyncResult.Success(),
 ) : SyncCoordinator {
     override suspend fun sync(request: SyncRequest): SyncResult {
         check(request == SyncRequest.Initial)
         check(store.load() != null) { "Initial sync requires saved credentials" }
-        return SyncResult.Success()
+        return result
     }
 }

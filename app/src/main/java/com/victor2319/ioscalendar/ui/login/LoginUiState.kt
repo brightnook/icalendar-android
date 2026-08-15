@@ -21,6 +21,7 @@ enum class LoginError {
     AUTHENTICATION,
     NETWORK,
     SERVER,
+    PARTIAL_SYNC,
 }
 
 enum class LoginDestination {

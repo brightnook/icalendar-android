@@ -54,6 +54,8 @@ tasks.withType<Test>().configureEach {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -76,6 +78,9 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.work.testing)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.compose.ui:ui-test-manifest")
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit.vintage.engine)
 
@@ -84,6 +89,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit.ktx)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.junit4)
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.7.0")
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4-android")
 }

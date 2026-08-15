@@ -14,7 +14,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,7 +23,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
-import kotlinx.coroutines.launch
 
 const val APPLE_ACCOUNT_URL = "https://account.apple.com/"
 const val APPLE_APP_PASSWORD_SUPPORT_URL = "https://support.apple.com/zh-cn/102654"
@@ -32,15 +30,16 @@ const val APPLE_APP_PASSWORD_SUPPORT_URL = "https://support.apple.com/zh-cn/1026
 @Composable
 fun LoginScreen(
     uiState: LoginUiState,
-    onConnect: suspend (appleId: String, password: CharArray) -> Unit,
+    onConnect: (appleId: String, password: CharArray) -> Unit,
     onOpenUri: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var appleId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val passwordVisibilityDescription = stringResource(R.string.login_toggle_password_visibility)
+    val appleIdDescription = stringResource(R.string.login_apple_id_label)
+    val passwordDescription = stringResource(R.string.login_app_password_label)
 
     LaunchedEffect(uiState.passwordClearToken) {
         if (uiState.passwordClearToken > 0) password = ""
@@ -63,14 +62,14 @@ fun LoginScreen(
         OutlinedTextField(
             value = appleId,
             onValueChange = { appleId = it },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = appleIdDescription },
             label = { Text(stringResource(R.string.login_apple_id_label)) },
             singleLine = true,
         )
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = passwordDescription },
             label = { Text(stringResource(R.string.login_app_password_label)) },
             singleLine = true,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -96,7 +95,7 @@ fun LoginScreen(
             onClick = {
                 val submittedPassword = password.toCharArray()
                 password = ""
-                scope.launch { onConnect(appleId, submittedPassword) }
+                onConnect(appleId, submittedPassword)
             },
             enabled = uiState.phase != LoginPhase.DISCOVERING && uiState.phase != LoginPhase.SYNCING,
         ) {
@@ -117,6 +116,7 @@ private fun LoginStatus(uiState: LoginUiState) {
         LoginError.AUTHENTICATION -> R.string.login_error_authentication
         LoginError.NETWORK -> R.string.login_error_network
         LoginError.SERVER -> R.string.login_error_server
+        LoginError.PARTIAL_SYNC -> R.string.login_error_partial_sync
         null -> null
     }
     messageId?.let { Text(stringResource(it)) }
