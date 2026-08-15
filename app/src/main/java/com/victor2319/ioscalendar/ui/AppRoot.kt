@@ -30,10 +30,13 @@ import com.victor2319.ioscalendar.ui.main.ExternalAction
 import com.victor2319.ioscalendar.ui.main.MainCalendarScreen
 import com.victor2319.ioscalendar.ui.main.MainCalendarViewModel
 import com.victor2319.ioscalendar.ui.main.MainCalendarViewModelFactory
+import java.time.ZoneId
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun AppRoot(
     container: AppContainer,
+    zoneIds: StateFlow<ZoneId>,
     launchTarget: CalendarLaunchTarget? = null,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit = {},
 ) {
@@ -49,7 +52,9 @@ fun AppRoot(
                     repository = container.calendarRepository,
                     syncCoordinator = container.syncCoordinator,
                     syncScheduler = container.syncScheduler,
+                    zoneIds = zoneIds,
                 ),
+                zoneIds = zoneIds,
                 launchTarget = launchTarget,
                 onLaunchTargetConsumed = onLaunchTargetConsumed,
             )
@@ -85,12 +90,14 @@ private fun AppRootContent(
 @Composable
 private fun MainCalendarDestination(
     factory: ViewModelProvider.Factory,
+    zoneIds: StateFlow<ZoneId>,
     launchTarget: CalendarLaunchTarget?,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit,
 ) {
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
     val uiState by viewModel.uiState.collectAsState()
+    val zoneId by zoneIds.collectAsState()
     val consumeTarget by rememberUpdatedState(onLaunchTargetConsumed)
     LaunchedEffect(launchTarget) {
         launchTarget?.let {
@@ -100,7 +107,7 @@ private fun MainCalendarDestination(
     }
     MainCalendarScreen(
         state = uiState,
-        zoneId = java.time.ZoneId.systemDefault(),
+        zoneId = zoneId,
         onSelectDate = viewModel::selectDate,
         onShowMonth = viewModel::showMonth,
         onRefresh = viewModel::refresh,

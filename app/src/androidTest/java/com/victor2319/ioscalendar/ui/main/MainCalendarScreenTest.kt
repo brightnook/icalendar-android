@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
@@ -14,6 +15,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.EventDetail
@@ -102,20 +105,23 @@ class MainCalendarScreenTest {
     fun largeFontAndDarkThemeKeepCoreCalendarSemanticsAvailable() {
         composeRule.activity.requestedOrientation = Configuration.ORIENTATION_UNDEFINED
         composeRule.setContent {
-            MaterialTheme(
-                colorScheme = androidx.compose.material3.darkColorScheme(),
-                typography = MaterialTheme.typography,
-            ) {
-                MainCalendarScreen(
-                    state = state(agenda = listOf(allDay("accessible", "Accessible event"))),
-                    zoneId = ZoneId.of("Asia/Tokyo"),
-                    onSelectDate = {},
-                    onShowMonth = {},
-                    onRefresh = {},
-                    onOpenEvent = {},
-                    onCloseEvent = {},
-                    onOpenExternalAction = {},
-                )
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1.8f)) {
+                MaterialTheme(
+                    colorScheme = androidx.compose.material3.darkColorScheme(),
+                    typography = MaterialTheme.typography,
+                ) {
+                    MainCalendarScreen(
+                        state = state(agenda = listOf(allDay("accessible", "Accessible event"))),
+                        zoneId = ZoneId.of("Asia/Tokyo"),
+                        onSelectDate = {},
+                        onShowMonth = {},
+                        onRefresh = {},
+                        onOpenEvent = {},
+                        onCloseEvent = {},
+                        onOpenExternalAction = {},
+                    )
+                }
             }
         }
 

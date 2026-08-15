@@ -95,3 +95,59 @@ app-debug.apk and app-debug-androidTest.apk generated
 ## Concerns
 
 - No device/emulator was available, so runtime Compose instrumentation tests were not executed. Their compilation and APK packaging are verified; no runtime pass is claimed.
+
+## Fix Round 1: review findings
+
+### Verified root causes
+
+- Month coverage used serial `collect`, so a blocked old `EnsureMonth` stayed ahead of the newly displayed month. Its permanent `requestedMonths` set also prevented any partial/failed month from retrying.
+- Agenda and coverage read a dynamic `ClockProvider.zoneId` only when date/month/calendar emitted. A timezone-only change therefore left repository day bounds and current-month coverage stale.
+- `markConsumed` cleared the only remembered launch target. The same `onNewIntent` reopened a closed sheet, and the activity did not restore delivery identity or an unconsumed pending target through configuration recreation.
+- Recurrence parsing retained only the final weekday code and discarded positive/negative ordinal prefixes, so `1MO` and `-1SU` could be displayed as ordinary Monday/Sunday.
+
+### TDD RED/GREEN evidence
+
+- Month priority/retry RED: the two focused tests failed because the blocked August sync was not cancelled for September and a partial August result never retried after leaving and returning. GREEN used `collectLatest`, transient in-flight membership released in `finally`, and success clears the stale safe error. Both tests passed.
+- Same-month de-dup RED: changing only a calendar name cancelled and restarted the blocked month sync (`started` became 2). GREEN derives a distinct sorted set of visible calendar IDs for coverage; metadata-only changes no longer restart work.
+- Timezone RED: the test failed compilation because no explicit zone `StateFlow` input existed. GREEN proves Tokyo-to-UTC with an unchanged selected date switches the observed agenda and rejects Tokyo coverage for the UTC month. The production source is application-scoped, receives `ACTION_TIMEZONE_CHANGED`, and refreshes on activity resume, so a retained ViewModel does not hold an obsolete activity flow.
+- Launch delivery RED: after accept and consume, the same target was accepted again. GREEN keeps a durable accepted set while allowing a different target. A second RED failed on missing `savedState`/`fromSavedState`; GREEN serializes date plus Base64 instance identity, ignores malformed state, restores the delivered set, and separately restores an unconsumed pending target.
+- Ordinal recurrence RED: `RecurrenceDay` did not exist. GREEN preserves ordinal and weekday, localizes first/last and other positive/negative occurrences for monthly/yearly rules, and returns no parsed description for ordinal daily/weekly rules so the UI uses its accurate generic fallback.
+- The large-font Android test now explicitly supplies Compose `fontScale = 1.8f` while retaining dark theme semantics.
+
+Focused final command:
+
+```text
+testDebugUnitTest --tests '*MainCalendarViewModelTest' --rerun-tasks
+BUILD SUCCESSFUL in 40s
+14 focused tests, 0 failures/errors
+```
+
+Affected verification:
+
+```text
+testDebugUnitTest lintDebug assembleDebugAndroidTest
+BUILD SUCCESSFUL in 55s
+161 JVM tests, 0 failures/errors/skips
+lint: 0 errors
+```
+
+Final fresh verification after moving the timezone source to application scope:
+
+```text
+testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks
+BUILD SUCCESSFUL in 1m 7s
+90 actionable tasks: 90 executed
+161 JVM tests, 0 failures, 0 errors, 0 skipped
+lint: 0 errors, 27 advisory warnings
+debug and Android-test APKs generated
+```
+
+`git diff --check` exited zero. The fresh warnings remain pre-existing SDK XML, manifest-removal, native-library, old login-test opt-in, dependency, and KTX advisories. No connected device/emulator was available, so instrumentation tests were assembled rather than run.
+
+### Fix Round 1 files and self-review
+
+- Updated `CalendarApplication.kt`, `MainActivity.kt`, `AppRoot.kt`, `MainCalendarViewModel.kt`, `CalendarLaunchTarget.kt`, `EventDetailSheet.kt`, English/Chinese strings, and the Task 9 JVM/Android tests.
+- Confirmed visible-ID changes, month changes, and zone changes still cancel obsolete coverage work; calendar display-name changes do not.
+- Confirmed cancellation rethrows, in-flight state is released in `finally`, partial/failure remains safe, and revisiting can retry.
+- Confirmed delivered target state never contains notes, titles, credentials, or exception details and malformed saved values are discarded without logging.
+- Confirmed the user-owned `gradle.properties` and `gradle/gradle-daemon-jvm.properties` remain outside staging.

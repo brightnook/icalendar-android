@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -37,19 +39,22 @@ class MainCalendarViewModel(
     private val syncCoordinator: SyncCoordinator,
     private val syncScheduler: SyncScheduler,
     private val clock: ClockProvider = SystemClockProvider,
+    private val zoneIds: StateFlow<ZoneId> = MutableStateFlow(clock.zoneId),
 ) : ViewModel() {
     private val initialDate = clock.now.atZone(clock.zoneId).toLocalDate()
     private val selectedDate = MutableStateFlow(initialDate)
     private val displayedMonth = MutableStateFlow(YearMonth.from(initialDate))
     private val selectedInstanceId = MutableStateFlow<String?>(null)
     private val message = MutableStateFlow<MainCalendarMessage?>(null)
-    private val requestedMonths = mutableSetOf<YearMonth>()
+    private val monthsBeingEnsured = mutableSetOf<YearMonth>()
 
     private val calendars: StateFlow<List<CalendarSummary>> = repository.observeCalendars()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    private val agenda: StateFlow<List<EventInstance>> = selectedDate
-        .flatMapLatest { repository.observeDay(it, clock.zoneId) }
+    private val agenda: StateFlow<List<EventInstance>> = combine(selectedDate, zoneIds) { date, zoneId ->
+        date to zoneId
+    }
+        .flatMapLatest { (date, zoneId) -> repository.observeDay(date, zoneId) }
         .map { instances ->
             instances.sortedWith(
                 compareByDescending<EventInstance> { it.isAllDay }
@@ -86,8 +91,16 @@ class MainCalendarViewModel(
 
     init {
         viewModelScope.launch {
-            combine(displayedMonth, calendars) { month, calendarList -> month to calendarList }
-                .collect { (month, calendarList) -> ensureMonthIfMissing(month, calendarList) }
+            val visibleCalendarIds = calendars
+                .map { calendarList ->
+                    calendarList.filter(CalendarSummary::isVisible).map(CalendarSummary::id).sorted()
+                }
+                .distinctUntilChanged()
+            combine(displayedMonth, visibleCalendarIds, zoneIds) { month, calendarIds, zoneId ->
+                Triple(month, calendarIds, zoneId)
+            }.collectLatest { (month, calendarIds, zoneId) ->
+                ensureMonthIfMissing(month, calendarIds, zoneId)
+            }
         }
     }
 
@@ -131,15 +144,18 @@ class MainCalendarViewModel(
         }
     }
 
-    private suspend fun ensureMonthIfMissing(month: YearMonth, calendarList: List<CalendarSummary>) {
-        val visible = calendarList.filter(CalendarSummary::isVisible)
-        if (visible.isEmpty()) return
-        val requiredStart = month.atDay(1).atStartOfDay(clock.zoneId).toInstant()
-        val requiredEnd = month.plusMonths(1).atDay(1).atStartOfDay(clock.zoneId).toInstant()
+    private suspend fun ensureMonthIfMissing(
+        month: YearMonth,
+        calendarIds: List<String>,
+        zoneId: ZoneId,
+    ) {
+        if (calendarIds.isEmpty()) return
+        val requiredStart = month.atDay(1).atStartOfDay(zoneId).toInstant()
+        val requiredEnd = month.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant()
         val fullyCovered = try {
-            visible.all { calendar ->
-                repository.getSyncState(calendar.id).coverage.any { coverage ->
-                    coverage.zoneId == clock.zoneId &&
+            calendarIds.all { calendarId ->
+                repository.getSyncState(calendarId).coverage.any { coverage ->
+                    coverage.zoneId == zoneId &&
                         coverage.start == requiredStart &&
                         coverage.endExclusive == requiredEnd
                 }
@@ -150,7 +166,8 @@ class MainCalendarViewModel(
             message.value = MainCalendarMessage.SYNC_FAILED
             return
         }
-        if (fullyCovered || !requestedMonths.add(month)) return
+        if (fullyCovered || !monthsBeingEnsured.add(month)) return
+        message.value = null
         try {
             when (syncCoordinator.sync(SyncRequest.EnsureMonth(month))) {
                 is SyncResult.Success -> Unit
@@ -162,6 +179,8 @@ class MainCalendarViewModel(
             throw cancellation
         } catch (_: Exception) {
             message.value = MainCalendarMessage.SYNC_FAILED
+        } finally {
+            monthsBeingEnsured.remove(month)
         }
     }
 }
@@ -171,10 +190,11 @@ class MainCalendarViewModelFactory(
     private val syncCoordinator: SyncCoordinator,
     private val syncScheduler: SyncScheduler,
     private val clock: ClockProvider = SystemClockProvider,
+    private val zoneIds: StateFlow<ZoneId> = MutableStateFlow(clock.zoneId),
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(MainCalendarViewModel::class.java))
-        return MainCalendarViewModel(repository, syncCoordinator, syncScheduler, clock) as T
+        return MainCalendarViewModel(repository, syncCoordinator, syncScheduler, clock, zoneIds) as T
     }
 }

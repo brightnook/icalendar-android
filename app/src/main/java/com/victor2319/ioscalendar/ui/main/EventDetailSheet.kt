@@ -43,7 +43,12 @@ enum class RecurrenceFrequency { DAILY, WEEKLY, MONTHLY, YEARLY }
 data class RecurrenceDescription(
     val frequency: RecurrenceFrequency,
     val interval: Int,
-    val days: List<DayOfWeek>,
+    val days: List<RecurrenceDay>,
+)
+
+data class RecurrenceDay(
+    val dayOfWeek: DayOfWeek,
+    val ordinal: Int?,
 )
 
 fun parseRecurrenceRule(rule: String?): RecurrenceDescription? {
@@ -57,11 +62,14 @@ fun parseRecurrenceRule(rule: String?): RecurrenceDescription? {
         ?.substringAfter('=')
     val interval = if (intervalValue == null) 1 else intervalValue.toIntOrNull()?.takeIf { it >= 1 }
         ?: return null
-    val days = parts.firstOrNull { it.startsWith("BYDAY=", ignoreCase = true) }
+    val encodedDays = parts.firstOrNull { it.startsWith("BYDAY=", ignoreCase = true) }
         ?.substringAfter('=')
         ?.split(',')
-        ?.mapNotNull(::recurrenceDay)
         .orEmpty()
+    val days = encodedDays.map { recurrenceDay(it) ?: return null }
+    if (frequency in setOf(RecurrenceFrequency.DAILY, RecurrenceFrequency.WEEKLY) &&
+        days.any { it.ordinal != null }
+    ) return null
     return RecurrenceDescription(frequency, interval, days)
 }
 
@@ -215,15 +223,42 @@ private fun humanRecurrence(rule: String): String {
             )
         }
     }
-    val byDay = recurrence.days
-        .joinToString(", ") { it.getDisplayName(java.time.format.TextStyle.FULL, locale) }
-        .takeIf(String::isNotBlank)
+    val dayTexts = mutableListOf<String>()
+    for (day in recurrence.days) {
+        dayTexts += recurrenceDayText(day, locale)
+    }
+    val byDay = dayTexts.joinToString(", ").takeIf(String::isNotBlank)
     return if (byDay == null) frequencyText else stringResource(R.string.calendar_recurrence_on, frequencyText, byDay)
 }
 
-private fun recurrenceDay(value: String): DayOfWeek? {
-    val code = value.takeLast(2).uppercase()
-    return when (code) {
+@Composable
+private fun recurrenceDayText(day: RecurrenceDay, locale: java.util.Locale): String {
+    val weekday = day.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, locale)
+    val ordinal = day.ordinal ?: return weekday
+    return when {
+        ordinal == 1 -> stringResource(R.string.calendar_recurrence_first_weekday, weekday)
+        ordinal == -1 -> stringResource(R.string.calendar_recurrence_last_weekday, weekday)
+        ordinal > 0 -> pluralStringResource(
+            R.plurals.calendar_recurrence_nth_weekday,
+            ordinal,
+            ordinal,
+            weekday,
+        )
+        else -> pluralStringResource(
+            R.plurals.calendar_recurrence_nth_weekday_from_end,
+            -ordinal,
+            -ordinal,
+            weekday,
+        )
+    }
+}
+
+private fun recurrenceDay(value: String): RecurrenceDay? {
+    val match = Regex("^([+-]?\\d{1,2})?(MO|TU|WE|TH|FR|SA|SU)$", RegexOption.IGNORE_CASE)
+        .matchEntire(value.trim()) ?: return null
+    val ordinal = match.groupValues[1].takeIf(String::isNotEmpty)?.toIntOrNull()
+    if (ordinal == 0 || (ordinal != null && ordinal !in -53..53)) return null
+    val dayOfWeek = when (match.groupValues[2].uppercase()) {
         "MO" -> DayOfWeek.MONDAY
         "TU" -> DayOfWeek.TUESDAY
         "WE" -> DayOfWeek.WEDNESDAY
@@ -232,5 +267,6 @@ private fun recurrenceDay(value: String): DayOfWeek? {
         "SA" -> DayOfWeek.SATURDAY
         "SU" -> DayOfWeek.SUNDAY
         else -> null
-    }
+    } ?: return null
+    return RecurrenceDay(dayOfWeek, ordinal)
 }
