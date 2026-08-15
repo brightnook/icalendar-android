@@ -2,6 +2,7 @@ package com.victor2319.ioscalendar.sync
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -10,17 +11,18 @@ import com.victor2319.ioscalendar.data.SettingsStore
 import com.victor2319.ioscalendar.domain.AppSettings
 import com.victor2319.ioscalendar.domain.SyncMode
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -45,7 +47,7 @@ class WorkManagerSyncSchedulerTest {
     fun hourlySchedulesConnectedUniquePeriodicWorkAndDailyUpdatesIt() = runTest {
         // Catches a non-network-constrained request, duplicate periodic chains, or keeping the hourly interval.
         val scheduler = scheduler()
-        advanceUntilIdle()
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
         scheduler.applyMode(SyncMode.HOURLY)
         scheduler.applyMode(SyncMode.DAILY)
 
@@ -63,7 +65,7 @@ class WorkManagerSyncSchedulerTest {
     fun manualCancelsPeriodicWorkAndEnqueuesOneTimeRefresh() = runTest {
         // Catches retaining background work after manual selection or blocking an allowed manual refresh.
         val scheduler = scheduler()
-        advanceUntilIdle()
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
         scheduler.applyMode(SyncMode.HOURLY)
         scheduler.applyMode(SyncMode.MANUAL)
         val manualId = scheduler.enqueueManual()
@@ -76,7 +78,7 @@ class WorkManagerSyncSchedulerTest {
             .get())
 
         assertTrue(periodic.all { it.state == WorkInfo.State.CANCELLED })
-        assertEquals(WorkInfo.State.ENQUEUED, manual.state)
+        assertEquals(WorkInfo.State.ENQUEUED, checkNotNull(manual).state)
         assertEquals(NetworkType.CONNECTED, manual.constraints.requiredNetworkType)
     }
 
@@ -84,7 +86,7 @@ class WorkManagerSyncSchedulerTest {
     fun disabledCancelsPeriodicWorkAndRejectsManualRefresh() = runTest {
         // Catches disabled mode leaving background work queued or permitting any new sync request.
         val scheduler = scheduler()
-        advanceUntilIdle()
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
         scheduler.applyMode(SyncMode.DAILY)
         scheduler.applyMode(SyncMode.DISABLED)
 
@@ -97,23 +99,29 @@ class WorkManagerSyncSchedulerTest {
     }
 
     @Test
-    fun recreatedSchedulerRestoresDisabledModeBeforeManualWorkCanBeEnqueued() = runTest {
-        // Catches recreating a scheduler with MANUAL in-memory state after the persisted setting was disabled.
-        val settings = InMemorySettingsStore()
-        val first = scheduler(settings)
-        advanceUntilIdle()
-        first.applyMode(SyncMode.DISABLED)
+    fun readyManualModeAllowsManualWorkWithoutReadinessExceptions() = runTest {
+        // Catches a public readiness contract that never opens for the normal persisted MANUAL mode.
+        val scheduler = scheduler()
 
-        val recreated = scheduler(settings)
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
 
-        val failure = withTimeout(1_000) {
-            while (true) {
-                val currentFailure = runCatching { recreated.enqueueManual() }.exceptionOrNull()
-                if (currentFailure !is SyncSettingsNotReadyException) return@withTimeout currentFailure
-                yield()
-            }
-        }
-        assertTrue(failure is SyncDisabledException)
+        assertEquals(SyncSchedulerReadiness.READY, scheduler.readiness.value)
+        val manualId = scheduler.enqueueManual()
+        val manual = workManager
+            .getWorkInfoById(manualId)
+            .get()
+        assertEquals(WorkInfo.State.ENQUEUED, checkNotNull(manual).state)
+    }
+
+    @Test
+    fun recreatedDisabledSchedulerRejectsManualWorkAfterReadinessOpens() = runTest {
+        // Catches treating a persisted DISABLED setting as MANUAL after process recreation.
+        val scheduler = scheduler(InMemorySettingsStore(SyncMode.DISABLED))
+
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
+
+        assertEquals(SyncSchedulerReadiness.READY, scheduler.readiness.value)
+        assertThrows(SyncDisabledException::class.java) { scheduler.enqueueManual() }
     }
 
     @Test
@@ -121,7 +129,7 @@ class WorkManagerSyncSchedulerTest {
         // Catches a delayed hourly enqueue committing after disabled mode has already cancelled periodic work.
         val settings = BlockingSettingsStore()
         val scheduler = scheduler(settings)
-        advanceUntilIdle()
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
 
         val hourly = launch { scheduler.applyMode(SyncMode.HOURLY) }
         settings.hourlyWriteStarted.await()
@@ -136,9 +144,39 @@ class WorkManagerSyncSchedulerTest {
         assertTrue(periodic.all { it.state == WorkInfo.State.CANCELLED })
     }
 
+    @Test
+    fun concurrentDisableCannotCompleteBetweenManualModeCheckAndManualEnqueue() = runTest {
+        // Catches a mode check outside the transition linearization boundary, which lets disabled finish before a stale manual enqueue.
+        val settings = RecordingSettingsStore()
+        val manualEnqueuer = BlockingManualWorkEnqueuer(workManager)
+        val scheduler = scheduler(settings, manualEnqueuer)
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
+
+        val manual = async(Dispatchers.Default) { scheduler.enqueueManual() }
+        manualEnqueuer.started.await()
+        val disabled = async(Dispatchers.Default) { scheduler.applyMode(SyncMode.DISABLED) }
+        settings.disabledPersisted.await()
+
+        assertTrue(!disabled.isCompleted)
+        manualEnqueuer.release.countDown()
+        val manualId = manual.await()
+        advanceUntilIdle()
+        disabled.await()
+
+        assertEquals(
+            WorkInfo.State.ENQUEUED,
+            checkNotNull(workManager.getWorkInfoById(manualId).get()).state,
+        )
+    }
+
     private fun TestScope.scheduler(
         settingsStore: SettingsStore = InMemorySettingsStore(),
-    ) = WorkManagerSyncScheduler(workManager, settingsStore, backgroundScope)
+        manualWorkEnqueuer: ManualWorkEnqueuer? = null,
+    ) = if (manualWorkEnqueuer == null) {
+        WorkManagerSyncScheduler(workManager, settingsStore, backgroundScope)
+    } else {
+        WorkManagerSyncScheduler(workManager, settingsStore, backgroundScope, manualWorkEnqueuer)
+    }
 }
 
 private open class InMemorySettingsStore(initialMode: SyncMode = SyncMode.MANUAL) : SettingsStore {
@@ -161,5 +199,31 @@ private class BlockingSettingsStore : InMemorySettingsStore() {
             allowHourlyWrite.await()
         }
         super.setSyncMode(mode)
+    }
+}
+
+private class RecordingSettingsStore : InMemorySettingsStore() {
+    val disabledPersisted = CompletableDeferred<Unit>()
+
+    override suspend fun setSyncMode(mode: SyncMode) {
+        super.setSyncMode(mode)
+        if (mode == SyncMode.DISABLED) disabledPersisted.complete(Unit)
+    }
+}
+
+private class BlockingManualWorkEnqueuer(
+    private val workManager: WorkManager,
+) : ManualWorkEnqueuer {
+    val started = CompletableDeferred<Unit>()
+    val release = CountDownLatch(1)
+
+    override fun enqueue(request: androidx.work.OneTimeWorkRequest) {
+        started.complete(Unit)
+        release.await()
+        workManager.enqueueUniqueWork(
+            WorkManagerSyncScheduler.MANUAL_SYNC_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
     }
 }

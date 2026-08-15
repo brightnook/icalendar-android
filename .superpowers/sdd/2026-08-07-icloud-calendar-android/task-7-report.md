@@ -183,3 +183,72 @@ The matrix reran unit tests and lint, produced the debug APK and the debug Andro
 - `app/src/test/java/com/victor2319/ioscalendar/data/DataStoreSettingsStoreTest.kt`
 - `app/src/test/java/com/victor2319/ioscalendar/sync/WorkManagerSyncSchedulerTest.kt`
 - `.superpowers/sdd/2026-08-07-icloud-calendar-android/task-7-report.md`
+
+## Fix Round 2
+
+### Findings verified and design
+
+- `enqueueManual()` previously read a separate atomic mode and called WorkManager outside the scheduler transition boundary. A concurrent disable could therefore finish after the read but before the manual work submission.
+- The prior `SyncSettingsNotReadyException` was only an implementation detail: callers had no public readiness signal and the recreation test spun by retrying the exception.
+- The public `SyncScheduler` contract now exposes `StateFlow<SyncSchedulerReadiness>` with `INITIALIZING` and `READY`; `enqueueManual(): UUID` remains non-suspending. `AppContainer.syncSchedulerReadiness` exposes the same flow and `CalendarApplication.onCreate()` initializes it.
+- The final linearization mechanism is an atomic scheduler state with active-manual reservations. A manual call atomically reserves the ready non-disabled state before it enqueues. A settings observer serializes WorkManager operations, then suspends until existing manual reservations drain before publishing the new mode. Thus a manual reserved before disabled is allowed, while a manual after disabled is published throws; no UI or observer thread blocks on a Java lock.
+
+### RED
+
+Command:
+
+```powershell
+$env:JAVA_HOME = 'D:\FM\work\jbr'
+$env:ANDROID_HOME = 'C:\Users\victo\AppData\Local\Android\Sdk'
+$env:GRADLE_USER_HOME = 'C:\Users\victo\AppData\Local\Temp\ioscalendar-task7-gradle'
+.\gradlew.bat testDebugUnitTest --tests "*WorkManagerSyncSchedulerTest" --no-daemon
+```
+
+Result: `BUILD FAILED in 16s` with 30 actionable tasks. The focused test compiled only after test-local nullability/import corrections, then failed solely because the production readiness contract (`SyncSchedulerReadiness` and `readiness`) and deterministic enqueue boundary (`ManualWorkEnqueuer` and four-argument constructor) did not exist. This was a valid RED for the two Round 2 requirements.
+
+### Debugging note
+
+The first GREEN implementation used a `ReentrantLock` for the short manual check/enqueue section. A controlled test delegate held that lock while the test scheduler's observer attempted to publish disabled, which blocked the scheduler and prevented the test coroutine from releasing the delegate. `jcmd Thread.print` confirmed the lock cycle. The task JVMs were stopped, and the lock implementation was replaced rather than patched: the atomic reservation/drained-deferred design above suspends the transition coroutine instead of blocking a thread.
+
+### GREEN
+
+Focused command:
+
+```text
+testDebugUnitTest --tests "*WorkManagerSyncSchedulerTest" --tests "*DataStoreSettingsStoreTest" --tests "*CalendarSyncWorkerTest" --rerun-tasks --no-daemon
+BUILD SUCCESSFUL in 42s; 13 tests, 0 failures/errors.
+```
+
+The scheduler tests now wait for `readiness.first { READY }`, rather than sleeping, spinning, or catching readiness exceptions. They prove normal manual mode works after readiness, a recreated disabled store rejects after readiness, and a controlled real-WorkManager enqueue cannot let disabled complete between the manual check and its enqueue.
+
+Affected suite:
+
+```text
+testDebugUnitTest --no-daemon
+BUILD SUCCESSFUL in 19s; 140 tests, 0 failures/errors.
+```
+
+Fresh required verification:
+
+```text
+testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks --no-daemon
+BUILD SUCCESSFUL in 59s; 90 actionable tasks executed.
+```
+
+The command reran lint and unit tests, assembled the debug APK and debug Android-test APK, and did not run `androidTest` on a device. Environment warnings remained limited to SDK XML, Robolectric native access, protobuf `Unsafe`, WorkManager manifest-merger metadata, unstrippable native libraries, and dependency/version notices; none were lint or test errors.
+
+### Fix Round 2 self-review
+
+- `applyMode` writes settings and waits for the observer's `READY` mode publication; it therefore returns only after persistence and the serialized WorkManager operation complete.
+- The observer never blocks a thread while a manual request is active: it awaits `CompletableDeferred` from a coroutine. The only manual synchronization is atomic compare-and-set; the existing immediate WorkManager submission remains non-suspending.
+- The blocking test decorator delegates its final action to the real `WorkManager`, and assertions inspect actual `WorkInfo`, so it does not assert mock calls.
+- A manual reservation that wins before the disabled publication completes is intentionally allowed; a later call sees `DISABLED` and throws. This is the documented linearization boundary.
+
+### Fix Round 2 files changed
+
+- `app/src/main/java/com/victor2319/ioscalendar/AppContainer.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/CalendarApplication.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/sync/SyncScheduler.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/sync/WorkManagerSyncScheduler.kt`
+- `app/src/test/java/com/victor2319/ioscalendar/sync/WorkManagerSyncSchedulerTest.kt`
+- `.superpowers/sdd/2026-08-07-icloud-calendar-android/task-7-report.md`

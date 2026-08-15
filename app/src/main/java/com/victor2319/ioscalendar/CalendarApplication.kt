@@ -10,6 +10,6 @@ class CalendarApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        container.syncScheduler
+        container.syncSchedulerReadiness
     }
 }

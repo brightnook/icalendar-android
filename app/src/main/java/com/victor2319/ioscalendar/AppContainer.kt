@@ -18,10 +18,12 @@ import com.victor2319.ioscalendar.domain.SystemClockProvider
 import com.victor2319.ioscalendar.sync.DefaultSyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncScheduler
+import com.victor2319.ioscalendar.sync.SyncSchedulerReadiness
 import com.victor2319.ioscalendar.sync.WorkManagerSyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.StateFlow
 
 class AppContainer(val application: Application) {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -52,4 +54,6 @@ class AppContainer(val application: Application) {
             scope = applicationScope,
         )
     }
+    val syncSchedulerReadiness: StateFlow<SyncSchedulerReadiness>
+        get() = syncScheduler.readiness
 }
