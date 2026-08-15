@@ -151,3 +151,64 @@ debug and Android-test APKs generated
 - Confirmed cancellation rethrows, in-flight state is released in `finally`, partial/failure remains safe, and revisiting can retry.
 - Confirmed delivered target state never contains notes, titles, credentials, or exception details and malformed saved values are discarded without logging.
 - Confirmed the user-owned `gradle.properties` and `gradle/gradle-daemon-jvm.properties` remain outside staging.
+
+## Fix Round 2: bounded launch-target saved state
+
+### Verified root cause and design
+
+- Calendar instance IDs produced by this app are 64-character SHA-256 hex strings. The external intent parser previously accepted any nonblank string, retained every distinct date/ID pair for the activity lifetime, and serialized the complete set into saved state.
+- Instance IDs are now limited to 128 characters and 256 UTF-8 bytes before a target can enter either live or restored history. Saved entries additionally require bounded canonical URL-safe Base64 and strictly valid UTF-8.
+- Accepted history is a deterministic 32-entry access-ordered LRU. A duplicate inside the retained window stays suppressed and refreshes recency; the least-recently-used target is evicted when a distinct target enters a full history, after which that old target may legitimately be delivered again.
+- Saved state is ordered oldest to newest and restore examines no more than 32 entries. One entry is at most 361 characters, so this component emits at most 11,552 serialized characters plus fixed list/Bundle overhead and repeated restore/save does not recursively encode or grow it.
+
+### TDD RED/GREEN evidence
+
+Focused RED:
+
+```text
+testDebugUnitTest --tests '*CalendarLaunchTargetDeliveryTest' --rerun-tasks
+BUILD FAILED in 2m 58s
+3 tests completed, 3 failed
+```
+
+The failures independently demonstrated oversized character/UTF-8 IDs entering history, the 33rd target leaving 33 saved entries instead of evicting the LRU entry, and malformed/oversized restored Base64 becoming retained state.
+
+Focused GREEN and existing launch regression coverage:
+
+```text
+testDebugUnitTest --tests '*CalendarLaunchTargetDeliveryTest' --tests '*MainCalendarViewModelTest' --rerun-tasks
+BUILD SUCCESSFUL in 38s
+17 focused tests, 0 failures, 0 errors, 0 skipped
+```
+
+This includes normal duplicate-after-consume suppression, configuration restoration, intentional distinct targets, oversize rejection before history, LRU recency/eviction, malformed Base64 rejection, and stable non-inflating serialization.
+
+Affected verification:
+
+```text
+testDebugUnitTest lintDebug assembleDebugAndroidTest
+BUILD SUCCESSFUL in 1m 8s
+164 JVM tests, 0 failures, 0 errors, 0 skipped
+lint: 0 errors, 27 advisory warnings
+Android-test APK generated
+```
+
+Final fresh verification:
+
+```text
+testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks
+BUILD SUCCESSFUL in 1m 4s
+90 actionable tasks: 90 executed
+164 JVM tests, 0 failures, 0 errors, 0 skipped
+lint: 0 errors, 27 advisory warnings
+debug and Android-test APKs generated
+```
+
+`git diff --check` exited zero before staging. Warnings remain the existing SDK XML, WorkManager manifest-removal, native-library packaging, old login-test coroutine opt-in, restricted native access, dependency, and KTX advisories. No device/emulator was available, so Android instrumentation tests were assembled rather than run.
+
+### Fix Round 2 files and self-review
+
+- Updated only `CalendarLaunchTarget.kt`, added `CalendarLaunchTargetDeliveryTest.kt`, and appended this report.
+- Confirmed the constructor applies the same validation as external parsing, preventing pending-target serialization from bypassing the bounds.
+- Confirmed restored state performs length checks before Base64 decoding, rejects invalid UTF-8 without replacement characters, and never logs or exposes rejected values.
+- Confirmed the user-owned `gradle.properties` and `gradle/gradle-daemon-jvm.properties` remain unchanged by this fix and outside staging.
