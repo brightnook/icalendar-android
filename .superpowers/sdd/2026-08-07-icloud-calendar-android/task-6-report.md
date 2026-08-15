@@ -246,3 +246,63 @@ app-debug-androidTest.apk generated
 Round 2 files: `data/CalendarDatabase.kt`, `sync/DefaultSyncCoordinator.kt`, `data/CalendarDatabaseMigrationTest.kt`, `sync/DefaultSyncCoordinatorTest.kt`, new `sync/MigratedV1SyncCoordinatorTest.kt`, and this report.
 
 Round 2 commit: `fix: baseline migrated calendars safely`.
+
+## Fix Round 3: invalidate legacy coverage
+
+### Root cause and RED evidence
+
+Round 2 invalidated the sync token for calendars containing NULL-owned migrated masters but retained their v1 coverage. Refresh therefore performed the bounded current 13-month snapshot, while NULL-owned instances outside that window remained. A later `EnsureMonth` trusted the migrated coverage and skipped the exact month snapshot that was required to assign resource ownership and replace those rows.
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*CalendarDatabaseMigrationTest" --tests "*MigratedV1SyncCoordinatorTest.ensureMonthAfterMigratedRefreshFetchesAndReplacesLegacyDataOutsideTheInitialRange"
+BUILD FAILED in 12s
+2 tests, 2 failures
+CalendarDatabaseMigrationTest.kt:73
+MigratedV1SyncCoordinatorTest.kt:80 (behavior assertion at line 103)
+```
+
+The direct migration assertion found the legacy coverage row, and the true v1 migration → Refresh → EnsureMonth integration test found the same January coverage after Refresh, causing EnsureMonth to no-op.
+
+### Minimal fix and GREEN evidence
+
+`MIGRATION_1_2` now deletes coverage for the same calendars whose token is invalidated because they contain NULL-owned masters. Calendar, master, and instance rows remain untouched. Coverage is reintroduced only by the existing successful snapshot transaction.
+
+The migrated integration fixture stores an instance on 15 January 2025, outside the March 2026–April 2027 Initial range. It proves:
+
+- Refresh fetches only the bounded Initial range, leaves the out-of-range legacy instance intact, publishes the Initial snapshot token, and does not restore January coverage.
+- `EnsureMonth(2025-01)` then fetches exactly `[2024-12-31T15:00:00Z, 2025-01-31T15:00:00Z)` in `Asia/Tokyo`.
+- The exact-month transaction replaces the old 15 January instance with 16 January, publishes the month token, and restores January coverage only after success.
+- Existing moved/cancelled migration and repository rollback tests remain in the affected suite.
+
+Focused GREEN:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*CalendarDatabaseMigrationTest" --tests "*MigratedV1SyncCoordinatorTest.ensureMonthAfterMigratedRefreshFetchesAndReplacesLegacyDataOutsideTheInitialRange"
+BUILD SUCCESSFUL in 13s
+2 tests, 0 failures
+```
+
+Affected suites:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest" --tests "*DefaultSyncCoordinatorRoomTest" --tests "*MigratedV1SyncCoordinatorTest" --tests "*RoomCalendarRepositoryTest" --tests "*CalendarDatabaseMigrationTest" --tests "*ICloudCalDavGatewayTest" --tests "*Ical4jIcsParserTest"
+BUILD SUCCESSFUL in 11s
+117 tests, 0 failures, 0 errors, 0 skipped
+```
+
+Fresh verification matrix:
+
+```text
+.\gradlew.bat testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks
+BUILD SUCCESSFUL in 29s
+90 actionable tasks: 90 executed
+127 unit tests, 0 failures, 0 errors, 0 skipped
+app-debug.apk generated
+app-debug-androidTest.apk generated
+```
+
+`git diff --check` exited 0. The only build notices were the previously documented host native-access/native-library messages. The user-owned `gradle.properties` modification and untracked `gradle/gradle-daemon-jvm.properties` remained untouched and excluded.
+
+Round 3 files: `data/CalendarDatabase.kt`, `data/CalendarDatabaseMigrationTest.kt`, `sync/MigratedV1SyncCoordinatorTest.kt`, and this report.
+
+Round 3 commit: `fix: invalidate legacy calendar coverage`.

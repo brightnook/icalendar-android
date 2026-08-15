@@ -15,8 +15,8 @@ class CalendarDatabaseMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
     @Test
-    fun migrationOneToTwoPreservesLegacyRowsAndCoverageButInvalidatesTheirSyncToken() {
-        // Catches a legacy token allowing href-based deltas to advance past NULL-owned masters.
+    fun migrationOneToTwoPreservesLegacyRowsButInvalidatesTheirSyncTokenAndCoverage() {
+        // Catches legacy coverage suppressing the bounded snapshot needed to assign resource ownership.
         context.deleteDatabase(DATABASE_NAME)
         val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(path, null).apply {
@@ -70,10 +70,7 @@ class CalendarDatabaseMigrationTest {
         migrated.query(
             "SELECT startEpochMillis, endEpochMillis, zoneId FROM sync_coverage WHERE calendarId = 'work'",
         ).use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            assertEquals(1000L, cursor.getLong(0))
-            assertEquals(2000L, cursor.getLong(1))
-            assertEquals("Z", cursor.getString(2))
+            assertEquals(false, cursor.moveToFirst())
         }
         migrated.query("PRAGMA index_list('event_masters')").use { cursor ->
             val name = cursor.getColumnIndexOrThrow("name")

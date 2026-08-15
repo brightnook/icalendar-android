@@ -22,6 +22,7 @@ import com.victor2319.ioscalendar.domain.ClockProvider
 import com.victor2319.ioscalendar.domain.EventStatus
 import com.victor2319.ioscalendar.domain.TimeRange
 import java.time.Instant
+import java.time.YearMonth
 import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -75,8 +76,60 @@ class MigratedV1SyncCoordinatorTest {
         assertEquals("snapshot-token", fixture.repository.getSyncState(CALENDAR_ID).syncToken)
     }
 
+    @Test
+    fun ensureMonthAfterMigratedRefreshFetchesAndReplacesLegacyDataOutsideTheInitialRange() = runTest {
+        // Catches preserved legacy coverage skipping the only snapshot that can assign an href outside Initial.
+        val exactMonth = TimeRange(
+            Instant.parse("2024-12-31T15:00:00Z"),
+            Instant.parse("2025-01-31T15:00:00Z"),
+            ZoneId.of("Asia/Tokyo"),
+        )
+        createLegacyV1Database(
+            instanceId = OUTSIDE_LEGACY_INSTANCE_ID,
+            instanceStartMillis = 1736931600000,
+            instanceEndMillis = 1736935200000,
+            coverage = exactMonth,
+        )
+        val fixture = openMigratedFixture(MigratedGateway("january-replacement", exactMonth))
+
+        val refreshResult = fixture.coordinator.sync(SyncRequest.Refresh)
+        val stateAfterRefresh = fixture.repository.getSyncState(CALENDAR_ID)
+        val startsAfterRefresh = fixture.repository.observeAgenda(JANUARY_AGENDA_RANGE, setOf(CALENDAR_ID))
+            .first().map { it.startInstant }
+        val ensureResult = fixture.coordinator.sync(SyncRequest.EnsureMonth(YearMonth.of(2025, 1)))
+
+        assertTrue(refreshResult.toString(), refreshResult is SyncResult.Success)
+        assertEquals("initial-token", stateAfterRefresh.syncToken)
+        assertTrue(stateAfterRefresh.coverage.none { it == exactMonth })
+        assertEquals(listOf(Instant.parse("2025-01-15T09:00:00Z")), startsAfterRefresh)
+        assertTrue(ensureResult.toString(), ensureResult is SyncResult.Success)
+        assertEquals(
+            listOf(
+                TimeRange(
+                    Instant.parse("2026-02-28T15:00:00Z"),
+                    Instant.parse("2027-03-31T15:00:00Z"),
+                    ZoneId.of("Asia/Tokyo"),
+                ),
+                exactMonth,
+            ),
+            fixture.gateway.requestedRanges,
+        )
+        assertEquals(
+            listOf(Instant.parse("2025-01-16T09:00:00Z")),
+            fixture.repository.observeAgenda(JANUARY_AGENDA_RANGE, setOf(CALENDAR_ID)).first()
+                .map { it.startInstant },
+        )
+        val finalState = fixture.repository.getSyncState(CALENDAR_ID)
+        assertEquals("month-token", finalState.syncToken)
+        assertTrue(exactMonth in finalState.coverage)
+    }
+
     private suspend fun migratedFixture(content: String): MigratedFixture {
         createLegacyV1Database()
+        return openMigratedFixture(MigratedGateway(content))
+    }
+
+    private suspend fun openMigratedFixture(gateway: MigratedGateway): MigratedFixture {
         val opened = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .allowMainThreadQueries()
@@ -84,7 +137,6 @@ class MigratedV1SyncCoordinatorTest {
         database = opened
         checkNotNull(opened.eventDao().findEvent(LEGACY_EVENT_ID))
         val repository = RoomCalendarRepository(opened)
-        val gateway = MigratedGateway(content)
         return MigratedFixture(
             coordinator = DefaultSyncCoordinator(
                 credentialsStore = MigratedCredentials,
@@ -98,7 +150,16 @@ class MigratedV1SyncCoordinatorTest {
         )
     }
 
-    private fun createLegacyV1Database() {
+    private fun createLegacyV1Database(
+        instanceId: String = LEGACY_INSTANCE_ID,
+        instanceStartMillis: Long = 1773565200000,
+        instanceEndMillis: Long = 1773568800000,
+        coverage: TimeRange = TimeRange(
+            Instant.parse("2026-03-01T00:00:00Z"),
+            Instant.parse("2027-04-01T00:00:00Z"),
+            ZoneId.of("Asia/Tokyo"),
+        ),
+    ) {
         context.deleteDatabase(DATABASE_NAME)
         val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(path, null).apply {
@@ -129,13 +190,14 @@ class MigratedV1SyncCoordinatorTest {
             )
             execSQL(
                 "INSERT INTO event_instances VALUES " +
-                    "('$LEGACY_INSTANCE_ID', '$LEGACY_EVENT_ID', '$CALENDAR_ID', " +
-                    "0, 1773565200000, 1773568800000, NULL, NULL)",
+                    "('$instanceId', '$LEGACY_EVENT_ID', '$CALENDAR_ID', " +
+                    "0, $instanceStartMillis, $instanceEndMillis, NULL, NULL)",
             )
             execSQL("INSERT INTO sync_state VALUES ('$CALENDAR_ID', 'legacy-token')")
             execSQL(
                 "INSERT INTO sync_coverage VALUES " +
-                    "('$CALENDAR_ID', 1772323200000, 1806537600000, 'Asia/Tokyo')",
+                    "('$CALENDAR_ID', ${coverage.start.toEpochMilli()}, " +
+                    "${coverage.endExclusive.toEpochMilli()}, '${coverage.zoneId.id}')",
             )
             version = 1
             close()
@@ -153,9 +215,16 @@ class MigratedV1SyncCoordinatorTest {
         const val CALENDAR_ID = "24de227d1ac372e79772ce65452231cd9b5ada993233c41b166443c8504bec1c"
         const val LEGACY_EVENT_ID = "9bd5bc80ff228f4124c4ffccaadc74d178463ad8783cb4dcaac1d3fe1798e3d3"
         const val LEGACY_INSTANCE_ID = "63845b6afa631d0207559763c1c6b86d87e1c2a71c3f86b3254fd1e0cc62935e"
+        const val OUTSIDE_LEGACY_INSTANCE_ID =
+            "ad89839e44b8a6ac8e6e2736df6ce9bba8d3b19532991c94e871e4244ee7bffb"
         val AGENDA_RANGE = TimeRange(
             Instant.parse("2026-03-14T00:00:00Z"),
             Instant.parse("2026-03-18T00:00:00Z"),
+            ZoneId.of("Asia/Tokyo"),
+        )
+        val JANUARY_AGENDA_RANGE = TimeRange(
+            Instant.parse("2025-01-14T00:00:00Z"),
+            Instant.parse("2025-01-18T00:00:00Z"),
             ZoneId.of("Asia/Tokyo"),
         )
     }
@@ -172,9 +241,13 @@ private object MigratedClock : ClockProvider {
     override val zoneId: ZoneId = ZoneId.of("Asia/Tokyo")
 }
 
-private class MigratedGateway(private val content: String) : CalDavGateway {
+private class MigratedGateway(
+    private val content: String,
+    private val exactMonth: TimeRange? = null,
+) : CalDavGateway {
     var rangeCalls = 0
     var deltaCalls = 0
+    val requestedRanges = mutableListOf<TimeRange>()
 
     override suspend fun authenticate(credentials: Credentials) = Principal("/principal/", "session")
 
@@ -184,9 +257,21 @@ private class MigratedGateway(private val content: String) : CalDavGateway {
 
     override suspend fun fetchRange(calendar: RemoteCalendar, range: TimeRange): RemoteSnapshot {
         rangeCalls++
+        requestedRanges += range
+        val responseContent = when {
+            exactMonth == null -> content
+            range == exactMonth -> content
+            else -> null
+        }
         return RemoteSnapshot(
-            listOf(RemoteResource("/calendars/work/a.ics", "etag-$content", content)),
-            "snapshot-token",
+            responseContent?.let {
+                listOf(RemoteResource("/calendars/work/a.ics", "etag-$it", it))
+            }.orEmpty(),
+            when {
+                exactMonth == null -> "snapshot-token"
+                range == exactMonth -> "month-token"
+                else -> "initial-token"
+            },
         )
     }
 
@@ -215,19 +300,20 @@ private class MigratedFixtureParser : IcsParser {
             status = if (ics == "cancelled") EventStatus.CANCELLED else EventStatus.CONFIRMED,
         )
         if (ics == "cancelled") return ParsedCalendar(listOf(event), emptyList())
+        val day = if (ics == "january-replacement") "2025-01-16" else "2026-03-16"
         return ParsedCalendar(
             listOf(event),
             listOf(
                 ParsedInstance(
-                    instanceId = "instance-2026-03-16",
+                    instanceId = "instance-$day",
                     eventId = event.id,
                     uid = event.uid,
                     recurrenceId = null,
                     title = event.title,
                     location = null,
                     isAllDay = false,
-                    startInstant = Instant.parse("2026-03-16T09:00:00Z"),
-                    endInstant = Instant.parse("2026-03-16T10:00:00Z"),
+                    startInstant = Instant.parse("${day}T09:00:00Z"),
+                    endInstant = Instant.parse("${day}T10:00:00Z"),
                     startDate = null,
                     endDateExclusive = null,
                 ),

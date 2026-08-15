@@ -36,6 +36,10 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "UPDATE sync_state SET syncToken = NULL WHERE calendarId IN " +
                         "(SELECT DISTINCT calendarId FROM event_masters WHERE remoteResourceHref IS NULL)",
                 )
+                connection.execSQL(
+                    "DELETE FROM sync_coverage WHERE calendarId IN " +
+                        "(SELECT DISTINCT calendarId FROM event_masters WHERE remoteResourceHref IS NULL)",
+                )
             }
         }
     }
