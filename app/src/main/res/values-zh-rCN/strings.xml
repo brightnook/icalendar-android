@@ -49,6 +49,7 @@
     <plurals name="calendar_recurrence_nth_weekday"><item quantity="other">第 %1$d 个%2$s</item></plurals>
     <plurals name="calendar_recurrence_nth_weekday_from_end"><item quantity="other">倒数第 %1$d 个%2$s</item></plurals>
     <string name="settings_title">设置</string>
+    <string name="settings_close">关闭</string>
     <string name="settings_account_signed_out">未连接</string>
     <string name="settings_sync_mode">同步方式</string>
     <string name="settings_mode_manual">手动</string>

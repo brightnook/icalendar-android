@@ -49,6 +49,7 @@
     <plurals name="calendar_recurrence_nth_weekday"><item quantity="one">occurrence %1$d of %2$s</item><item quantity="other">occurrence %1$d of %2$s</item></plurals>
     <plurals name="calendar_recurrence_nth_weekday_from_end"><item quantity="one">occurrence %1$d from the end of %2$s</item><item quantity="other">occurrence %1$d from the end of %2$s</item></plurals>
     <string name="settings_title">Settings</string>
+    <string name="settings_close">Close</string>
     <string name="settings_account_signed_out">Not connected</string>
     <string name="settings_sync_mode">Sync mode</string>
     <string name="settings_mode_manual">Manual</string>

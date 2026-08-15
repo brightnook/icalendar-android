@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.victor2319.ioscalendar.domain.CalendarDelta
 import com.victor2319.ioscalendar.domain.CalendarEvent
+import com.victor2319.ioscalendar.domain.CalendarHistoryBoundary
 import com.victor2319.ioscalendar.domain.CalendarSnapshot
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.EventInstance
@@ -653,6 +654,52 @@ class RoomCalendarRepositoryTest {
         assertEquals(0, database.eventDao().instanceCount())
         assertEquals(0, database.syncStateDao().syncStateCount())
         assertEquals(0, database.syncStateDao().coverageCount())
+    }
+
+    @Test
+    fun clearHistoryRemovesOnlyPastInstancesOfARecurringEventAndKeepsItsMaster() = runTest {
+        // Catches purging a recurring master merely because one of its historical instances was removed.
+        val recurring = event("weekly", id = "weekly-master").copy(recurrenceRule = "FREQ=WEEKLY")
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(recurring),
+                instances = listOf(
+                    timedInstance(
+                        title = "weekly",
+                        start = "2026-01-25T09:00:00Z",
+                        end = "2026-01-25T10:00:00Z",
+                        eventId = recurring.id,
+                        instanceId = "weekly-past",
+                    ),
+                    timedInstance(
+                        title = "weekly",
+                        start = "2026-02-01T09:00:00Z",
+                        end = "2026-02-01T10:00:00Z",
+                        eventId = recurring.id,
+                        instanceId = "weekly-current",
+                    ),
+                ),
+                coverage = TimeRange(
+                    Instant.parse("2026-01-01T00:00:00Z"),
+                    Instant.parse("2026-03-01T00:00:00Z"),
+                ),
+            ),
+        )
+
+        repository.clearCalendarHistory(
+            CalendarHistoryBoundary(
+                instant = Instant.parse("2026-02-01T00:00:00Z"),
+                localDate = LocalDate.parse("2026-02-01"),
+            ),
+        )
+
+        assertNull(database.eventDao().findInstance("weekly-past"))
+        assertNotNull(database.eventDao().findInstance("weekly-current"))
+        assertNotNull(database.eventDao().findEvent(recurring.id))
+        assertEquals(
+            Instant.parse("2026-02-01T00:00:00Z"),
+            repository.getSyncState("work").coverage.single().start,
+        )
     }
 
     @Test

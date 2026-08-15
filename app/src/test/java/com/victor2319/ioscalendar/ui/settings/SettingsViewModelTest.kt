@@ -200,7 +200,7 @@ private class PersistingScheduler(
     }
 
     override fun enqueueManual(): UUID = UUID.randomUUID()
-    override fun cancelAll() {
+    override suspend fun cancelAll() {
         operations?.add("cancel")
     }
 }

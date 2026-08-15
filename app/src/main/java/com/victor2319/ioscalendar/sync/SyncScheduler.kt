@@ -9,7 +9,7 @@ interface SyncScheduler {
 
     suspend fun applyMode(mode: SyncMode)
     fun enqueueManual(): UUID
-    fun cancelAll()
+    suspend fun cancelAll()
 }
 
 enum class SyncSchedulerReadiness {

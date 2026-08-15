@@ -476,7 +476,7 @@ private class RecordingScheduler(ready: Boolean = false) : SyncScheduler {
         failure?.let { throw it }
         return UUID.fromString("00000000-0000-0000-0000-000000000009")
     }
-    override fun cancelAll() = Unit
+    override suspend fun cancelAll() = Unit
 }
 
 private fun calendar(id: String) = CalendarSummary(id, id, 0xff336699.toInt(), true)

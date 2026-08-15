@@ -14,3 +14,12 @@ Verification commands: focused `testDebugUnitTest` suites passed; `assembleDebug
 Changed task files include settings UI/viewmodel, account manager, Room history APIs, routing, strings, and focused unit/android tests. `gradle.properties` and `gradle/gradle-daemon-jvm.properties` are automatic files and intentionally excluded.
 
 Concerns: Android instrumentation tests compile but were not run because no device was attached. Build output retains existing manifest and native-strip warnings.
+
+## Fix Round 1
+
+- Restored accounts now route to authenticated calendar content independently of the LoginViewModel's default `LOGIN` destination. `AppRootRoutingTest` was first RED with the routing predicate absent, then GREEN.
+- Settings has an explicit localized Close control and system back handler; the Android UI test was first RED with `onClose` absent, then its original APK assembly passed. The subsequent fresh assembly retry after final resource edits was blocked by a task-owned debug-keystore lock. Runtime Android rendering remains device-only and was not executed because no device is attached.
+- `SyncScheduler.cancelAll` is suspending and WorkManager cancellation awaits completion under a mutex. The deterministic logout race test was RED after temporarily reordering credentials before cancellation (`[credentials, cancel]`), then GREEN with the required `cancel -> credentials -> cache` sequence. Cache cleanup failure remains a safe signed-out result.
+- Added Room recurring-instance history test. It was RED after temporarily omitting the history deletion call, then GREEN after restoring it: past instance is purged while the current instance and recurring master remain, and coverage starts at the explicit boundary.
+
+Round-1 focused GREEN evidence: `testDebugUnitTest` for AppRoot routing, LocalAccountManager (2 tests), and the Room recurring-history test. The isolated cache download was required for Robolectric's Android runtime. Subsequent Android-test assembly retry hit a task-owned debug-keystore lock; no Android device was available for runtime instrumentation.

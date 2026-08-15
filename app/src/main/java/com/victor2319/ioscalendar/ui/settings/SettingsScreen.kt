@@ -3,6 +3,7 @@ package com.victor2319.ioscalendar.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -14,9 +15,10 @@ import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.SyncMode
 
 @Composable
-fun SettingsScreen(state: SettingsUiState, onSelectSyncMode: (SyncMode) -> Unit, onSetCalendarVisible: (String, Boolean) -> Unit, onClearHistory: () -> Unit, onClearCache: () -> Unit, onLogout: () -> Unit, onDismissConfirmation: () -> Unit, onConfirmDestructiveAction: () -> Unit) {
+fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode: (SyncMode) -> Unit, onSetCalendarVisible: (String, Boolean) -> Unit, onClearHistory: () -> Unit, onClearCache: () -> Unit, onLogout: () -> Unit, onDismissConfirmation: () -> Unit, onConfirmDestructiveAction: () -> Unit) {
+    BackHandler(onBack = onClose)
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.settings_title))
+        Row(Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_title), Modifier.weight(1f)); TextButton(onClick = onClose) { Text(stringResource(R.string.settings_close)) } }
         Text(state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out), Modifier.testTag("masked-account"))
         Text(stringResource(R.string.settings_sync_mode))
         SyncMode.entries.forEach { mode -> Row(Modifier.fillMaxWidth()) { RadioButton(state.syncMode == mode, { onSelectSyncMode(mode) }); Text(mode.label(), Modifier.padding(top = 12.dp)) } }

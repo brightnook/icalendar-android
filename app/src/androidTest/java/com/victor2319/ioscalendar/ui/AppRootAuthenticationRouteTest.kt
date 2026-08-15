@@ -24,9 +24,8 @@ import org.junit.Test
 class AppRootAuthenticationRouteTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    @Test fun authenticatedAccountRendersCalendarAfterInitialSuccess() {
+    @Test fun restoredAuthenticatedAccountRendersCalendarWithoutAnotherLogin() {
         setRoot(AccountAuthenticationState.Authenticated("p***@example.test"))
-        connect()
         composeRule.onNodeWithText("iCloud Calendar connected").assertIsDisplayed()
     }
 

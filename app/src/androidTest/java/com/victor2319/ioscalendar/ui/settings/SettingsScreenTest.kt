@@ -30,6 +30,7 @@ class SettingsScreenTest {
                     accountLoading = false,
                     calendars = listOf(CalendarSummary("work", "Work", Color.Red.value.toInt(), false)),
                 ),
+                onClose = {},
                 onSelectSyncMode = {},
                 onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {},
@@ -55,6 +56,7 @@ class SettingsScreenTest {
         composeRule.setContent {
             SettingsScreen(
                 state = SettingsUiState(confirmation = confirmation.value),
+                onClose = {},
                 onSelectSyncMode = {},
                 onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {},
@@ -69,5 +71,21 @@ class SettingsScreenTest {
         assertTrue(!confirmed)
         composeRule.onNodeWithText("Delete").performClick()
         assertTrue(confirmed)
+    }
+
+    @Test
+    fun closeReturnsFromSettingsWithoutDestructiveAction() {
+        // Catches a one-way settings destination with no user-visible return path.
+        var closed = false
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(), onClose = { closed = true },
+                onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> }, onClearHistory = {},
+                onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+        composeRule.onNodeWithText("Close").performClick()
+        assertTrue(closed)
     }
 }

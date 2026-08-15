@@ -109,9 +109,11 @@ class WorkManagerSyncScheduler internal constructor(
         }
     }
 
-    override fun cancelAll() {
-        workManager.cancelUniqueWork(PERIODIC_SYNC_WORK_NAME)
-        workManager.cancelUniqueWork(MANUAL_SYNC_WORK_NAME)
+    override suspend fun cancelAll() {
+        workTransitions.withLock {
+            workManager.cancelUniqueWork(PERIODIC_SYNC_WORK_NAME).await()
+            workManager.cancelUniqueWork(MANUAL_SYNC_WORK_NAME).await()
+        }
     }
 
     private suspend fun applyWorkManagerMode(mode: SyncMode) {

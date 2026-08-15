@@ -69,7 +69,7 @@ fun AppRoot(
                 settingsFactory = SettingsViewModelFactory(container.calendarRepository, container.settingsStore, container.syncScheduler, container.accountManager),
             )
         },
-        isAuthenticated = accountState is AccountAuthenticationState.Authenticated,
+        isAuthenticated = routesToAuthenticatedContent(accountState),
     )
 }
 
@@ -87,9 +87,12 @@ fun AppRoot(
     AppRootContent(
         loginViewModelFactory,
         authenticatedContent = { AuthenticatedPlaceholder() },
-        isAuthenticated = accountState is AccountAuthenticationState.Authenticated,
+        isAuthenticated = routesToAuthenticatedContent(accountState),
     )
 }
+
+internal fun routesToAuthenticatedContent(state: AccountAuthenticationState): Boolean =
+    state is AccountAuthenticationState.Authenticated
 
 @Composable
 private fun AppRootContent(
@@ -101,7 +104,7 @@ private fun AppRootContent(
     val loginViewModel: LoginViewModel = viewModel(factory = loginViewModelFactory)
     val uiState by loginViewModel.uiState.collectAsState()
 
-    if (uiState.destination == LoginDestination.CALENDAR && isAuthenticated) {
+    if (isAuthenticated) {
         authenticatedContent()
     } else {
         LoginScreen(
@@ -137,6 +140,7 @@ private fun MainCalendarDestination(
         val settingsState by settingsViewModel.uiState.collectAsState()
         SettingsScreen(
             state = settingsState,
+            onClose = { settingsOpen = false },
             onSelectSyncMode = settingsViewModel::selectSyncMode,
             onSetCalendarVisible = settingsViewModel::setCalendarVisible,
             onClearHistory = settingsViewModel::requestClearHistory,
