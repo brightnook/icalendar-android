@@ -2,6 +2,7 @@
 agp = "9.1.1"
 activityCompose = "1.12.1"
 composeBom = "2026.06.00"
+datastore = "1.2.1"
 ical4j = "4.2.5"
 junit = "5.12.2"
 junit4 = "4.13.2"
@@ -23,10 +24,12 @@ androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "testCore" }
 androidx-test-ext-junit-ktx = { module = "androidx.test.ext:junit-ktx", version.ref = "testExtJunit" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "testRunner" }
