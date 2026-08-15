@@ -19,4 +19,29 @@
     <string name="login_error_partial_sync">Some calendars could not finish the first sync. Your connection is saved; try again.</string>
     <string name="login_connected_title">iCloud Calendar connected</string>
     <string name="login_connected_placeholder">Your first sync is complete. Calendar views will appear here in the next update.</string>
+    <string name="calendar_refresh">Refresh</string>
+    <string name="calendar_no_events">No events</string>
+    <string name="calendar_all_day">All day</string>
+    <string name="calendar_sync_not_ready">Calendar sync is still getting ready.</string>
+    <string name="calendar_sync_disabled">Calendar sync is disabled in settings.</string>
+    <string name="calendar_sync_failed">Calendar sync could not be started. Try again.</string>
+    <string name="calendar_detail_time">Start and end</string>
+    <string name="calendar_detail_all_day">All-day event</string>
+    <string name="calendar_detail_location">Location</string>
+    <string name="calendar_detail_notes">Notes</string>
+    <string name="calendar_detail_recurrence">Repeats</string>
+    <string name="calendar_yes">Yes</string>
+    <string name="calendar_no">No</string>
+    <string name="calendar_open_external">Open</string>
+    <string name="calendar_close_detail">Close</string>
+    <string name="calendar_recurrence_daily">Every day</string>
+    <string name="calendar_recurrence_weekly">Every week</string>
+    <string name="calendar_recurrence_monthly">Every month</string>
+    <string name="calendar_recurrence_yearly">Every year</string>
+    <string name="calendar_recurrence_repeating">Repeating event</string>
+    <plurals name="calendar_recurrence_every_n_days"><item quantity="one">Every %1$d day</item><item quantity="other">Every %1$d days</item></plurals>
+    <plurals name="calendar_recurrence_every_n_weeks"><item quantity="one">Every %1$d week</item><item quantity="other">Every %1$d weeks</item></plurals>
+    <plurals name="calendar_recurrence_every_n_months"><item quantity="one">Every %1$d month</item><item quantity="other">Every %1$d months</item></plurals>
+    <plurals name="calendar_recurrence_every_n_years"><item quantity="one">Every %1$d year</item><item quantity="other">Every %1$d years</item></plurals>
+    <string name="calendar_recurrence_on">%1$s on %2$s</string>
 </resources>

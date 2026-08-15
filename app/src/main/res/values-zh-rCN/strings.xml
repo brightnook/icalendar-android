@@ -19,4 +19,29 @@
     <string name="login_error_partial_sync">部分日历未能完成首次同步。连接已保存，请重试。</string>
     <string name="login_connected_title">iCloud 日历已连接</string>
     <string name="login_connected_placeholder">首次同步已完成。日历视图将在下一次更新中显示在这里。</string>
+    <string name="calendar_refresh">刷新</string>
+    <string name="calendar_no_events">无日程</string>
+    <string name="calendar_all_day">全天</string>
+    <string name="calendar_sync_not_ready">日历同步仍在准备中。</string>
+    <string name="calendar_sync_disabled">日历同步已在设置中停用。</string>
+    <string name="calendar_sync_failed">无法开始日历同步，请重试。</string>
+    <string name="calendar_detail_time">开始和结束</string>
+    <string name="calendar_detail_all_day">全天日程</string>
+    <string name="calendar_detail_location">地点</string>
+    <string name="calendar_detail_notes">备注</string>
+    <string name="calendar_detail_recurrence">重复</string>
+    <string name="calendar_yes">是</string>
+    <string name="calendar_no">否</string>
+    <string name="calendar_open_external">打开</string>
+    <string name="calendar_close_detail">关闭</string>
+    <string name="calendar_recurrence_daily">每天</string>
+    <string name="calendar_recurrence_weekly">每周</string>
+    <string name="calendar_recurrence_monthly">每月</string>
+    <string name="calendar_recurrence_yearly">每年</string>
+    <string name="calendar_recurrence_repeating">重复日程</string>
+    <plurals name="calendar_recurrence_every_n_days"><item quantity="other">每 %1$d 天</item></plurals>
+    <plurals name="calendar_recurrence_every_n_weeks"><item quantity="other">每 %1$d 周</item></plurals>
+    <plurals name="calendar_recurrence_every_n_months"><item quantity="other">每 %1$d 个月</item></plurals>
+    <plurals name="calendar_recurrence_every_n_years"><item quantity="other">每 %1$d 年</item></plurals>
+    <string name="calendar_recurrence_on">%1$s：%2$s</string>
 </resources>

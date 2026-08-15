@@ -1,0 +1,97 @@
+# Task 9 report: Calendar, agenda, and modal event details
+
+## Status
+
+DONE
+
+## Implemented
+
+- Added a lifecycle `MainCalendarViewModel` backed by `viewModelScope` and the repository's real calendar, selected-day, event-detail, and coverage flows. Day and event selection use `flatMapLatest`, so old queries are cancelled.
+- Added exact local-month coverage checks per visible calendar. A range counts only when its zone, start, and exclusive end exactly equal the requested month; one `EnsureMonth` is issued when any visible calendar is missing that coverage.
+- Added fail-closed manual refresh handling for scheduler initialization, disabled sync, and unexpected errors without exposing exception text.
+- Added a locale-aware six-week month grid above a persistent selected-day agenda. It uses the system first day of week, system date/12-or-24-hour formatting, all-day-first ordering, calendar colors/names, event title/time, and optional location.
+- Added one in-place Material modal sheet for agenda and launch-target details. It shows title, calendar, start/end, all-day status, location, notes, and localized human recurrence including interval and weekdays. Closing it preserves the selected date and remembered agenda list state.
+- Added strict external-action parsing for whole-value HTTP(S), telephone, and numeric geo values. Only validated sealed actions can create `ACTION_VIEW`; unsupported schemes and malformed values are ignored, and missing/forbidden handlers are handled without logging values.
+- Added defensive `MainActivity` launch-extra parsing and duplicate-delivery suppression. The real `AppRoot` replaces the authenticated placeholder with a stable ViewModel-owned main screen while preserving the existing login-only test seam.
+- Added English and Simplified Chinese calendar/detail/sync resources using system typography and Material theme colors.
+
+## TDD evidence
+
+### Main state RED
+
+Command:
+
+```powershell
+.\gradlew.bat --no-daemon --console=plain testDebugUnitTest --tests '*MainCalendarViewModelTest'
+```
+
+After correcting one test-local constructor typo and rerunning, `compileDebugUnitTestKotlin` failed only on the intentionally absent Task 9 contracts: `MainCalendarViewModel`, `MainCalendarMessage`, `CalendarLaunchTarget`, `CalendarLaunchTargetDelivery`, `ExternalAction`, and `parseExternalAction`. This was the expected focused RED before production implementation.
+
+### State GREEN
+
+The focused command passed after the minimal state/launch/safety implementation:
+
+```text
+BUILD SUCCESSFUL in 19s
+7 tests, 0 failures/errors
+```
+
+One intermediate behavior failure expected `SYNC_NOT_READY` before the test scheduler advanced the derived combined flow. The test now advances the real coroutine flow before observing its UI result; production exception mapping was not bypassed.
+
+### Recurrence RED/GREEN
+
+The focused recurrence test first failed compilation because `RecurrenceDescription`, `RecurrenceFrequency`, and `parseRecurrenceRule` did not exist. It protects interval and ordinal weekday parsing with hand-derived literals. The subsequent complete focused suite passed 8/8.
+
+### UI test-first and device limitation
+
+`MainCalendarScreenTest` was authored before the Compose production files. It covers fixed month-over-agenda geometry, all-day ordering, opening/closing the shared sheet, selected-date and list-position preservation after scrolling to index 15, launch-target result semantics, large-font/dark-mode semantics, and Simplified Chinese resources. The current host has no device/emulator; these tests were compiled and packaged into the Android-test APK, not executed, as required by the task constraints.
+
+## Verification
+
+Focused state plus Android-test packaging after final UI changes:
+
+```text
+testDebugUnitTest --tests '*MainCalendarViewModelTest' lintDebug assembleDebugAndroidTest
+BUILD SUCCESSFUL in 41s
+8 focused tests, 0 failures/errors
+```
+
+Affected JVM suite before the final fresh run:
+
+```text
+testDebugUnitTest
+154 tests, 0 failures/errors before the final recurrence case
+```
+
+Required fresh matrix:
+
+```text
+testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks
+BUILD SUCCESSFUL in 1m 2s
+90 actionable tasks: 90 executed
+155 JVM tests, 0 failures, 0 errors, 0 skipped
+lint: 0 errors, 27 advisory warnings
+app-debug.apk and app-debug-androidTest.apk generated
+```
+
+`git diff --check` exited zero. Fresh output retained pre-existing host/SDK, WorkManager manifest, native-library stripping, old login-test opt-in, and dependency/KTX advisory warnings; no lint or compilation error remained.
+
+## Files changed
+
+- Main state and launch contracts: `ui/main/MainCalendarState.kt`, `MainCalendarViewModel.kt`, `CalendarLaunchTarget.kt`.
+- UI: `ui/main/MainCalendarScreen.kt`, `MonthGrid.kt`, `AgendaList.kt`, `EventDetailSheet.kt`.
+- App integration: `ui/AppRoot.kt`, `MainActivity.kt`.
+- Resources: English and Simplified Chinese `strings.xml`.
+- Tests: `MainCalendarViewModelTest.kt`, `MainCalendarScreenTest.kt`.
+
+## Self-review
+
+- Confirmed no separate event detail destination exists; both agenda taps and launch targets select/open the same sheet state.
+- Confirmed the agenda `LazyListState` stays remembered behind the sheet and its instrumented contract scrolls before open and checks the same item after close.
+- Confirmed target parsing rejects malformed dates and blank instance IDs, duplicate delivery is suppressed, and consumption clears suppression so a later user delivery can open again.
+- Confirmed safe actions cannot be created by embedded text or unsupported schemes, and exception values are never copied into state or logs.
+- Confirmed `gradle.properties` and `gradle/gradle-daemon-jvm.properties` are user-owned and remain outside the task staging scope.
+
+## Concerns
+
+- No device/emulator was available, so runtime Compose instrumentation tests were not executed. Their compilation and APK packaging are verified; no runtime pass is claimed.
