@@ -10,3 +10,5 @@ interface SyncScheduler {
 }
 
 class SyncDisabledException : IllegalStateException("Calendar sync is disabled")
+
+class SyncSettingsNotReadyException : IllegalStateException("Calendar sync settings are not ready")

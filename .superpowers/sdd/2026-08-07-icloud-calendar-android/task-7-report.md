@@ -99,3 +99,87 @@ Fresh verification produced `app-debug.apk`, `app-debug-androidTest.apk`, and th
 ## Concerns
 
 None for the Task 7 implementation. WorkManager periodic work is intentionally approximate; it does not provide exact sync timing.
+
+## Fix Round 1
+
+### Review findings verified
+
+- The project already uses `androidx.datastore:datastore-preferences:1.2.1`. Its `preferencesDataStore` overload accepts a `ReplaceFileCorruptionHandler`, so recovery is implemented at the real Preferences DataStore boundary.
+- The original scheduler kept an in-memory `MANUAL` default, did not await hourly/daily WorkManager operations, and had no application startup restoration. Those findings were confirmed before changing production code.
+
+### RED
+
+Command:
+
+```powershell
+$env:JAVA_HOME = 'D:\FM\work\jbr'
+$env:ANDROID_HOME = 'C:\Users\victo\AppData\Local\Android\Sdk'
+$env:GRADLE_USER_HOME = 'C:\Users\victo\AppData\Local\Temp\ioscalendar-task7-gradle'
+.\gradlew.bat testDebugUnitTest --tests "*DataStoreSettingsStoreTest" --tests "*WorkManagerSyncSchedulerTest" --tests "*CalendarSyncWorkerTest" --no-daemon
+```
+
+Result: `BUILD FAILED in 20s` with 30 actionable tasks. The focused tests did not compile because `DataStoreSettingsStore` accepted only `Context` (not a real injected `DataStore<Preferences>` test boundary) and `WorkManagerSyncScheduler` accepted only `WorkManager` (not durable settings and a coroutine scope). The errors were direct missing Task 7 Fix Round 1 API/behavior seams, so this was a valid RED rather than an environment failure.
+
+### GREEN
+
+The focused command was rerun with `--rerun-tasks` after the minimal implementation:
+
+```text
+BUILD SUCCESSFUL in 51s
+```
+
+Its XML results recorded 11 tests with zero failures and zero errors: three DataStore settings recovery tests, five real WorkManager scheduler tests, and three direct Worker result-mapping tests.
+
+The first focused GREEN candidate exposed one test timing failure: a recreated scheduler correctly rejected manual work with `SyncSettingsNotReadyException` before its asynchronous initial settings observation arrived. The test was refined to wait for the observable recovered terminal behavior and verifies `SyncDisabledException`; it does not permit manual work during initialization. The succeeding rerun above is the final GREEN evidence.
+
+### Implementation and design
+
+- `DataStoreSettingsStore` now installs `ReplaceFileCorruptionHandler { emptyPreferences() }` and emits `emptyPreferences()` for recoverable `IOException`s. Absent, malformed enum values, corruption, and recoverable reads all resolve to the default manual settings flow.
+- The scheduler's durable source of truth is `SettingsStore`, not a default volatile mode. `CalendarApplication.onCreate()` creates the scheduler so an application-scoped observer restores the persisted setting after process recreation.
+- `CalendarApplication` supplies WorkManager `Configuration.Provider`, which preserves correct WorkManager initialization while startup restoration is triggered from `onCreate()`.
+- An application-scoped coroutine observes stored settings. A `Mutex` serializes that observer and `applyMode`; each WorkManager enqueue/cancel operation is awaited before `applyMode` returns. This prevents an hourly/disabled interleaving from leaving periodic work scheduled.
+- `enqueueManual()` remains non-suspending and therefore never blocks the main thread. Before the first settings emission it fails closed with `SyncSettingsNotReadyException`; after restoration, disabled rejects via `SyncDisabledException`, while manual mode continues to allow the one-time refresh.
+
+### Fix Round 1 tests and verification
+
+Focused tests:
+
+```text
+testDebugUnitTest --tests "*DataStoreSettingsStoreTest" --tests "*WorkManagerSyncSchedulerTest" --tests "*CalendarSyncWorkerTest" --rerun-tasks --no-daemon
+BUILD SUCCESSFUL in 51s; 11 tests, 0 failures/errors.
+```
+
+Affected suite:
+
+```text
+testDebugUnitTest --no-daemon
+BUILD SUCCESSFUL in 24s; 138 tests, 0 failures/errors.
+```
+
+Fresh required verification:
+
+```text
+testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks --no-daemon
+BUILD SUCCESSFUL in 1m 12s; 90 actionable tasks executed.
+```
+
+The matrix reran unit tests and lint, produced the debug APK and the debug Android-test APK, and did not run `androidTest` on a device. The environment emitted the pre-existing SDK XML, Robolectric native-access, protobuf `Unsafe`, unstrippable-native-library, and version-update warnings; lint had no errors after the WorkManager startup metadata fix.
+
+### Fix Round 1 self-review
+
+- Startup observer lifetime is tied to `Application` through a `SupervisorJob`/`Dispatchers.IO` scope; it is not recreated per UI object or test call.
+- Settings persistence happens before direct scheduling, and the mutex covers both settings-observer and caller transitions. Observer replays may repeat the same state but cannot make a later persisted transition final in the wrong order.
+- The corruption/read-failure tests exercise real DataStore APIs and flow output. Scheduler tests inspect actual WorkManager records and force a deterministic delayed hourly write followed by disabled cancellation.
+- The only intentionally added pre-restoration exception is fail-closed and avoids blocking the main thread; callers cannot enqueue work under an unknown persisted mode.
+
+### Fix Round 1 files changed
+
+- `app/src/main/AndroidManifest.xml`
+- `app/src/main/java/com/victor2319/ioscalendar/CalendarApplication.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/AppContainer.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/data/DataStoreSettingsStore.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/sync/SyncScheduler.kt`
+- `app/src/main/java/com/victor2319/ioscalendar/sync/WorkManagerSyncScheduler.kt`
+- `app/src/test/java/com/victor2319/ioscalendar/data/DataStoreSettingsStoreTest.kt`
+- `app/src/test/java/com/victor2319/ioscalendar/sync/WorkManagerSyncSchedulerTest.kt`
+- `.superpowers/sdd/2026-08-07-icloud-calendar-android/task-7-report.md`

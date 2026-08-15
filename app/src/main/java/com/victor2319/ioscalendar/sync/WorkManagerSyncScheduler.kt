@@ -8,29 +8,50 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
+import com.victor2319.ioscalendar.data.SettingsStore
 import com.victor2319.ioscalendar.domain.SyncMode
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class WorkManagerSyncScheduler(
     private val workManager: WorkManager,
+    private val settingsStore: SettingsStore,
+    scope: CoroutineScope,
 ) : SyncScheduler {
-    @Volatile
-    private var mode: SyncMode = SyncMode.MANUAL
+    private val mode = AtomicReference<SyncMode?>(null)
+    private val transitions = Mutex()
+
+    init {
+        scope.launch {
+            settingsStore.settings.collect { settings ->
+                transitions.withLock {
+                    mode.set(settings.syncMode)
+                    applyWorkManagerMode(settings.syncMode)
+                }
+            }
+        }
+    }
 
     override suspend fun applyMode(mode: SyncMode) {
-        this.mode = mode
-        when (mode) {
-            SyncMode.HOURLY -> schedulePeriodic(1, TimeUnit.HOURS)
-            SyncMode.DAILY -> schedulePeriodic(24, TimeUnit.HOURS)
-            SyncMode.MANUAL,
-            SyncMode.DISABLED,
-            -> workManager.cancelUniqueWork(PERIODIC_SYNC_WORK_NAME).await()
+        transitions.withLock {
+            settingsStore.setSyncMode(mode)
+            this.mode.set(mode)
+            applyWorkManagerMode(mode)
         }
     }
 
     override fun enqueueManual(): UUID {
-        if (mode == SyncMode.DISABLED) throw SyncDisabledException()
+        when (mode.get()) {
+            SyncMode.DISABLED -> throw SyncDisabledException()
+            null -> throw SyncSettingsNotReadyException()
+            else -> Unit
+        }
         val request = OneTimeWorkRequestBuilder<CalendarSyncWorker>()
             .setConstraints(connectedNetwork)
             .build()
@@ -43,7 +64,17 @@ class WorkManagerSyncScheduler(
         workManager.cancelUniqueWork(MANUAL_SYNC_WORK_NAME)
     }
 
-    private fun schedulePeriodic(interval: Long, unit: TimeUnit) {
+    private suspend fun applyWorkManagerMode(mode: SyncMode) {
+        when (mode) {
+            SyncMode.HOURLY -> schedulePeriodic(1, TimeUnit.HOURS)
+            SyncMode.DAILY -> schedulePeriodic(24, TimeUnit.HOURS)
+            SyncMode.MANUAL,
+            SyncMode.DISABLED,
+            -> workManager.cancelUniqueWork(PERIODIC_SYNC_WORK_NAME).await()
+        }
+    }
+
+    private suspend fun schedulePeriodic(interval: Long, unit: TimeUnit) {
         val request = PeriodicWorkRequestBuilder<CalendarSyncWorker>(interval, unit)
             .setConstraints(connectedNetwork)
             .build()
@@ -51,7 +82,7 @@ class WorkManagerSyncScheduler(
             PERIODIC_SYNC_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
-        )
+        ).await()
     }
 
     companion object {

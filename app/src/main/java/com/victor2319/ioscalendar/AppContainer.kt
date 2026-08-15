@@ -19,8 +19,12 @@ import com.victor2319.ioscalendar.sync.DefaultSyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncScheduler
 import com.victor2319.ioscalendar.sync.WorkManagerSyncScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class AppContainer(val application: Application) {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val database: CalendarDatabase by lazy {
         Room.databaseBuilder(application, CalendarDatabase::class.java, "calendar.db")
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
@@ -42,6 +46,10 @@ class AppContainer(val application: Application) {
         )
     }
     val syncScheduler: SyncScheduler by lazy {
-        WorkManagerSyncScheduler(WorkManager.getInstance(application))
+        WorkManagerSyncScheduler(
+            workManager = WorkManager.getInstance(application),
+            settingsStore = settingsStore,
+            scope = applicationScope,
+        )
     }
 }
