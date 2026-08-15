@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">iOSCalendar</string>
+    <string name="login_title">Connect iCloud Calendar</string>
+    <string name="login_explanation">Your main Apple Account password cannot be used here. Create and use an app-specific password instead.</string>
+    <string name="login_create_app_password">Create an app-specific password</string>
+    <string name="login_support_link">Learn about app-specific passwords</string>
+    <string name="login_apple_id_label">Apple Account email</string>
+    <string name="login_app_password_label">App-specific password</string>
+    <string name="login_show_password">Show</string>
+    <string name="login_hide_password">Hide</string>
+    <string name="login_toggle_password_visibility">Show or hide app-specific password</string>
+    <string name="login_connect_and_sync">Connect and sync</string>
+    <string name="login_progress_discovering">Checking your iCloud Calendar connection…</string>
+    <string name="login_progress_syncing">Discovering calendars and completing the first sync…</string>
+    <string name="login_error_empty_fields">Enter your Apple Account email and app-specific password.</string>
+    <string name="login_error_authentication">iCloud did not accept these credentials. Check your app-specific password.</string>
+    <string name="login_error_network">Could not reach iCloud. Check your connection and try again.</string>
+    <string name="login_error_server">iCloud Calendar could not complete this request. Try again later.</string>
+    <string name="login_connected_title">iCloud Calendar connected</string>
+    <string name="login_connected_placeholder">Your first sync is complete. Calendar views will appear here in the next update.</string>
 </resources>

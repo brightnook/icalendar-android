@@ -1,3 +1,21 @@
 <resources>
-    <string name="app_name">iOS日历</string>
+    <string name="app_name">iOS 日历</string>
+    <string name="login_title">连接 iCloud 日历</string>
+    <string name="login_explanation">这里不能使用您的主 Apple 账户密码。请创建并仅使用 App 专用密码。</string>
+    <string name="login_create_app_password">创建 App 专用密码</string>
+    <string name="login_support_link">了解 App 专用密码</string>
+    <string name="login_apple_id_label">Apple 账户电子邮件</string>
+    <string name="login_app_password_label">App 专用密码</string>
+    <string name="login_show_password">显示</string>
+    <string name="login_hide_password">隐藏</string>
+    <string name="login_toggle_password_visibility">显示或隐藏 App 专用密码</string>
+    <string name="login_connect_and_sync">连接并同步</string>
+    <string name="login_progress_discovering">正在验证 iCloud 日历连接…</string>
+    <string name="login_progress_syncing">正在发现日历并完成首次同步…</string>
+    <string name="login_error_empty_fields">请输入 Apple 账户电子邮件和 App 专用密码。</string>
+    <string name="login_error_authentication">iCloud 未接受这些凭据。请检查 App 专用密码。</string>
+    <string name="login_error_network">无法连接到 iCloud。请检查网络后重试。</string>
+    <string name="login_error_server">iCloud 日历暂时无法完成请求。请稍后重试。</string>
+    <string name="login_connected_title">iCloud 日历已连接</string>
+    <string name="login_connected_placeholder">首次同步已完成。日历视图将在下一次更新中显示在这里。</string>
 </resources>

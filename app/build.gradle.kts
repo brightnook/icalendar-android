@@ -79,9 +79,11 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit.vintage.engine)
 
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.core.ktx)
     androidTestImplementation(libs.androidx.test.ext.junit.ktx)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.junit4)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4-android")
 }
