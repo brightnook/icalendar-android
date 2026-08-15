@@ -15,8 +15,8 @@ class CalendarDatabaseMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
     @Test
-    fun migrationOneToTwoPreservesEventsAndAddsResourceHrefIndex() {
-        // Catches destructive upgrade, a missing nullable column, or an unindexed calendar-scoped tombstone lookup.
+    fun migrationOneToTwoPreservesLegacyRowsAndCoverageButInvalidatesTheirSyncToken() {
+        // Catches a legacy token allowing href-based deltas to advance past NULL-owned masters.
         context.deleteDatabase(DATABASE_NAME)
         val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(path, null).apply {
@@ -47,6 +47,8 @@ class CalendarDatabaseMigrationTest {
                 "INSERT INTO event_masters VALUES " +
                     "('event', 'work', 'uid', '', 'Title', NULL, NULL, NULL, 0, NULL, 'CONFIRMED')",
             )
+            execSQL("INSERT INTO sync_state VALUES ('work', 'legacy-token')")
+            execSQL("INSERT INTO sync_coverage VALUES ('work', 1000, 2000, 'Z')")
             version = 1
             close()
         }
@@ -60,6 +62,18 @@ class CalendarDatabaseMigrationTest {
             assertEquals(true, cursor.moveToFirst())
             assertEquals("Title", cursor.getString(0))
             assertEquals(true, cursor.isNull(1))
+        }
+        migrated.query("SELECT syncToken FROM sync_state WHERE calendarId = 'work'").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(true, cursor.isNull(0))
+        }
+        migrated.query(
+            "SELECT startEpochMillis, endEpochMillis, zoneId FROM sync_coverage WHERE calendarId = 'work'",
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(1000L, cursor.getLong(0))
+            assertEquals(2000L, cursor.getLong(1))
+            assertEquals("Z", cursor.getString(2))
         }
         migrated.query("PRAGMA index_list('event_masters')").use { cursor ->
             val name = cursor.getColumnIndexOrThrow("name")

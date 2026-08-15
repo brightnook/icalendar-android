@@ -32,6 +32,10 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS index_event_masters_calendarId_remoteResourceHref " +
                         "ON event_masters(calendarId, remoteResourceHref)",
                 )
+                connection.execSQL(
+                    "UPDATE sync_state SET syncToken = NULL WHERE calendarId IN " +
+                        "(SELECT DISTINCT calendarId FROM event_masters WHERE remoteResourceHref IS NULL)",
+                )
             }
         }
     }

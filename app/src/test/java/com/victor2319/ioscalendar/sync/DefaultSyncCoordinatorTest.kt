@@ -6,6 +6,7 @@ import com.victor2319.ioscalendar.caldav.CalDavFailure
 import com.victor2319.ioscalendar.caldav.CalDavGateway
 import com.victor2319.ioscalendar.caldav.IcsParseException
 import com.victor2319.ioscalendar.caldav.IcsParser
+import com.victor2319.ioscalendar.caldav.Ical4jIcsParser
 import com.victor2319.ioscalendar.caldav.ParsedCalendar
 import com.victor2319.ioscalendar.caldav.ParsedEvent
 import com.victor2319.ioscalendar.caldav.ParsedInstance
@@ -247,6 +248,41 @@ class DefaultSyncCoordinatorTest {
             parser.calls.map { it.range },
         )
         assertTrue(parser.calls.all { it.zoneId == tokyo })
+        assertEquals("next-token", repository.states.getValue(id).syncToken)
+    }
+
+    @Test
+    fun refreshNormalizesOverlappingMixedZoneCoverageToTheClockZoneForFloatingEvents() = runTest {
+        // Catches parsing one floating occurrence in two display zones and rejecting its stable instance ID.
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(
+            calendars = listOf(calendar),
+            deltas = mutableMapOf(
+                "work" to RemoteDelta(
+                    upserts = listOf(resource("/calendars/work/floating.ics", floatingEventIcs())),
+                    tombstones = emptyList(),
+                    syncToken = "next-token",
+                ),
+            ),
+        )
+        val repository = FakeRepository()
+        val id = stableIdFor(calendar)
+        val start = Instant.parse("2026-03-01T00:00:00Z")
+        val end = Instant.parse("2026-04-01T00:00:00Z")
+        repository.states[id] = CalendarSyncState(
+            syncToken = "saved-token",
+            coverage = listOf(
+                TimeRange(start, end, ZoneId.of("America/Los_Angeles")),
+                TimeRange(start, end, tokyo),
+            ),
+        )
+
+        val result = coordinator(gateway, Ical4jIcsParser(), repository).sync(SyncRequest.Refresh)
+
+        assertTrue(result is SyncResult.Success)
+        val delta = repository.deltas.single()
+        assertEquals(1, delta.upsertInstances.size)
+        assertEquals(Instant.parse("2026-03-15T00:00:00Z"), delta.upsertInstances.single().startInstant)
         assertEquals("next-token", repository.states.getValue(id).syncToken)
     }
 
@@ -666,6 +702,20 @@ private fun remote(
 ) = RemoteCalendar(id, href, name, color, syncToken, "remote-session")
 
 private fun resource(href: String, content: String) = RemoteResource(href, "etag-$content", content)
+
+private fun floatingEventIcs() = """
+    BEGIN:VCALENDAR
+    VERSION:2.0
+    PRODID:-//Task 6 mixed-zone test//EN
+    BEGIN:VEVENT
+    UID:floating-overlap@example.test
+    DTSTAMP:20260301T000000Z
+    DTSTART:20260315T090000
+    DTEND:20260315T100000
+    SUMMARY:Floating event
+    END:VEVENT
+    END:VCALENDAR
+""".trimIndent().replace("\n", "\r\n") + "\r\n"
 
 private fun parsed(uid: String): ParsedCalendar {
     val event = ParsedEvent(

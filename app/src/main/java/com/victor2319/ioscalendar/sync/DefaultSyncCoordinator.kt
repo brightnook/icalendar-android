@@ -93,7 +93,9 @@ class DefaultSyncCoordinator(
         val token = state.syncToken?.takeIf(String::isNotBlank)
             ?: return replaceSnapshot(calendar, calendarId, parseRange)
         val delta = gateway.fetchDelta(calendar, token)
-        val parseRanges = state.coverage.ifEmpty { listOf(parseRange) }.flatMap(TimeRange::chunks)
+        val parseRanges = state.coverage.ifEmpty { listOf(parseRange) }
+            .normalizeForRefresh(clock.zoneId)
+            .flatMap(TimeRange::chunks)
         val parsed = parseResources(delta.upserts, calendarId, calendarColor(calendar.color), parseRanges)
         repository.applyCalendarDelta(
             CalendarDelta(
@@ -223,6 +225,22 @@ private data class ParsedPayload(
 private data class OwnedEvent(val href: String, val event: CalendarEvent)
 
 private data class OwnedInstance(val href: String, val instance: EventInstance)
+
+private fun List<TimeRange>.normalizeForRefresh(authoritativeZone: ZoneId): List<TimeRange> =
+    sortedWith(compareBy(TimeRange::start, TimeRange::endExclusive))
+        .fold(mutableListOf<TimeRange>()) { normalized, next ->
+            val current = normalized.lastOrNull()
+            if (current != null && !next.start.isAfter(current.endExclusive)) {
+                normalized[normalized.lastIndex] = TimeRange(
+                    current.start,
+                    maxOf(current.endExclusive, next.endExclusive),
+                    authoritativeZone,
+                )
+            } else {
+                normalized += TimeRange(next.start, next.endExclusive, authoritativeZone)
+            }
+            normalized
+        }
 
 private fun TimeRange.chunks(): List<TimeRange> {
     val chunks = mutableListOf<TimeRange>()

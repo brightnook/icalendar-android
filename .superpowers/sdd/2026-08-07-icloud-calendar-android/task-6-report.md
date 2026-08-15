@@ -160,3 +160,89 @@ app-debug-androidTest.apk generated
 Fix files: `domain/Models.kt`, `data/RoomCalendarRepository.kt`, `sync/DefaultSyncCoordinator.kt`, `sync/DefaultSyncCoordinatorTest.kt`, and the new real-Room `sync/DefaultSyncCoordinatorRoomTest.kt`.
 
 Fix commit: `fix: replace changed calendar resources atomically`.
+
+## Fix Round 2: migrated ownership and authoritative refresh zone
+
+### Root causes and design
+
+- Every v1 master necessarily receives `remoteResourceHref = NULL` in `MIGRATION_1_2`. Keeping that calendar's nonblank token allows Refresh to apply href-based changed-resource deletion that cannot match the legacy master, after which the token advances while moved/cancelled legacy instances remain. The minimal compatible policy invalidates only sync tokens for calendars containing NULL-owned masters during migration. Calendar, master, instance, and coverage rows remain intact, and the existing no-token Refresh path performs the required bounded snapshot.
+- Coverage is intentionally stored separately by zone, so overlapping historical ranges can coexist after the device zone changes. Parsing a floating `LocalDateTime` in every stored zone creates the same stable instance ID at different instants. Refresh now deterministically sorts and unions coverage by instant, assigns `ClockProvider.zoneId` as the authoritative display zone, then applies the existing 400-day chunking. This does not depend on database/list order.
+
+### RED evidence
+
+Migrated legacy ownership RED:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*CalendarDatabaseMigrationTest" --tests "*MigratedV1SyncCoordinatorTest"
+BUILD FAILED in 12s
+3 tests, 3 failures
+CalendarDatabaseMigrationTest.kt:68
+MigratedV1SyncCoordinatorTest.kt:48,65
+```
+
+The migration retained the legacy token, and both true v1-database → Room migration → coordinator Refresh tests used delta instead of a bounded snapshot for moved/cancelled resources. During GREEN diagnosis, the first integration fixture used parser-local IDs rather than the domain stable IDs actually persisted by v1; the resulting unique-index error was traced through a test-only repository delegate, the fixture was corrected to the real v1 representation, and the diagnostic wrapper was removed.
+
+Mixed-zone floating-time RED:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest.refreshNormalizesOverlappingMixedZoneCoverageToTheClockZoneForFloatingEvents"
+BUILD FAILED in 3s
+1 test, 1 failure (AssertionError at DefaultSyncCoordinatorTest.kt:255)
+```
+
+The real `Ical4jIcsParser` produced the same stable floating occurrence at Los Angeles and Tokyo instants, so the coordinator rejected the request and did not publish the expected success.
+
+### GREEN evidence
+
+Open 1 focused GREEN:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*CalendarDatabaseMigrationTest" --tests "*MigratedV1SyncCoordinatorTest"
+BUILD SUCCESSFUL in 8s
+3 tests, 0 failures
+```
+
+The migration test proves legacy masters and coverage survive while their calendar token becomes NULL. The two real migrated-database coordinator tests prove Refresh makes one bounded range request, makes no delta request, removes the old moved/cancelled instance, and advances only to the snapshot token.
+
+Open 2 focused GREEN:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest.refreshNormalizesOverlappingMixedZoneCoverageToTheClockZoneForFloatingEvents"
+BUILD SUCCESSFUL in 4s
+1 test, 0 failures
+```
+
+The mixed-zone test uses real floating ICS and deliberately lists Los Angeles before Tokyo; the result contains exactly one instance at `2026-03-15T00:00:00Z`, proving the clock's Tokyo zone—not first/list order—controls interpretation.
+
+Combined Round 2 focused verification:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*CalendarDatabaseMigrationTest" --tests "*MigratedV1SyncCoordinatorTest" --tests "*DefaultSyncCoordinatorTest.refreshNormalizesOverlappingMixedZoneCoverageToTheClockZoneForFloatingEvents" --tests "*DefaultSyncCoordinatorTest.refreshRebuildsChangedResourcesAcrossEveryCommittedCoverageChunk"
+BUILD SUCCESSFUL in 8s
+5 tests, 0 failures
+```
+
+Affected suites:
+
+```text
+.\gradlew.bat testDebugUnitTest --tests "*DefaultSyncCoordinatorTest" --tests "*DefaultSyncCoordinatorRoomTest" --tests "*MigratedV1SyncCoordinatorTest" --tests "*RoomCalendarRepositoryTest" --tests "*CalendarDatabaseMigrationTest" --tests "*ICloudCalDavGatewayTest" --tests "*Ical4jIcsParserTest"
+BUILD SUCCESSFUL in 13s
+116 tests, 0 failures, 0 errors, 0 skipped
+```
+
+Fresh verification matrix:
+
+```text
+.\gradlew.bat testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --rerun-tasks
+BUILD SUCCESSFUL in 31s
+90 actionable tasks: 90 executed
+126 unit tests, 0 failures, 0 errors, 0 skipped
+app-debug.apk generated
+app-debug-androidTest.apk generated
+```
+
+`git diff --check` exited 0. The full build emitted only the previously documented host native-access/native-library notices. The user-owned `gradle.properties` modification and untracked `gradle/gradle-daemon-jvm.properties` remained untouched and excluded.
+
+Round 2 files: `data/CalendarDatabase.kt`, `sync/DefaultSyncCoordinator.kt`, `data/CalendarDatabaseMigrationTest.kt`, `sync/DefaultSyncCoordinatorTest.kt`, new `sync/MigratedV1SyncCoordinatorTest.kt`, and this report.
+
+Round 2 commit: `fix: baseline migrated calendars safely`.
