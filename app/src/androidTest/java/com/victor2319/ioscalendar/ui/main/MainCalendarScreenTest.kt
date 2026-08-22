@@ -159,10 +159,10 @@ class MainCalendarScreenTest {
     }
 
     @Test
-    fun suppliedDrawablesRenderInsideTheFourUpdatedBottomActions() {
+    fun suppliedPngDrawablesRenderInsideAllFiveBottomActions() {
         setScreen(state())
 
-        listOf(BOTTOM_VIEW_TAG, BOTTOM_PICK_DATE_TAG, BOTTOM_REFRESH_TAG, BOTTOM_SETTINGS_TAG)
+        listOf(BOTTOM_TODAY_TAG, BOTTOM_VIEW_TAG, BOTTOM_PICK_DATE_TAG, BOTTOM_REFRESH_TAG, BOTTOM_SETTINGS_TAG)
             .forEach { composeRule.onNodeWithTag("$it-icon").assertIsDisplayed() }
     }
 

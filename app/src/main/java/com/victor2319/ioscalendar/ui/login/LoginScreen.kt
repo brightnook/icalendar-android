@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
@@ -17,6 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -101,7 +105,15 @@ fun LoginScreen(
                 onConnect(appleId, submittedPassword)
             },
             enabled = uiState.phase != LoginPhase.DISCOVERING && uiState.phase != LoginPhase.SYNCING,
+            modifier = Modifier.heightIn(min = 48.dp),
         ) {
+            androidx.compose.material3.Icon(
+                painter = painterResource(R.drawable.ic_action_login),
+                contentDescription = null,
+                modifier = Modifier.testTag("login-connect-icon"),
+                tint = Color.Unspecified,
+            )
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 4.dp))
             Text(stringResource(R.string.login_connect_and_sync))
         }
         LoginStatus(uiState, onViewCalendars)

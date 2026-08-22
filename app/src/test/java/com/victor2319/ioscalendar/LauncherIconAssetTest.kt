@@ -38,5 +38,13 @@ class LauncherIconAssetTest {
         assertTrue(minY >= safeZoneStart, "Artwork begins at $minY, outside the safe zone")
         assertTrue(maxX < safeZoneEnd, "Artwork ends at $maxX, outside the safe zone")
         assertTrue(maxY < safeZoneEnd, "Artwork ends at $maxY, outside the safe zone")
+
+        val redCalendarArtwork = bitmap.getRGB(100, 120)
+        val alpha = redCalendarArtwork ushr 24 and 0xff
+        val red = redCalendarArtwork ushr 16 and 0xff
+        val green = redCalendarArtwork ushr 8 and 0xff
+        val blue = redCalendarArtwork and 0xff
+        assertTrue(alpha > 0, "New calendar artwork must occupy the adaptive-icon safe zone")
+        assertTrue(red > green * 1.2 && red > blue * 1.2, "New foreground must retain the supplied red calendar art")
     }
 }

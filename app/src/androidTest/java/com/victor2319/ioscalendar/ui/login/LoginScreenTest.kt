@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
@@ -142,6 +143,22 @@ class LoginScreenTest {
         composeRule.onNodeWithText(composeRule.activity.getString(R.string.login_error_partial_sync))
             .assertIsDisplayed()
         composeRule.onNodeWithText(composeRule.activity.getString(R.string.login_view_calendars)).assertIsDisplayed()
+    }
+
+    @Test
+    fun connectActionShowsTheSuppliedLoginIcon() {
+        composeRule.setContent {
+            MaterialTheme {
+                LoginScreen(
+                    uiState = LoginUiState(),
+                    onConnect = { _, password -> password.fill('\u0000') },
+                    onViewCalendars = {},
+                    onOpenUri = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("login-connect-icon").assertIsDisplayed()
     }
 
     private fun fillCredentials(context: Context = composeRule.activity) {

@@ -102,13 +102,13 @@ fun MainCalendarScreen(
         }
         HorizontalDivider()
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
-            ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, "◎", onClick = onToday)
-            ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, "▦", R.drawable.ic_view_toggle_green, onToggleViewMode)
-            ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, "□", R.drawable.ic_date_jump_green) {
+            ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, R.drawable.ic_action_today, onToday)
+            ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, R.drawable.ic_action_view_switch, onToggleViewMode)
+            ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, R.drawable.ic_action_search) {
                 android.app.DatePickerDialog(context, { _, y, m, d -> onSelectDateAndShowCombined(java.time.LocalDate.of(y, m + 1, d)) }, state.selectedDate.year, state.selectedDate.monthValue - 1, state.selectedDate.dayOfMonth).show()
             }
-            ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, "⟳", R.drawable.ic_refresh_green, onRefresh)
-            ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, "⚙", R.drawable.ic_settings_green, onOpenSettings)
+            ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, R.drawable.ic_action_refresh, onRefresh)
+            ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, R.drawable.ic_action_settings, onOpenSettings)
         }
     }
 
@@ -122,19 +122,15 @@ fun MainCalendarScreen(
     }
 }
 
-@Composable private fun ActionIcon(tag: String, description: Int, glyph: String, icon: Int? = null, onClick: () -> Unit) {
+@Composable private fun ActionIcon(tag: String, description: Int, icon: Int, onClick: () -> Unit) {
     val name = stringResource(description)
     IconButton(onClick, Modifier.testTag(tag).semantics { contentDescription = name }) {
-        if (icon == null) {
-            Text(glyph, style = MaterialTheme.typography.titleLarge)
-        } else {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                modifier = Modifier.testTag("$tag-icon"),
-                tint = Color.Unspecified,
-            )
-        }
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            modifier = Modifier.testTag("$tag-icon"),
+            tint = Color.Unspecified,
+        )
     }
 }
 

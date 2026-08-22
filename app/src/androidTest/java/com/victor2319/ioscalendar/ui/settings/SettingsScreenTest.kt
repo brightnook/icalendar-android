@@ -138,6 +138,7 @@ class SettingsScreenTest {
 
         val close = composeRule.onNodeWithContentDescription("Close").fetchSemanticsNode().boundsInRoot
         assertTrue("Close action overlaps the status area", close.top > 0f)
+        composeRule.onNodeWithTag("settings-close-icon").assertIsDisplayed()
     }
 
     @Test
@@ -161,6 +162,7 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithText("Sign out").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Close").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings-logout-icon").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Sign out").performClick()
         composeRule.onNodeWithText("Your saved iCloud credentials will be removed from this device.")
             .assertIsDisplayed()

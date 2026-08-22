@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -33,7 +34,14 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             IconButton(
                 onClick = onClose,
                 modifier = Modifier.semantics { contentDescription = closeDescription },
-            ) { Text("×", style = MaterialTheme.typography.titleLarge) }
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_close),
+                    contentDescription = null,
+                    modifier = Modifier.testTag("settings-close-icon"),
+                    tint = Color.Unspecified,
+                )
+            }
         }
         Column(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
@@ -56,7 +64,16 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             SettingsSection(R.string.settings_data_and_sign_out, "data") {
                 Button(onClick = onClearHistory) { Text(stringResource(R.string.settings_clear_history)) }
                 Button(onClick = onClearCache) { Text(stringResource(R.string.settings_clear_cache)) }
-                Button(onClick = onLogout) { Text(stringResource(R.string.settings_logout)) }
+                Button(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_logout),
+                        contentDescription = null,
+                        modifier = Modifier.testTag("settings-logout-icon"),
+                        tint = Color.Unspecified,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.settings_logout))
+                }
                 if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
                 if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
             }
