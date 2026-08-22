@@ -1,6 +1,7 @@
 package com.victor2319.ioscalendar.ui.main
 
 import android.content.res.Configuration
+import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
@@ -155,6 +156,32 @@ class MainCalendarScreenTest {
         setScreen(state())
         listOf(BOTTOM_TODAY_TAG, BOTTOM_VIEW_TAG, BOTTOM_PICK_DATE_TAG, BOTTOM_REFRESH_TAG, BOTTOM_SETTINGS_TAG)
             .forEach { composeRule.onNodeWithTag(it).assertIsDisplayed() }
+    }
+
+    @Test
+    fun suppliedDrawablesRenderInsideTheFourUpdatedBottomActions() {
+        setScreen(state())
+
+        listOf(BOTTOM_VIEW_TAG, BOTTOM_PICK_DATE_TAG, BOTTOM_REFRESH_TAG, BOTTOM_SETTINGS_TAG)
+            .forEach { composeRule.onNodeWithTag("$it-icon").assertIsDisplayed() }
+    }
+
+    @Test
+    fun applicationUsesAnAdaptiveLauncherIcon() {
+        val appInfo = composeRule.activity.packageManager.getApplicationInfo(
+            composeRule.activity.packageName,
+            0,
+        )
+
+        assertTrue("Application icon must be app-owned", appInfo.icon != 0)
+        assertEquals(
+            "${composeRule.activity.packageName}:mipmap/ic_launcher",
+            composeRule.activity.resources.getResourceName(appInfo.icon),
+        )
+        assertTrue(
+            "Launcher icon must be adaptive",
+            composeRule.activity.getDrawable(appInfo.icon) is AdaptiveIconDrawable,
+        )
     }
 
     @Test

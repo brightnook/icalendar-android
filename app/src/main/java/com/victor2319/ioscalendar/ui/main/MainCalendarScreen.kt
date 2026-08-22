@@ -16,12 +16,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -99,13 +102,13 @@ fun MainCalendarScreen(
         }
         HorizontalDivider()
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
-            ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, "◎", onToday)
-            ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, "▦", onToggleViewMode)
-            ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, "□") {
+            ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, "◎", onClick = onToday)
+            ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, "▦", R.drawable.ic_view_toggle_green, onToggleViewMode)
+            ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, "□", R.drawable.ic_date_jump_green) {
                 android.app.DatePickerDialog(context, { _, y, m, d -> onSelectDateAndShowCombined(java.time.LocalDate.of(y, m + 1, d)) }, state.selectedDate.year, state.selectedDate.monthValue - 1, state.selectedDate.dayOfMonth).show()
             }
-            ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, "⟳", onRefresh)
-            ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, "⚙", onOpenSettings)
+            ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, "⟳", R.drawable.ic_refresh_green, onRefresh)
+            ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, "⚙", R.drawable.ic_settings_green, onOpenSettings)
         }
     }
 
@@ -119,9 +122,20 @@ fun MainCalendarScreen(
     }
 }
 
-@Composable private fun ActionIcon(tag: String, description: Int, glyph: String, onClick: () -> Unit) {
+@Composable private fun ActionIcon(tag: String, description: Int, glyph: String, icon: Int? = null, onClick: () -> Unit) {
     val name = stringResource(description)
-    IconButton(onClick, Modifier.testTag(tag).semantics { contentDescription = name }) { Text(glyph, style = MaterialTheme.typography.titleLarge) }
+    IconButton(onClick, Modifier.testTag(tag).semantics { contentDescription = name }) {
+        if (icon == null) {
+            Text(glyph, style = MaterialTheme.typography.titleLarge)
+        } else {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.testTag("$tag-icon"),
+                tint = Color.Unspecified,
+            )
+        }
+    }
 }
 
 private val MainCalendarMessage.stringResource: Int
