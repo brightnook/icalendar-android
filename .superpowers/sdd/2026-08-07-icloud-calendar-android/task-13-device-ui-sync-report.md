@@ -110,3 +110,9 @@ The current debug app and test APK installed successfully over the existing debu
 - Each card is a rounded 20dp `surfaceVariant` at 72% opacity, so the treatment follows light/dark theme colors while remaining visibly separated by the existing 12dp list spacing. The existing masked account, switches, radio buttons, destructive-action confirmation, and Sign out reachability remain unchanged.
 - Added Compose section semantics tags and an instrumentation regression requiring all four sections. Local verification: `:app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest`; 179 unit tests, 0 failures, 0 errors; app and instrumentation APKs compiled.
 - No device reinstall was attempted due the documented signing mismatch and preservation of the working account/cache.
+
+## Bottom action bar follow-up
+
+- Added a fixed, navigation-bar-safe five-action icon bar: Today, combined/year view toggle, date picker, Refresh, and Settings. Refresh and Settings no longer appear in the agenda header.
+- Default is combined month plus agenda. Year mode shows all twelve miniature months and reuses available day markers; tapping a year-day or date-picker result selects it and returns to combined view. Today selects the clock-zone current date.
+- The new APKs compiled locally. Device replacement was not attempted because it would not preserve the currently working signed installation's credentials/cache.

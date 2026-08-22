@@ -160,6 +160,9 @@ private fun MainCalendarDestination(
         onOpenEvent = viewModel::openEvent,
         onCloseEvent = viewModel::closeEvent,
         onOpenExternalAction = { action -> openSafeExternalAction(context, action) },
+        onToday = viewModel::showToday,
+        onToggleViewMode = viewModel::toggleViewMode,
+        onSelectDateAndShowCombined = viewModel::selectDateAndShowCombined,
     )
 }
 

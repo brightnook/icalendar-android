@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
@@ -16,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
@@ -30,6 +32,11 @@ import java.time.format.FormatStyle
 
 const val SELECTED_DATE_TAG = "selected-date"
 const val EVENT_DETAIL_SHEET_TAG = "event-detail-sheet"
+const val BOTTOM_TODAY_TAG = "bottom-today"
+const val BOTTOM_VIEW_TAG = "bottom-view"
+const val BOTTOM_PICK_DATE_TAG = "bottom-pick-date"
+const val BOTTOM_REFRESH_TAG = "bottom-refresh"
+const val BOTTOM_SETTINGS_TAG = "bottom-settings"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,21 +50,23 @@ fun MainCalendarScreen(
     onOpenEvent: (String) -> Unit,
     onCloseEvent: () -> Unit,
     onOpenExternalAction: (ExternalAction) -> Unit,
+    onToday: () -> Unit = {},
+    onToggleViewMode: () -> Unit = {},
+    onSelectDateAndShowCombined: (java.time.LocalDate) -> Unit = onSelectDate,
 ) {
     val agendaListState = rememberLazyListState()
-    val refreshDescription = stringResource(R.string.calendar_refresh)
-    val settingsDescription = stringResource(R.string.settings_title)
+    val context = LocalContext.current
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        MonthGrid(
-            month = state.displayedMonth,
-            selectedDate = state.selectedDate,
-            dayMarkerColors = state.dayMarkerColors,
-            onSelectDate = onSelectDate,
-            onShowMonth = onShowMonth,
-            modifier = Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 8.dp),
-        )
-        HorizontalDivider()
-        Column(Modifier.fillMaxWidth().weight(0.42f)) {
+        if (state.viewMode == CalendarViewMode.YEAR) {
+            YearCalendar(state.displayedMonth.year, state.selectedDate, state.dayMarkerColors, onSelectDateAndShowCombined, Modifier.fillMaxWidth().weight(1f))
+        } else {
+            MonthGrid(
+                month = state.displayedMonth, selectedDate = state.selectedDate, dayMarkerColors = state.dayMarkerColors,
+                onSelectDate = onSelectDate, onShowMonth = onShowMonth,
+                modifier = Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 8.dp),
+            )
+            HorizontalDivider()
+            Column(Modifier.fillMaxWidth().weight(0.42f)) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
@@ -68,14 +77,6 @@ fun MainCalendarScreen(
                     modifier = Modifier.weight(1f).testTag(SELECTED_DATE_TAG),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                IconButton(
-                    onClick = onRefresh,
-                    modifier = Modifier.semantics { contentDescription = refreshDescription },
-                ) { Text("⟳", style = MaterialTheme.typography.titleLarge) }
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.semantics { contentDescription = settingsDescription },
-                ) { Text("⚙", style = MaterialTheme.typography.titleLarge) }
             }
             Box(Modifier.fillMaxWidth().height(32.dp)) {
                 state.message?.let {
@@ -94,6 +95,17 @@ fun MainCalendarScreen(
                 onOpenEvent = onOpenEvent,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
+            }
+        }
+        HorizontalDivider()
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
+            ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, "◎", onToday)
+            ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, "▦", onToggleViewMode)
+            ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, "□") {
+                android.app.DatePickerDialog(context, { _, y, m, d -> onSelectDateAndShowCombined(java.time.LocalDate.of(y, m + 1, d)) }, state.selectedDate.year, state.selectedDate.monthValue - 1, state.selectedDate.dayOfMonth).show()
+            }
+            ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, "⟳", onRefresh)
+            ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, "⚙", onOpenSettings)
         }
     }
 
@@ -105,6 +117,11 @@ fun MainCalendarScreen(
             EventDetailContent(detail, zoneId, onCloseEvent, onOpenExternalAction)
         }
     }
+}
+
+@Composable private fun ActionIcon(tag: String, description: Int, glyph: String, onClick: () -> Unit) {
+    val name = stringResource(description)
+    IconButton(onClick, Modifier.testTag(tag).semantics { contentDescription = name }) { Text(glyph, style = MaterialTheme.typography.titleLarge) }
 }
 
 private val MainCalendarMessage.stringResource: Int

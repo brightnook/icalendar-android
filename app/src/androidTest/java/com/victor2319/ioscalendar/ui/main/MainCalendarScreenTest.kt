@@ -151,6 +151,34 @@ class MainCalendarScreenTest {
     }
 
     @Test
+    fun bottomActionBarExposesFiveAccessibleIconActions() {
+        setScreen(state())
+        listOf(BOTTOM_TODAY_TAG, BOTTOM_VIEW_TAG, BOTTOM_PICK_DATE_TAG, BOTTOM_REFRESH_TAG, BOTTOM_SETTINGS_TAG)
+            .forEach { composeRule.onNodeWithTag(it).assertIsDisplayed() }
+    }
+
+    @Test
+    fun tappingADayInYearViewReturnsToCombinedViewWithThatDateSelected() {
+        var screenState by mutableStateOf(state().copy(viewMode = CalendarViewMode.YEAR))
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = screenState, zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = { screenState = screenState.copy(selectedDate = it, displayedMonth = YearMonth.from(it)) },
+                    onShowMonth = {}, onRefresh = {}, onOpenEvent = {}, onCloseEvent = {}, onOpenExternalAction = {},
+                    onSelectDateAndShowCombined = { screenState = screenState.copy(selectedDate = it, displayedMonth = YearMonth.from(it), viewMode = CalendarViewMode.COMBINED) },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("year-day-2026-10-08").performClick()
+        composeRule.runOnIdle {
+            assertEquals(LocalDate.of(2026, 10, 8), screenState.selectedDate)
+            assertEquals(CalendarViewMode.COMBINED, screenState.viewMode)
+        }
+    }
+
+    @Test
     fun agendaHeaderDateIsVerticallyCenteredWithItsIconActions() {
         setScreen(state())
 

@@ -12,9 +12,12 @@ data class MainCalendarState(
     val calendars: List<CalendarSummary> = emptyList(),
     val agenda: List<EventInstance> = emptyList(),
     val dayMarkerColors: Map<LocalDate, List<Int>> = emptyMap(),
+    val viewMode: CalendarViewMode = CalendarViewMode.COMBINED,
     val openEvent: EventDetail? = null,
     val message: MainCalendarMessage? = null,
 )
+
+enum class CalendarViewMode { COMBINED, YEAR }
 
 enum class MainCalendarMessage {
     SYNC_NOT_READY,

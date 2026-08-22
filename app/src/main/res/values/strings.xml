@@ -22,6 +22,10 @@
     <string name="login_connected_title">iCloud Calendar connected</string>
     <string name="login_connected_placeholder">Your first sync is complete. Calendar views will appear here in the next update.</string>
     <string name="calendar_refresh">Refresh</string>
+    <string name="calendar_today">Today</string>
+    <string name="calendar_show_year">Show year view</string>
+    <string name="calendar_show_combined">Show month and agenda</string>
+    <string name="calendar_pick_date">Pick date</string>
     <string name="calendar_previous_month">Show previous month</string>
     <string name="calendar_next_month">Show next month</string>
     <string name="calendar_no_events">No events</string>

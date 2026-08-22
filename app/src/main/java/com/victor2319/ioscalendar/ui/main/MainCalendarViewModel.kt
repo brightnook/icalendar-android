@@ -46,6 +46,7 @@ class MainCalendarViewModel(
     private val displayedMonth = MutableStateFlow(YearMonth.from(initialDate))
     private val selectedInstanceId = MutableStateFlow<String?>(null)
     private val message = MutableStateFlow<MainCalendarMessage?>(null)
+    private val viewMode = MutableStateFlow(CalendarViewMode.COMBINED)
     private val monthsBeingEnsured = mutableSetOf<YearMonth>()
 
     private val calendars: StateFlow<List<CalendarSummary>> = repository.observeCalendars()
@@ -98,7 +99,8 @@ class MainCalendarViewModel(
             agenda = dayAgenda,
             dayMarkerColors = markerColors,
         )
-    }.combine(openEvent) { content, detail -> content.copy(openEvent = detail) }
+    }.combine(viewMode) { content, mode -> content.copy(viewMode = mode) }
+        .combine(openEvent) { content, detail -> content.copy(openEvent = detail) }
 
     val uiState: StateFlow<MainCalendarState> = combine(contentState, message) { content, currentMessage ->
         content.copy(message = currentMessage)
@@ -131,6 +133,20 @@ class MainCalendarViewModel(
 
     fun showMonth(month: YearMonth) {
         displayedMonth.value = month
+    }
+
+    fun showToday() {
+        selectDate(clock.now.atZone(zoneIds.value).toLocalDate())
+        viewMode.value = CalendarViewMode.COMBINED
+    }
+
+    fun toggleViewMode() {
+        viewMode.value = if (viewMode.value == CalendarViewMode.COMBINED) CalendarViewMode.YEAR else CalendarViewMode.COMBINED
+    }
+
+    fun selectDateAndShowCombined(date: LocalDate) {
+        selectDate(date)
+        viewMode.value = CalendarViewMode.COMBINED
     }
 
     fun openEvent(instanceId: String) {
