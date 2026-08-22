@@ -5,10 +5,12 @@
 - The supplied green `#2EBE71` vector drawables are assigned to the calendar
   View, date-jump, refresh, and settings bottom actions. Their outer action
   buttons retain content descriptions and Material 48 dp minimum touch targets.
-- The supplied 1254×1254 calendar artwork was resampled losslessly for an
-  xxxhdpi adaptive-icon foreground. The manifest uses the adaptive icon for
-  both normal and round launcher variants; its red backing layer preserves the
-  calendar artwork through launcher masking.
+- The supplied 1254×1254 calendar artwork is the source for the xxxhdpi
+  adaptive-icon foreground. The foreground is a high-quality resampling of
+  the centered calendar cutout, with the edge-connected red tile removed to
+  transparency. Its visible bounds are x=105–328 and y=102–335 in the
+  432×432 source, inside Android's 84–348 safe zone. The separate red backing
+  drawable, not the foreground image, supplies the launcher background.
 
 ## Test-first evidence
 
@@ -26,6 +28,8 @@
   `res/mipmap-anydpi-v26/ic_launcher.xml`.
 - The packaged adaptive XML references the app-owned red background and the
   packaged xxxhdpi calendar foreground.
+- `LauncherIconAssetTest` protects the transparent safe-zone boundary so the
+  foreground cannot regress to an edge-to-edge red tile.
 - `git diff --check` passed; Gradle emitted existing dependency/runtime
   deprecation warnings and an existing WorkManager manifest-merge warning.
 
