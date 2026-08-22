@@ -17,6 +17,7 @@ import net.fortuna.ical4j.data.CalendarBuilder
 import net.fortuna.ical4j.model.Component
 import net.fortuna.ical4j.model.Parameter
 import net.fortuna.ical4j.model.Property
+import net.fortuna.ical4j.model.TimeZoneRegistry
 import net.fortuna.ical4j.model.component.VEvent
 import net.fortuna.ical4j.model.property.DtStart
 import net.fortuna.ical4j.model.property.DtEnd
@@ -34,7 +35,9 @@ class Ical4jIcsParser : IcsParser {
         if (ics.isBlank()) throw IcsParseException("iCalendar input is empty")
 
         try {
-            val calendar = CalendarBuilder().build(StringReader(ics))
+            // Android blocks ical4j's custom ZoneRulesProvider when a VTIMEZONE is registered.
+            // Use Android's platform zone database for canonical TZIDs instead of registering one.
+            val calendar = CalendarBuilder(null as TimeZoneRegistry?).build(StringReader(ics))
             val validation = calendar.validate()
             if (validation.hasErrors()) {
                 throw IcsParseException("Invalid iCalendar data: $validation")

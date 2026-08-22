@@ -110,6 +110,7 @@ private fun AppRootContent(
         LoginScreen(
             uiState = uiState,
             onConnect = loginViewModel::connect,
+            onViewCalendars = loginViewModel::viewCalendars,
             onOpenUri = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
         )
     }

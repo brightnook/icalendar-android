@@ -25,14 +25,25 @@ class LoginViewModel(
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = mutableUiState.asStateFlow()
+    private var pendingCalendarAppleId: String? = null
 
     fun connect(appleId: String, suppliedPassword: CharArray) {
         viewModelScope.launch { connectInternal(appleId, suppliedPassword) }
     }
 
+    fun viewCalendars() {
+        val appleId = pendingCalendarAppleId ?: return
+        val state = mutableUiState.value
+        if (state.error != LoginError.PARTIAL_SYNC || state.destination != LoginDestination.CALENDAR) return
+        viewModelScope.launch {
+            onAuthenticated(appleId)
+        }
+    }
+
     private suspend fun connectInternal(appleId: String, suppliedPassword: CharArray) {
         var password: CharArray? = null
         try {
+            pendingCalendarAppleId = null
             mutableUiState.value = LoginUiState(phase = LoginPhase.VALIDATING)
             val normalizedAppleId = appleId.trim()
             password = trimOuterWhitespace(suppliedPassword)
@@ -64,14 +75,25 @@ class LoginViewModel(
                         fail(LoginError.NO_CALENDARS, clearPassword = false)
                         return
                     }
-                    onAuthenticated(appleId)
+                    onAuthenticated(normalizedAppleId)
                     mutableUiState.value = LoginUiState(
                         phase = LoginPhase.COMPLETE,
                         destination = LoginDestination.CALENDAR,
                     )
                 }
 
-                is SyncResult.PartialSuccess -> fail(LoginError.PARTIAL_SYNC)
+                is SyncResult.PartialSuccess -> {
+                    if (result.calendarIds.isEmpty()) {
+                        fail(LoginError.PARTIAL_SYNC)
+                    } else {
+                        pendingCalendarAppleId = normalizedAppleId
+                        mutableUiState.value = LoginUiState(
+                            error = LoginError.PARTIAL_SYNC,
+                            passwordClearToken = mutableUiState.value.passwordClearToken + 1,
+                            destination = LoginDestination.CALENDAR,
+                        )
+                    }
+                }
                 is SyncResult.AuthenticationRequired -> fail(LoginError.AUTHENTICATION)
                 is SyncResult.RetryableFailure -> fail(result.category.toLoginError())
             }

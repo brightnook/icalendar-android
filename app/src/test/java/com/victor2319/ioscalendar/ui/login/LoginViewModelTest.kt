@@ -123,9 +123,10 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun partialFirstSyncStaysOnLoginWithAnExplicitRetryMessage() = runTest {
-        // Catches navigating to a misleading completed state when calendars still failed to synchronize.
+    fun partialFirstSyncWithUsableCalendarsKeepsItsWarningUntilTheUserChoosesToViewThem() = runTest {
+        // Catches either trapping a user at login or hiding the partial-sync warning before they choose a view.
         val store = RecordingCredentialsStore()
+        val marked = mutableListOf<String>()
         val viewModel = LoginViewModel(
             RecordingLoginCoordinator(LoginResult.Success),
             store,
@@ -137,13 +138,45 @@ class LoginViewModelTest {
                     failures = mapOf("failed" to SyncFailureCategory.INVALID_DATA),
                 ),
             ),
+            onAuthenticated = { marked += it },
         )
 
         viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
         advanceUntilIdle()
 
+        assertEquals(LoginDestination.CALENDAR, viewModel.uiState.value.destination)
+        assertEquals(LoginError.PARTIAL_SYNC, viewModel.uiState.value.error)
+        assertTrue(marked.isEmpty())
+
+        viewModel.viewCalendars()
+        advanceUntilIdle()
+
+        assertEquals(listOf("person@example.test"), marked)
+    }
+
+    @Test
+    fun partialFirstSyncWithoutUsableCalendarsDoesNotOfferCalendarView() = runTest {
+        // Catches treating an all-failed first sync as though it had created a calendar view.
+        val marked = mutableListOf<String>()
+        val store = RecordingCredentialsStore()
+        val viewModel = LoginViewModel(
+            RecordingLoginCoordinator(LoginResult.Success),
+            store,
+            SyncAfterStored(
+                store,
+                SyncResult.PartialSuccess(SyncCounts(), emptySet(), mapOf("failed" to SyncFailureCategory.INVALID_DATA)),
+            ),
+            onAuthenticated = { marked += it },
+        )
+
+        viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
+        advanceUntilIdle()
+        viewModel.viewCalendars()
+        advanceUntilIdle()
+
         assertEquals(LoginDestination.LOGIN, viewModel.uiState.value.destination)
         assertEquals(LoginError.PARTIAL_SYNC, viewModel.uiState.value.error)
+        assertTrue(marked.isEmpty())
     }
 
     @Test

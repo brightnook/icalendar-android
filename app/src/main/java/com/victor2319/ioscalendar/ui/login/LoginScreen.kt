@@ -32,6 +32,7 @@ const val APPLE_APP_PASSWORD_SUPPORT_URL = "https://support.apple.com/zh-cn/1026
 fun LoginScreen(
     uiState: LoginUiState,
     onConnect: (appleId: String, password: CharArray) -> Unit,
+    onViewCalendars: () -> Unit,
     onOpenUri: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,12 +104,12 @@ fun LoginScreen(
         ) {
             Text(stringResource(R.string.login_connect_and_sync))
         }
-        LoginStatus(uiState)
+        LoginStatus(uiState, onViewCalendars)
     }
 }
 
 @Composable
-private fun LoginStatus(uiState: LoginUiState) {
+private fun LoginStatus(uiState: LoginUiState, onViewCalendars: () -> Unit) {
     val messageId = when (uiState.phase) {
         LoginPhase.DISCOVERING -> R.string.login_progress_discovering
         LoginPhase.SYNCING -> R.string.login_progress_syncing
@@ -123,4 +124,9 @@ private fun LoginStatus(uiState: LoginUiState) {
         null -> null
     }
     messageId?.let { Text(stringResource(it)) }
+    if (uiState.error == LoginError.PARTIAL_SYNC && uiState.destination == LoginDestination.CALENDAR) {
+        Button(onClick = onViewCalendars) {
+            Text(stringResource(R.string.login_view_calendars))
+        }
+    }
 }

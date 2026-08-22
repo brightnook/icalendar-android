@@ -17,6 +17,7 @@
     <string name="login_error_network">Could not reach iCloud. Check your connection and try again.</string>
     <string name="login_error_server">iCloud Calendar could not complete this request. Try again later.</string>
     <string name="login_error_partial_sync">Some calendars could not finish the first sync. Your connection is saved; try again.</string>
+    <string name="login_view_calendars">View calendars</string>
     <string name="login_error_no_calendars">iCloud accepted the connection, but no calendars were discovered. Check that iCloud Calendar is enabled for this account, then try again.</string>
     <string name="login_connected_title">iCloud Calendar connected</string>
     <string name="login_connected_placeholder">Your first sync is complete. Calendar views will appear here in the next update.</string>

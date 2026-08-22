@@ -3,7 +3,6 @@ package com.victor2319.ioscalendar.caldav
 import com.victor2319.ioscalendar.auth.Credentials
 import com.victor2319.ioscalendar.domain.TimeRange
 import java.io.IOException
-import java.io.StringReader
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
@@ -15,9 +14,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import net.fortuna.ical4j.data.CalendarBuilder
-import net.fortuna.ical4j.model.Component
-import net.fortuna.ical4j.model.component.VEvent
 import okhttp3.HttpUrl
 import okhttp3.Call
 import okhttp3.Callback
@@ -314,16 +310,21 @@ class ICloudCalDavGateway private constructor(
         } finally {
             bytes.fill(0)
         }
-        try {
-            val parsed = CalendarBuilder().build(StringReader(data))
-            if (parsed.validate().hasErrors() || parsed.getComponents<VEvent>(Component.VEVENT).isEmpty()) {
-                invalid()
+        // Parsing is deliberately deferred to Ical4jIcsParser. Re-parsing here registered iCal4j's
+        // Java ZoneRulesProvider for every VTIMEZONE, which Android does not permit. Keep the cheap
+        // type guard here; the parser remains the authoritative structural and event validation step.
+        val components = data.lineSequence().map(String::trim)
+        var calendarStarted = false
+        var calendarEnded = false
+        var eventStarted = false
+        for (component in components) {
+            when (component.uppercase()) {
+                "BEGIN:VCALENDAR" -> calendarStarted = true
+                "END:VCALENDAR" -> calendarEnded = true
+                "BEGIN:VEVENT" -> eventStarted = true
             }
-        } catch (failure: CalDavFailure.InvalidServerData) {
-            throw failure
-        } catch (_: Exception) {
-            invalid()
         }
+        if (!calendarStarted || !calendarEnded || !eventStarted) invalid()
     }
 
     private fun session(expectedId: String): Session =

@@ -42,3 +42,32 @@ Login already separates rejected credentials, network errors, and server failure
 ## Remaining concern
 
 The full `MainCalendarScreenTest` class previously included an unrelated existing simplified-Chinese resource assertion that failed on this device (`关闭` not displayed). It is outside the focused task requirements and was not changed. The final targeted six-test device suite is green.
+
+## Follow-up: live partial-first-sync diagnosis and repair
+
+### Safe diagnosis
+
+- The user reported the login error “部分日历未能完成首次同步”. I scoped log inspection to the app process and did not inspect stored data, credentials, headers, URLs, calendar titles, or events.
+- The safe runtime stack identified `net.fortuna.ical4j.model.ZoneRulesProviderImpl` failing with `NoSuchMethodError` for Android's hidden `java.time.zone.ZoneRulesProvider` constructor. The route was `ICloudCalDavGateway.validateCalendarData` → `fetchRange`.
+- Authentication and discovery had therefore completed; each range fetch of a calendar containing `VTIMEZONE` failed before parsing. `DefaultSyncCoordinator` classified the linkage error as `REPOSITORY`, returned `SyncResult.PartialSuccess`, and LoginViewModel showed the generic partial-sync message. This is the reproducible root cause, not a credential, login, discovery, selection, or empty-calendar failure.
+
+### Minimal fix
+
+- Removed the redundant gateway `CalendarBuilder` pre-parse. It still enforces the byte limit and a cheap `VCALENDAR`/`VEVENT` envelope guard; `Ical4jIcsParser` remains the authoritative structural, event, and recurrence validator.
+- Constructed that parser with no iCal4j time-zone registry, so canonical TZIDs resolve through Android's platform zone database rather than registering ical4j's unsupported provider.
+- When a `PartialSuccess` includes at least one usable calendar, the login page keeps its error and retry control and adds an explicit, localized “查看日历” / “View calendars” action. It is user-initiated; an all-failed partial result still has no calendar action. No zero-calendar result is presented as synced.
+- Added only test/debug loopback cleartext support for a synthetic `MockWebServer`; release continues to require HTTPS.
+
+### RED → GREEN evidence for this follow-up
+
+1. **RED on serial `aaf08081`:** before production changes, two focused instrumentation tests failed: the `VTIMEZONE` parser threw the same `NoSuchMethodError`, and the partial-sync screen had no calendar action.
+2. **GREEN:** after the fix, a targeted instrumentation run returned `OK (3 tests)` for:
+   - `Ical4jIcsParserInstrumentedTest` (valid `VTIMEZONE` parsing);
+   - `ICloudCalDavGatewayInstrumentedTest` (synthetic valid range fetch does not pre-parse through the incompatible provider);
+   - `LoginScreenTest.partialFirstSyncKeepsItsWarningAndOffersCalendarView`.
+3. **Local unit GREEN:** `LoginViewModelTest` passed 9/9, including user-initiated routing for a usable partial result and the no-action all-failed case.
+4. A broader 20-test device class selection had 13 passes and 7 failures. The three new tests and all relevant month-grid/split/action tests passed. The seven failures are pre-existing `AppRoot`/localized-resource fixture assumptions (the default `AppRoot(factory)` renders its authenticated placeholder), not this sync fix; they are recorded rather than masked.
+
+### Device/account limitation
+
+The current debug app and test APK installed successfully over the existing debug install. I did not submit, replay, retrieve, or inspect any Apple Account credential, nor trigger a real iCloud request after the update. The user can now press the app's retry control to perform the final account-specific sync check themselves. The synthetic device gateway test proves the previously failing Android code path is fixed, but does not claim a fresh live iCloud result without that user action.

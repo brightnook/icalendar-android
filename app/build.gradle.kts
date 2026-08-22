@@ -92,5 +92,7 @@ dependencies {
     androidTestImplementation(libs.junit4)
     androidTestImplementation("androidx.test.espresso:espresso-intents:3.7.0")
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(platform(libs.okhttp.bom))
+    androidTestImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4-android")
 }

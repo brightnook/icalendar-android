@@ -37,6 +37,10 @@ import com.victor2319.ioscalendar.sync.SyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncRequest
 import com.victor2319.ioscalendar.sync.SyncResult
 import com.victor2319.ioscalendar.ui.AppRoot
+import com.victor2319.ioscalendar.ui.login.LoginDestination
+import com.victor2319.ioscalendar.ui.login.LoginError
+import com.victor2319.ioscalendar.ui.login.LoginScreen
+import com.victor2319.ioscalendar.ui.login.LoginUiState
 import org.hamcrest.CoreMatchers.allOf
 import org.junit.Rule
 import org.junit.Test
@@ -116,6 +120,28 @@ class LoginScreenTest {
     @Test
     fun appRootShowsChineseAuthenticationFailureCopy() {
         setLocalizedAppRoot(Locale.SIMPLIFIED_CHINESE, R.string.login_error_authentication)
+    }
+
+    @Test
+    fun partialFirstSyncKeepsItsWarningAndOffersCalendarView() {
+        // Catches a partial result trapping a user on login even after one or more calendars are usable.
+        composeRule.setContent {
+            MaterialTheme {
+                LoginScreen(
+                    uiState = LoginUiState(
+                        error = LoginError.PARTIAL_SYNC,
+                        destination = LoginDestination.CALENDAR,
+                    ),
+                    onConnect = { _, password -> password.fill('\u0000') },
+                    onViewCalendars = {},
+                    onOpenUri = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.login_error_partial_sync))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.login_view_calendars)).assertIsDisplayed()
     }
 
     private fun fillCredentials(context: Context = composeRule.activity) {
