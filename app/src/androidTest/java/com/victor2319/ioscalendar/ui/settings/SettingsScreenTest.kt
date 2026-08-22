@@ -54,6 +54,46 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun syncModeUsesAnAccessibleDropdownWithEveryFrequencyOption() {
+        var selected: com.victor2319.ioscalendar.domain.SyncMode? = null
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(syncMode = com.victor2319.ioscalendar.domain.SyncMode.HOURLY),
+                onClose = {},
+                onSelectSyncMode = { selected = it },
+                onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("sync-mode-picker").performClick()
+        composeRule.onNodeWithText("Manual").assertIsDisplayed()
+        composeRule.onNodeWithText("Hourly (approximately every hour)").assertIsDisplayed()
+        composeRule.onNodeWithText("Daily (approximately once a day)").assertIsDisplayed()
+        composeRule.onNodeWithText("Disabled").assertIsDisplayed()
+        composeRule.onNodeWithTag("sync-mode-option-DISABLED").performClick()
+        assertTrue(selected == com.victor2319.ioscalendar.domain.SyncMode.DISABLED)
+    }
+
+    @Test
+    fun logoutSharesTheAccountRowAndRemainsAccessible() {
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(maskedAppleId = "abc***@example.test"),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        val account = composeRule.onNodeWithTag("masked-account").fetchSemanticsNode().boundsInRoot
+        val logout = composeRule.onNodeWithTag("account-logout").fetchSemanticsNode().boundsInRoot
+        assertTrue("Logout must be to the right of the account", logout.left >= account.right)
+        composeRule.onNodeWithContentDescription("Sign out").assertIsDisplayed()
+    }
+
+    @Test
     fun calendarColorIndicatorIsClippedToACircle() {
         composeRule.setContent {
             SettingsScreen(

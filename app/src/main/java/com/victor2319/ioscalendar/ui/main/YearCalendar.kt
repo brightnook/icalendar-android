@@ -15,16 +15,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 
 const val YEAR_CALENDAR_TAG = "year-calendar"
 
 @Composable
 fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate, List<Int>>, onSelectDate: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
     val layout = fixedYearCalendarLayout()
+    PrimaryControlRippleScope {
     Column(
         modifier.padding(horizontal = layout.horizontalContentPadding).verticalScroll(rememberScrollState()).testTag(YEAR_CALENDAR_TAG),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -36,12 +40,14 @@ fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate
             }
         }
     }
+    }
 }
 
 @Composable
 private fun MiniMonth(month: YearMonth, selectedDate: LocalDate, markerColors: Map<LocalDate, List<Int>>, onSelectDate: (LocalDate) -> Unit, modifier: Modifier) {
     val layout = fixedYearCalendarLayout()
     val today = LocalDate.now()
+    val locale = currentLocale()
     val start = month.atDay(1).minusDays((month.atDay(1).dayOfWeek.value % 7).toLong())
     Column(modifier.testTag("year-month-$month"), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(month.atDay(1).format(DateTimeFormatter.ofPattern("MMM")), style = MaterialTheme.typography.labelMedium)
@@ -49,7 +55,7 @@ private fun MiniMonth(month: YearMonth, selectedDate: LocalDate, markerColors: M
             val date = start.plusDays((row * 7L) + col)
             if (date.month == month.month) {
                 val highlight = calendarDayHighlight(date == today, date == selectedDate)
-                TextButton(onClick = { onSelectDate(date) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.weight(1f).height(28.dp).testTag("year-day-$date")) {
+                TextButton(onClick = { onSelectDate(date) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.weight(1f).heightIn(min = layout.miniDayTouchTarget).testTag("year-day-$date").semantics { contentDescription = yearDateContentDescription(date, locale) }) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         modifier = Modifier.size(layout.miniDateBoxSize).clip(RoundedCornerShape(layout.miniDateCornerRadius)).then(
@@ -64,7 +70,7 @@ private fun MiniMonth(month: YearMonth, selectedDate: LocalDate, markerColors: M
                     }
                 }
                 }
-            } else Spacer(Modifier.weight(1f).height(28.dp))
+            } else Spacer(Modifier.weight(1f).height(layout.miniDayTouchTarget))
         } } }
     }
 }

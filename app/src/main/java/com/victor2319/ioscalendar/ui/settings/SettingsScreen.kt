@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -21,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
 
 @Composable
@@ -29,6 +35,7 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
     val closeDescription = stringResource(R.string.settings_close)
     val logoutDescription = stringResource(R.string.settings_logout)
     val actionPresentation = transparentLabeledActionPresentation()
+    PrimaryControlRippleScope {
     Column(
         Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
@@ -51,15 +58,30 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SettingsSection(R.string.settings_account, "account") {
-                Text(state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out), Modifier.testTag("masked-account"))
-            }
-            SettingsSection(R.string.settings_sync_mode, "sync") {
-                SyncMode.entries.forEach { mode ->
-                    Row(Modifier.fillMaxWidth()) {
-                        RadioButton(state.syncMode == mode, { onSelectSyncMode(mode) })
-                        Text(mode.label(), Modifier.padding(top = 12.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out),
+                        Modifier.weight(1f).testTag("masked-account"),
+                    )
+                    TextButton(
+                        onClick = onLogout,
+                        modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).testTag("account-logout").semantics {
+                            contentDescription = logoutDescription
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_action_logout),
+                            contentDescription = null,
+                            modifier = Modifier.testTag("settings-logout-icon"),
+                            tint = Color.Unspecified,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(logoutDescription)
                     }
                 }
+            }
+            SettingsSection(R.string.settings_sync_mode, "sync") {
+                SyncModePicker(state.syncMode, onSelectSyncMode)
             }
             SettingsSection(R.string.settings_calendars, "calendars") {
                 state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
@@ -67,27 +89,43 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             SettingsSection(R.string.settings_data_and_sign_out, "data") {
                 Button(onClick = onClearHistory) { Text(stringResource(R.string.settings_clear_history)) }
                 Button(onClick = onClearCache) { Text(stringResource(R.string.settings_clear_cache)) }
-                TextButton(
-                    onClick = onLogout,
-                    modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).semantics {
-                        contentDescription = logoutDescription
-                    },
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_logout),
-                        contentDescription = null,
-                        modifier = Modifier.testTag("settings-logout-icon"),
-                        tint = Color.Unspecified,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.settings_logout))
-                }
                 if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
                 if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
             }
         }
     }
+    }
     state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_delete)) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
+}
+
+@Composable
+private fun SyncModePicker(selectedMode: SyncMode, onSelectMode: (SyncMode) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val title = stringResource(R.string.settings_sync_mode)
+    val selectedLabel = selectedMode.label()
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("sync-mode-picker").semantics {
+                contentDescription = "$title: $selectedLabel"
+            },
+        ) {
+            Text(selectedLabel, modifier = Modifier.weight(1f))
+            Text("⌄")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            syncModePickerOptions().forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(mode.label()) },
+                    onClick = {
+                        expanded = false
+                        onSelectMode(mode)
+                    },
+                    modifier = Modifier.testTag("sync-mode-option-$mode"),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -117,5 +155,6 @@ private fun SettingsSection(
 }
 
 @Composable private fun SyncMode.label() = stringResource(when (this) { SyncMode.MANUAL -> R.string.settings_mode_manual; SyncMode.HOURLY -> R.string.settings_mode_hourly; SyncMode.DAILY -> R.string.settings_mode_daily; SyncMode.DISABLED -> R.string.settings_mode_disabled })
+internal fun syncModePickerOptions(): List<SyncMode> = SyncMode.entries
 @Composable private fun SettingsConfirmation.title() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_title; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_title; is SettingsConfirmation.Logout -> R.string.settings_logout_title })
 @Composable private fun SettingsConfirmation.message() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_message; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_message; is SettingsConfirmation.Logout -> R.string.settings_logout_message })

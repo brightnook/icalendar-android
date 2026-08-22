@@ -64,8 +64,10 @@ class LocalAccountManager(
     }
 }
 
-private fun String.maskAppleId(): String {
+internal fun String.maskAppleId(): String {
     val at = indexOf('@')
     if (at <= 0 || at == lastIndex) return "•••"
-    return "${substring(0, 1)}***${substring(at)}"
+    val localPart = substring(0, at)
+    val revealedEnd = localPart.offsetByCodePoints(0, minOf(3, localPart.codePointCount(0, localPart.length)))
+    return "${localPart.substring(0, revealedEnd)}***${substring(at)}"
 }

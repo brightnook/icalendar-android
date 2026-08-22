@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -124,6 +125,7 @@ fun MainCalendarScreen(
 
 @Composable private fun ActionIcon(tag: String, description: Int, icon: Int, onClick: () -> Unit) {
     val name = stringResource(description)
+    PrimaryControlRippleScope {
     IconButton(onClick, Modifier.testTag(tag).semantics { contentDescription = name }) {
         Icon(
             painter = painterResource(icon),
@@ -131,6 +133,7 @@ fun MainCalendarScreen(
             modifier = Modifier.testTag("$tag-icon"),
             tint = Color.Unspecified,
         )
+    }
     }
 }
 

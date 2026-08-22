@@ -21,6 +21,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class LocalAccountManagerTest {
+
+    @Test
+    fun maskAppleIdRevealsThreeUnicodeCodePointsWithoutSplittingEmoji() {
+        assertEquals("a😀中***@example.test", "a😀中long@example.test".maskAppleId())
+        assertEquals("短名***@example.test", "短名@example.test".maskAppleId())
+    }
     @Test
     fun logoutWaitsForCancellationBeforeClearingCredentialsOrCache() = runTest {
         // Catches treating WorkManager cancellation as fire-and-forget and racing cache deletion with a worker commit.

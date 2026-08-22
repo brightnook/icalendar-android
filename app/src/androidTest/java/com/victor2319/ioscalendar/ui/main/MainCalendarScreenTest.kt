@@ -206,6 +206,26 @@ class MainCalendarScreenTest {
     }
 
     @Test
+    fun yearDaysExposeFullDateDescriptionsAndAtLeastFortyEightDpTargets() {
+        val target = LocalDate.of(2026, 8, 21)
+        composeRule.setContent {
+            MaterialTheme {
+                YearCalendar(
+                    year = 2026,
+                    selectedDate = selectedDate,
+                    markerColors = emptyMap(),
+                    onSelectDate = {},
+                )
+            }
+        }
+
+        val day = composeRule.onNodeWithTag("year-day-$target").fetchSemanticsNode().boundsInRoot
+        assertTrue("Year day target is shorter than 48dp", day.height >= 48f)
+        composeRule.onNodeWithContentDescription(yearDateContentDescription(target, Locale.getDefault()))
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun agendaHeaderDateIsVerticallyCenteredWithItsIconActions() {
         setScreen(state())
 

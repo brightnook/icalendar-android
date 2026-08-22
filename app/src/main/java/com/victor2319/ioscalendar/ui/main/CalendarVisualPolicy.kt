@@ -2,6 +2,10 @@ package com.victor2319.ioscalendar.ui.main
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 internal data class CalendarDayCellLayout(
     val dateBoxSize: Dp,
@@ -29,6 +33,7 @@ internal data class YearCalendarLayout(
     val miniDateBoxSize: Dp,
     val miniDateCornerRadius: Dp,
     val miniMarkerRowHeight: Dp,
+    val miniDayTouchTarget: Dp,
 )
 
 internal fun fixedYearCalendarLayout() = YearCalendarLayout(
@@ -37,4 +42,10 @@ internal fun fixedYearCalendarLayout() = YearCalendarLayout(
     miniDateBoxSize = 16.dp,
     miniDateCornerRadius = 4.dp,
     miniMarkerRowHeight = 4.dp,
+    miniDayTouchTarget = 48.dp,
 )
+
+internal fun yearDateContentDescription(date: LocalDate, locale: Locale): String =
+    date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale))
+
+internal fun primaryControlPressFeedbackIsRippleFree() = true

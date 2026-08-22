@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import java.time.LocalDate
 import java.time.DayOfWeek
 import java.time.YearMonth
@@ -82,6 +83,7 @@ fun MonthGrid(
     val dayCellLayout = fixedCalendarDayCellLayout()
     val today = LocalDate.now()
 
+    PrimaryControlRippleScope {
     Column(
         modifier
             .fillMaxSize()
@@ -226,6 +228,7 @@ fun MonthGrid(
                 }
             }
         }
+    }
     }
 }
 
