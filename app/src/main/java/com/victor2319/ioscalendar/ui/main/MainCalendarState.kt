@@ -11,6 +11,7 @@ data class MainCalendarState(
     val displayedMonth: YearMonth,
     val calendars: List<CalendarSummary> = emptyList(),
     val agenda: List<EventInstance> = emptyList(),
+    val dayMarkerColors: Map<LocalDate, List<Int>> = emptyMap(),
     val openEvent: EventDetail? = null,
     val message: MainCalendarMessage? = null,
 )

@@ -71,3 +71,27 @@ The full `MainCalendarScreenTest` class previously included an unrelated existin
 ### Device/account limitation
 
 The current debug app and test APK installed successfully over the existing debug install. I did not submit, replay, retrieve, or inspect any Apple Account credential, nor trigger a real iCloud request after the update. The user can now press the app's retry control to perform the final account-specific sync check themselves. The synthetic device gateway test proves the previously failing Android code path is fixed, but does not claim a fresh live iCloud result without that user action.
+
+## Follow-up: month event markers and final device-feedback polish
+
+### Delivered
+
+- A populated local date now has up to three small calendar-color markers beneath its date number. Markers are computed only from visible calendars; an empty date has no marker. All-day and timed events that span local dates mark every covered date, clamped to the displayed month.
+- Selected date backgrounds are a fixed 32dp circle, so single- and two-digit dates use the same size and centered geometry.
+- Refresh and Settings are now 48dp icon controls (circular arrow and gear) with their localized names retained as accessibility content descriptions. The Settings close control is an accessible 48dp X icon.
+- Settings uses the top status-bar inset, has a fixed header/close action, and scrolls its body so **Sign out / 退出登录** remains below Delete cache and can be reached with long calendar lists. Its existing confirmation explicitly says it removes saved credentials; AppRoot invokes `requestLogout(clearCache = false)`, so cached calendar data is not cleared by default.
+- Event details are bounded to the sheet, internally scrollable at large font sizes, and padded above the navigation-bar inset so long title/location/notes and the close action remain reachable.
+- The user separately confirmed that real iCloud calendar data is visible on the device. No calendar names, items, account identifiers, or credentials were inspected in making that record.
+
+### RED → GREEN evidence
+
+1. **RED reports:** the device feedback supplied the initial failing cases: clipped two-digit dates, variable selection geometry, overly-close text buttons, top-crowding on Settings, long detail content inaccessible near the bottom, and Sign out below the Settings viewport.
+2. **RED test development:** the new marker aggregation test initially failed on marker ordering. The requirement is three distinct colors rather than a presentation order, so the assertion was corrected to be order-independent; the test keeps the important multi-day, hidden-calendar, duplicate-color, cap-at-three, and empty-day cases.
+3. **GREEN local unit suite:** `:app:testDebugUnitTest` completed successfully (including `MonthMarkersTest` and `MainCalendarViewModelTest.monthMarkersObserveOnlyVisibleCalendarsForTheDisplayedMonth`).
+4. **GREEN APK compilation:** `:app:assembleDebug :app:assembleDebugAndroidTest` completed successfully with the new Compose tests compiled. The instrumentation coverage includes marker nodes/cap, fixed selected-circle bounds, icon-only accessible actions, detail scrolling at 1.8x font scale, month swipe/selection, settings safe header, and scrolling to/clicking Sign out with credential-only confirmation text.
+
+### Device result and limitation
+
+- Serial `aaf08081` was online. A no-data-loss `adb install -r` attempt was correctly rejected for both packages with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: the installed app/test packages are signed with a different key from this worktree's APKs.
+- I did **not** uninstall or clear the installed app, because that would erase the now-working local credentials/cache and no new approval was given for this later signing conflict. The ensuing runner invocation exercised only the old installed test package, so it is not counted as verification of the new follow-up tests. It did re-confirm the already-installed vertical-month swipe test passed; an old Settings fixture failed because its old `MainActivity` test rule calls `setContent` after the activity has set content. This follow-up changes that test fixture to `ComponentActivity`.
+- Consequently, this round has compiled instrumentation coverage and prior device evidence, but not a valid fresh-device green result for the newly built APK. A data-preserving install requires an APK signed with the installed key; otherwise a user-approved uninstall/re-login is required. No account data was accessed while diagnosing the signing restriction.

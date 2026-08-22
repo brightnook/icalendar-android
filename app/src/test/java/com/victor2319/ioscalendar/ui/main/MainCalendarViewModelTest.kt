@@ -104,6 +104,26 @@ class MainCalendarViewModelTest {
     }
 
     @Test
+    fun monthMarkersObserveOnlyVisibleCalendarsForTheDisplayedMonth() = runTest(dispatcher) {
+        // Catches dots being derived from a selected-day agenda, or exposing events from a hidden calendar.
+        val visible = CalendarSummary("visible", "Visible", 0xff336699.toInt(), true)
+        val hidden = CalendarSummary("hidden", "Hidden", 0xffcc3333.toInt(), false)
+        val repository = FlowRepository(calendars = listOf(visible, hidden))
+        repository.monthAgendaFlow.value = listOf(
+            instance("visible-event", today, title = "Visible").copy(calendarId = visible.id, calendarColorArgb = visible.colorArgb),
+            instance("hidden-event", today, title = "Hidden").copy(calendarId = hidden.id, calendarColorArgb = hidden.colorArgb),
+        )
+
+        viewModel(repository)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(monthRange(YearMonth.of(2026, 8), zone) to setOf(visible.id)),
+            repository.monthAgendaRequests,
+        )
+    }
+
+    @Test
     fun broaderOrDifferentZoneCoverageRequestsEnsureMonthOnlyOnce() = runTest(dispatcher) {
         // Catches accepting approximate or another-zone coverage as the requested local month.
         val month = YearMonth.of(2026, 9)
@@ -380,6 +400,8 @@ private class FlowRepository(
     val zonedDayFlows = mutableMapOf<Pair<LocalDate, ZoneId>, Flow<List<EventInstance>>>()
     val eventFlows = mutableMapOf<String, Flow<EventDetail?>>()
     val syncStates = mutableMapOf<String, CalendarSyncState>()
+    val monthAgendaFlow = MutableStateFlow<List<EventInstance>>(emptyList())
+    val monthAgendaRequests = mutableListOf<Pair<TimeRange, Set<String>>>()
 
     override fun observeCalendars(): Flow<List<CalendarSummary>> = calendarFlow
     override fun observeDay(day: LocalDate, zoneId: ZoneId): Flow<List<EventInstance>> =
@@ -389,8 +411,10 @@ private class FlowRepository(
     override suspend fun getSyncState(calendarId: String): CalendarSyncState =
         syncStates[calendarId] ?: CalendarSyncState()
 
-    override fun observeAgenda(range: TimeRange, calendarIds: Set<String>): Flow<List<EventInstance>> =
-        error("Not used by main calendar")
+    override fun observeAgenda(range: TimeRange, calendarIds: Set<String>): Flow<List<EventInstance>> {
+        monthAgendaRequests += range to calendarIds
+        return monthAgendaFlow
+    }
     override suspend fun replaceCalendarSnapshot(snapshot: CalendarSnapshot) = Unit
     override suspend fun applyCalendarDelta(delta: CalendarDelta) = Unit
     override suspend fun setCalendarVisible(calendarId: String, visible: Boolean) = Unit

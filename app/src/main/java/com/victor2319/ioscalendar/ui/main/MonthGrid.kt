@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -42,6 +45,7 @@ const val MONTH_GRID_TAG = "month-grid"
 fun MonthGrid(
     month: YearMonth,
     selectedDate: LocalDate,
+    dayMarkerColors: Map<LocalDate, List<Int>> = emptyMap(),
     onSelectDate: (LocalDate) -> Unit,
     onShowMonth: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
@@ -142,25 +146,50 @@ fun MonthGrid(
                                 )
                             },
                     ) {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text(
-                                date.dayOfMonth.toString(),
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(
                                 modifier = Modifier
+                                    .size(32.dp)
                                     .clip(CircleShape)
                                     .then(
                                         if (selected) Modifier.background(MaterialTheme.colorScheme.primary)
                                         else Modifier,
                                     )
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = when {
-                                    selected -> MaterialTheme.colorScheme.onPrimary
-                                    date.month == month.month -> MaterialTheme.colorScheme.onSurface
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                softWrap = false,
-                            )
+                                    .testTag("calendar-date-background-$date"),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    date.dayOfMonth.toString(),
+                                    color = when {
+                                        selected -> MaterialTheme.colorScheme.onPrimary
+                                        date.month == month.month -> MaterialTheme.colorScheme.onSurface
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
+                            val colors = dayMarkerColors[date].orEmpty().take(MAX_MARKER_COLORS)
+                            if (colors.isNotEmpty()) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    modifier = Modifier.padding(top = 1.dp),
+                                ) {
+                                    colors.forEachIndexed { index, color ->
+                                        Spacer(
+                                            Modifier
+                                                .size(5.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(color))
+                                                .testTag("calendar-marker-$date-$index"),
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

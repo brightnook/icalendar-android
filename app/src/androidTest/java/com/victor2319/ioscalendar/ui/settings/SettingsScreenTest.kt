@@ -1,15 +1,17 @@
 package com.victor2319.ioscalendar.ui.settings
 
-import com.victor2319.ioscalendar.MainActivity
+import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -18,7 +20,7 @@ import org.junit.Test
 @Suppress("DEPRECATION")
 class SettingsScreenTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun settingsShowsMaskedAccountApproximateModeCopyAndCalendarVisibility() {
@@ -85,7 +87,48 @@ class SettingsScreenTest {
                 onConfirmDestructiveAction = {},
             )
         }
-        composeRule.onNodeWithText("Close").performClick()
+        composeRule.onNodeWithContentDescription("Close").performClick()
         assertTrue(closed)
+    }
+
+    @Test
+    fun settingsCloseUsesAnAccessibleIconButtonBelowTheStatusArea() {
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(), onClose = {},
+                onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> }, onClearHistory = {},
+                onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        val close = composeRule.onNodeWithContentDescription("Close").fetchSemanticsNode().boundsInRoot
+        assertTrue("Close action overlaps the status area", close.top > 0f)
+    }
+
+    @Test
+    fun settingsScrollsToLogoutWhileTheCloseActionStaysReachable() {
+        val confirmation = mutableStateOf<SettingsConfirmation?>(null)
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(
+                    calendars = (1..20).map { index ->
+                        CalendarSummary("calendar-$index", "Calendar $index", Color.Red.value.toInt(), true)
+                    },
+                    confirmation = confirmation.value,
+                ),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {},
+                onLogout = { confirmation.value = SettingsConfirmation.Logout(clearCache = false) },
+                onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Sign out").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Close").assertIsDisplayed()
+        composeRule.onNodeWithText("Sign out").performClick()
+        composeRule.onNodeWithText("Your saved iCloud credentials will be removed from this device.")
+            .assertIsDisplayed()
     }
 }

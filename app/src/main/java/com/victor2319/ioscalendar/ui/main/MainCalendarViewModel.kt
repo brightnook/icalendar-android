@@ -65,6 +65,19 @@ class MainCalendarViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    private val dayMarkerColors: StateFlow<Map<LocalDate, List<Int>>> = combine(
+        displayedMonth,
+        calendars,
+        zoneIds,
+    ) { month, calendarList, zoneId -> Triple(month, calendarList, zoneId) }
+        .flatMapLatest { (month, calendarList, zoneId) ->
+            val visibleCalendarIds = calendarList.filter(CalendarSummary::isVisible).mapTo(linkedSetOf()) { it.id }
+            repository.observeAgenda(monthTimeRange(month, zoneId), visibleCalendarIds).map { instances ->
+                monthDayMarkerColors(instances, visibleCalendarIds, month, zoneId)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
     private val openEvent: StateFlow<EventDetail?> = selectedInstanceId
         .flatMapLatest { instanceId ->
             if (instanceId == null) flowOf(null) else repository.observeEvent(instanceId)
@@ -76,10 +89,16 @@ class MainCalendarViewModel(
         displayedMonth,
         calendars,
         agenda,
-        openEvent,
-    ) { date, month, calendarList, dayAgenda, detail ->
-        MainCalendarState(date, month, calendarList, dayAgenda, detail)
-    }
+        dayMarkerColors,
+    ) { date, month, calendarList, dayAgenda, markerColors ->
+        MainCalendarState(
+            selectedDate = date,
+            displayedMonth = month,
+            calendars = calendarList,
+            agenda = dayAgenda,
+            dayMarkerColors = markerColors,
+        )
+    }.combine(openEvent) { content, detail -> content.copy(openEvent = detail) }
 
     val uiState: StateFlow<MainCalendarState> = combine(contentState, message) { content, currentMessage ->
         content.copy(message = currentMessage)
@@ -183,6 +202,12 @@ class MainCalendarViewModel(
             monthsBeingEnsured.remove(month)
         }
     }
+
+    private fun monthTimeRange(month: YearMonth, zoneId: ZoneId) = com.victor2319.ioscalendar.domain.TimeRange(
+        start = month.atDay(1).atStartOfDay(zoneId).toInstant(),
+        endExclusive = month.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant(),
+        zoneId = zoneId,
+    )
 }
 
 class MainCalendarViewModelFactory(

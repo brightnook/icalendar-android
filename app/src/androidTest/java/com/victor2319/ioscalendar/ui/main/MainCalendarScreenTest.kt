@@ -10,10 +10,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
@@ -21,6 +25,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.EventDetail
 import com.victor2319.ioscalendar.domain.EventInstance
 import java.time.LocalDate
@@ -71,14 +76,77 @@ class MainCalendarScreenTest {
     }
 
     @Test
-    fun refreshAndSettingsActionsHaveAVisibleGap() {
+    fun selectedDateBackgroundKeepsTheSameCircleSizeForOneAndTwoDigitDates() {
+        var selected by mutableStateOf(LocalDate.of(2026, 8, 1))
+        composeRule.setContent {
+            MaterialTheme {
+                MonthGrid(
+                    month = YearMonth.of(2026, 8),
+                    selectedDate = selected,
+                    onSelectDate = { selected = it },
+                    onShowMonth = {},
+                )
+            }
+        }
+
+        val oneDigit = composeRule.onNodeWithTag("calendar-date-background-2026-08-01")
+            .fetchSemanticsNode().boundsInRoot
+        composeRule.onNodeWithTag("calendar-day-2026-08-10").performClick()
+        val twoDigit = composeRule.onNodeWithTag("calendar-date-background-2026-08-10")
+            .fetchSemanticsNode().boundsInRoot
+
+        assertEquals(oneDigit.width, twoDigit.width)
+        assertEquals(oneDigit.height, twoDigit.height)
+    }
+
+    @Test
+    fun dayWithVisibleEventsShowsUpToThreeCalendarColorMarkers() {
+        // Catches a populated day looking the same as an empty day, or rendering more than three dots.
+        val day = LocalDate.of(2026, 8, 15)
+        setScreen(
+            MainCalendarState(
+                selectedDate = day,
+                displayedMonth = YearMonth.of(2026, 8),
+                calendars = listOf(
+                    CalendarSummary("one", "One", 0xff336699.toInt(), true),
+                    CalendarSummary("two", "Two", 0xffcc3333.toInt(), true),
+                    CalendarSummary("three", "Three", 0xff33aa66.toInt(), true),
+                    CalendarSummary("four", "Four", 0xffaa6633.toInt(), true),
+                ),
+                agenda = listOf(
+                    timed("one", "One", 8).copy(calendarId = "one", calendarColorArgb = 0xff336699.toInt()),
+                    timed("two", "Two", 9).copy(calendarId = "two", calendarColorArgb = 0xffcc3333.toInt()),
+                    timed("three", "Three", 10).copy(calendarId = "three", calendarColorArgb = 0xff33aa66.toInt()),
+                    timed("four", "Four", 11).copy(calendarId = "four", calendarColorArgb = 0xffaa6633.toInt()),
+                ),
+                dayMarkerColors = mapOf(
+                    day to listOf(0xff336699.toInt(), 0xffcc3333.toInt(), 0xff33aa66.toInt()),
+                ),
+            ),
+        )
+
+        (0 until 3).forEach { index ->
+            composeRule.onNodeWithTag("calendar-marker-2026-08-15-$index").assertIsDisplayed()
+        }
+        assertTrue(composeRule.onAllNodesWithTag("calendar-marker-2026-08-15-3")
+            .fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithTag("calendar-marker-2026-08-14-0")
+            .fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun refreshAndSettingsAreIconActionsWithAVisibleGap() {
         setScreen(state())
 
-        val refresh = composeRule.onNodeWithText(composeRule.activity.getString(R.string.calendar_refresh))
+        val refreshDescription = composeRule.activity.getString(R.string.calendar_refresh)
+        val settingsDescription = composeRule.activity.getString(R.string.settings_title)
+        val refresh = composeRule.onNodeWithContentDescription(refreshDescription)
             .fetchSemanticsNode().boundsInRoot
-        val settings = composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_title))
+        val settings = composeRule.onNodeWithContentDescription(settingsDescription)
             .fetchSemanticsNode().boundsInRoot
         assertTrue("Refresh and Settings actions touch", settings.left > refresh.right)
+        assertTrue("Refresh must be icon-only", composeRule.onAllNodesWithText(refreshDescription)
+            .fetchSemanticsNodes().isEmpty())
     }
 
     @Test
@@ -183,6 +251,32 @@ class MainCalendarScreenTest {
         composeRule.onNodeWithText(composeRule.activity.getString(R.string.calendar_close_detail)).performClick()
         composeRule.onNodeWithTag(SELECTED_DATE_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("agenda-item-instance-15").assertIsDisplayed()
+    }
+
+    @Test
+    fun longEventDetailsScrollToTheCloseActionAtLargeFont() {
+        val longText = "Long detail text ".repeat(180)
+        val density = composeRule.activity.resources.displayMetrics.density
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 1.8f)) {
+                MaterialTheme {
+                    MainCalendarScreen(
+                        state = state(openEvent = detail("long").copy(
+                            title = longText,
+                            location = longText,
+                            notes = longText,
+                        )),
+                        zoneId = ZoneId.of("Asia/Tokyo"),
+                        onSelectDate = {}, onShowMonth = {}, onRefresh = {},
+                        onOpenEvent = {}, onCloseEvent = {}, onOpenExternalAction = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.calendar_close_detail))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
 import java.time.ZoneId
@@ -42,10 +44,13 @@ fun MainCalendarScreen(
     onOpenExternalAction: (ExternalAction) -> Unit,
 ) {
     val agendaListState = rememberLazyListState()
+    val refreshDescription = stringResource(R.string.calendar_refresh)
+    val settingsDescription = stringResource(R.string.settings_title)
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         MonthGrid(
             month = state.displayedMonth,
             selectedDate = state.selectedDate,
+            dayMarkerColors = state.dayMarkerColors,
             onSelectDate = onSelectDate,
             onShowMonth = onShowMonth,
             modifier = Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 8.dp),
@@ -61,8 +66,14 @@ fun MainCalendarScreen(
                     modifier = Modifier.weight(1f).testTag(SELECTED_DATE_TAG),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Button(onClick = onRefresh) { Text(stringResource(R.string.calendar_refresh)) }
-                Button(onClick = onOpenSettings) { Text(stringResource(R.string.settings_title)) }
+                IconButton(
+                    onClick = onRefresh,
+                    modifier = Modifier.semantics { contentDescription = refreshDescription },
+                ) { Text("⟳", style = MaterialTheme.typography.titleLarge) }
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.semantics { contentDescription = settingsDescription },
+                ) { Text("⚙", style = MaterialTheme.typography.titleLarge) }
             }
             Box(Modifier.fillMaxWidth().height(32.dp)) {
                 state.message?.let {
