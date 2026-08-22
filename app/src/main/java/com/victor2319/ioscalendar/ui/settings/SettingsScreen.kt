@@ -2,6 +2,7 @@ package com.victor2319.ioscalendar.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -38,19 +39,50 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out), Modifier.testTag("masked-account"))
-            Text(stringResource(R.string.settings_sync_mode))
-            SyncMode.entries.forEach { mode -> Row(Modifier.fillMaxWidth()) { RadioButton(state.syncMode == mode, { onSelectSyncMode(mode) }); Text(mode.label(), Modifier.padding(top = 12.dp)) } }
-            Text(stringResource(R.string.settings_calendars))
-            state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
-            Button(onClick = onClearHistory) { Text(stringResource(R.string.settings_clear_history)) }
-            Button(onClick = onClearCache) { Text(stringResource(R.string.settings_clear_cache)) }
-            Button(onClick = onLogout) { Text(stringResource(R.string.settings_logout)) }
-            if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
-            if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
+            SettingsSection(R.string.settings_account, "account") {
+                Text(state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out), Modifier.testTag("masked-account"))
+            }
+            SettingsSection(R.string.settings_sync_mode, "sync") {
+                SyncMode.entries.forEach { mode ->
+                    Row(Modifier.fillMaxWidth()) {
+                        RadioButton(state.syncMode == mode, { onSelectSyncMode(mode) })
+                        Text(mode.label(), Modifier.padding(top = 12.dp))
+                    }
+                }
+            }
+            SettingsSection(R.string.settings_calendars, "calendars") {
+                state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
+            }
+            SettingsSection(R.string.settings_data_and_sign_out, "data") {
+                Button(onClick = onClearHistory) { Text(stringResource(R.string.settings_clear_history)) }
+                Button(onClick = onClearCache) { Text(stringResource(R.string.settings_clear_cache)) }
+                Button(onClick = onLogout) { Text(stringResource(R.string.settings_logout)) }
+                if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
+                if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
+            }
         }
     }
     state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_delete)) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
+}
+
+@Composable
+private fun SettingsSection(
+    title: Int,
+    tag: String,
+    content: @Composable ColumnScope.() -> Unit,
+) = Surface(
+    modifier = Modifier.fillMaxWidth().testTag("settings-section-$tag"),
+    shape = RoundedCornerShape(20.dp),
+    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        content = {
+            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+            content()
+        },
+    )
 }
 
 @Composable private fun CalendarRow(calendar: CalendarSummary, update: (String, Boolean) -> Unit) = Row(Modifier.fillMaxWidth()) {

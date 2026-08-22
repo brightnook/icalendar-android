@@ -54,6 +54,7 @@
     <plurals name="calendar_recurrence_nth_weekday_from_end"><item quantity="one">occurrence %1$d from the end of %2$s</item><item quantity="other">occurrence %1$d from the end of %2$s</item></plurals>
     <string name="settings_title">Settings</string>
     <string name="settings_close">Close</string>
+    <string name="settings_account">Account</string>
     <string name="settings_account_signed_out">Not connected</string>
     <string name="settings_sync_mode">Sync mode</string>
     <string name="settings_mode_manual">Manual</string>
@@ -61,6 +62,7 @@
     <string name="settings_mode_daily">Daily (approximately once a day)</string>
     <string name="settings_mode_disabled">Disabled</string>
     <string name="settings_calendars">Calendars</string>
+    <string name="settings_data_and_sign_out">Data and sign out</string>
     <string name="settings_clear_history">Clear history</string>
     <string name="settings_clear_cache">Delete cache</string>
     <string name="settings_logout">Sign out</string>

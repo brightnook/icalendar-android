@@ -103,3 +103,10 @@ The current debug app and test APK installed successfully over the existing debu
 - Calendar visibility color swatches are clipped to circular 14dp dots. The Compose regression captures the node image and verifies its corner is not colored like its center, catching a return to a square swatch.
 - Local verification after these changes: `:app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest` completed; 179 unit tests, 0 failures, 0 errors. The Compose tests compiled into the instrumentation APK.
 - No device reinstall was attempted in this follow-up because the existing signed app retains successful live credentials/cache and the new APK has the recorded signing mismatch. The limitation remains deliberate and non-destructive.
+
+## Settings-section cards follow-up
+
+- Settings now keeps its safe-area, fixed header and scrollable body while grouping content into four localized cards: Account / 账户, Sync mode / 同步方式, Calendars / 日历, and Data and sign out / 数据与退出登录.
+- Each card is a rounded 20dp `surfaceVariant` at 72% opacity, so the treatment follows light/dark theme colors while remaining visibly separated by the existing 12dp list spacing. The existing masked account, switches, radio buttons, destructive-action confirmation, and Sign out reachability remain unchanged.
+- Added Compose section semantics tags and an instrumentation regression requiring all four sections. Local verification: `:app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest`; 179 unit tests, 0 failures, 0 errors; app and instrumentation APKs compiled.
+- No device reinstall was attempted due the documented signing mismatch and preservation of the working account/cache.

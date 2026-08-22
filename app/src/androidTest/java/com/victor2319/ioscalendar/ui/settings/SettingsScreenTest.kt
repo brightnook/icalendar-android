@@ -69,6 +69,22 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun settingsGroupsAccountSyncCalendarsAndDataInSeparateAccessibleSections() {
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(calendars = listOf(CalendarSummary("work", "Work", Color.Red.value.toInt(), true))),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        listOf("account", "sync", "calendars", "data").forEach { section ->
+            composeRule.onNodeWithTag("settings-section-$section").assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun cacheDeletionIsOnlyTriggeredAfterConfirmation() {
         // Catches a destructive cache button executing without an explicit confirmation dialog action.
         val confirmation = mutableStateOf<SettingsConfirmation?>(SettingsConfirmation.ClearCache)
