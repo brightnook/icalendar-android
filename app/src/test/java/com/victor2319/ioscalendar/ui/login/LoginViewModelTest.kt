@@ -147,6 +147,25 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun successfulAuthenticationWithNoDiscoveredCalendarsStaysOnLoginWithGuidance() = runTest {
+        // Catches routing to an empty calendar view when discovery returned no selectable calendars.
+        val store = RecordingCredentialsStore()
+        val viewModel = LoginViewModel(
+            RecordingLoginCoordinator(LoginResult.Success),
+            store,
+            SyncAfterStored(store, SyncResult.Success(counts = SyncCounts(calendars = 0))),
+        )
+
+        viewModel.connect("person@example.test", "abcd-efgh-ijkl-mnop".toCharArray())
+        advanceUntilIdle()
+
+        assertEquals(LoginDestination.LOGIN, viewModel.uiState.value.destination)
+        assertTrue(viewModel.uiState.value.error != null)
+        assertTrue(viewModel.uiState.value.phase != LoginPhase.COMPLETE)
+        assertNull(store.saved)
+    }
+
+    @Test
     fun initialSyncFailureCategoriesMapToDistinctSafeMessages() = runTest {
         // Catches treating a temporary server failure as a local network outage or losing auth guidance.
         val cases = listOf(
@@ -215,7 +234,7 @@ private class RecordingCredentialsStore : CredentialsStore {
 
 private class SyncAfterStored(
     private val store: RecordingCredentialsStore,
-    private val result: SyncResult = SyncResult.Success(),
+    private val result: SyncResult = SyncResult.Success(counts = SyncCounts(calendars = 1)),
 ) : SyncCoordinator {
     override suspend fun sync(request: SyncRequest): SyncResult {
         check(request == SyncRequest.Initial)

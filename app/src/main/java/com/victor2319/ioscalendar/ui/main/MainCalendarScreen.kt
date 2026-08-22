@@ -1,10 +1,13 @@
 package com.victor2319.ioscalendar.ui.main
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -39,7 +42,7 @@ fun MainCalendarScreen(
     onOpenExternalAction: (ExternalAction) -> Unit,
 ) {
     val agendaListState = rememberLazyListState()
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
         MonthGrid(
             month = state.displayedMonth,
             selectedDate = state.selectedDate,
@@ -48,30 +51,37 @@ fun MainCalendarScreen(
             modifier = Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 8.dp),
         )
         HorizontalDivider()
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-            Text(
-                state.selectedDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(currentLocale())),
-                modifier = Modifier.weight(1f).testTag(SELECTED_DATE_TAG),
-                style = MaterialTheme.typography.titleMedium,
+        Column(Modifier.fillMaxWidth().weight(0.42f)) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    state.selectedDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(currentLocale())),
+                    modifier = Modifier.weight(1f).testTag(SELECTED_DATE_TAG),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Button(onClick = onRefresh) { Text(stringResource(R.string.calendar_refresh)) }
+                Button(onClick = onOpenSettings) { Text(stringResource(R.string.settings_title)) }
+            }
+            Box(Modifier.fillMaxWidth().height(32.dp)) {
+                state.message?.let {
+                    Text(
+                        stringResource(it.stringResource),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            AgendaList(
+                agenda = state.agenda,
+                calendars = state.calendars,
+                zoneId = zoneId,
+                listState = agendaListState,
+                onOpenEvent = onOpenEvent,
+                modifier = Modifier.fillMaxWidth().weight(1f),
             )
-            Button(onClick = onRefresh) { Text(stringResource(R.string.calendar_refresh)) }
-            Button(onClick = onOpenSettings) { Text(stringResource(R.string.settings_title)) }
         }
-        state.message?.let {
-            Text(
-                stringResource(it.stringResource),
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-        AgendaList(
-            agenda = state.agenda,
-            calendars = state.calendars,
-            zoneId = zoneId,
-            listState = agendaListState,
-            onOpenEvent = onOpenEvent,
-            modifier = Modifier.fillMaxWidth().weight(0.42f),
-        )
     }
 
     state.openEvent?.let { detail ->

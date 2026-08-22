@@ -59,6 +59,11 @@ class LoginViewModel(
             mutableUiState.value = LoginUiState(phase = LoginPhase.SYNCING)
             when (val result = syncCoordinator.sync(SyncRequest.Initial)) {
                 is SyncResult.Success -> {
+                    if (result.counts.calendars == 0) {
+                        credentialsStore.clear()
+                        fail(LoginError.NO_CALENDARS, clearPassword = false)
+                        return
+                    }
                     onAuthenticated(appleId)
                     mutableUiState.value = LoginUiState(
                         phase = LoginPhase.COMPLETE,

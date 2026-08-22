@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,6 +49,7 @@ fun LoginScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -117,6 +119,7 @@ private fun LoginStatus(uiState: LoginUiState) {
         LoginError.NETWORK -> R.string.login_error_network
         LoginError.SERVER -> R.string.login_error_server
         LoginError.PARTIAL_SYNC -> R.string.login_error_partial_sync
+        LoginError.NO_CALENDARS -> R.string.login_error_no_calendars
         null -> null
     }
     messageId?.let { Text(stringResource(it)) }

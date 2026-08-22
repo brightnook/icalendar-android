@@ -1,6 +1,6 @@
 package com.victor2319.ioscalendar.ui.settings
 
-import androidx.activity.ComponentActivity
+import com.victor2319.ioscalendar.MainActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
@@ -18,7 +18,7 @@ import org.junit.Test
 @Suppress("DEPRECATION")
 class SettingsScreenTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<ComponentActivity>()
+    val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun settingsShowsMaskedAccountApproximateModeCopyAndCalendarVisibility() {

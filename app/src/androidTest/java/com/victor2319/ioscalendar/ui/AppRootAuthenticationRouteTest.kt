@@ -1,6 +1,6 @@
 package com.victor2319.ioscalendar.ui
 
-import androidx.activity.ComponentActivity
+import com.victor2319.ioscalendar.MainActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -22,7 +22,7 @@ import org.junit.Test
 
 @Suppress("DEPRECATION")
 class AppRootAuthenticationRouteTest {
-    @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test fun restoredAuthenticatedAccountRendersCalendarWithoutAnotherLogin() {
         setRoot(AccountAuthenticationState.Authenticated("p***@example.test"))

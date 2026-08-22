@@ -22,6 +22,7 @@ enum class LoginError {
     NETWORK,
     SERVER,
     PARTIAL_SYNC,
+    NO_CALENDARS,
 }
 
 enum class LoginDestination {

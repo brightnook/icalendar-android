@@ -8,6 +8,7 @@ import com.victor2319.ioscalendar.auth.CredentialsStore
 import com.victor2319.ioscalendar.auth.LoginCoordinator
 import com.victor2319.ioscalendar.auth.LoginResult
 import com.victor2319.ioscalendar.sync.SyncCoordinator
+import com.victor2319.ioscalendar.sync.SyncCounts
 import com.victor2319.ioscalendar.sync.SyncRequest
 import com.victor2319.ioscalendar.sync.SyncResult
 import kotlinx.coroutines.CompletableDeferred
@@ -67,7 +68,7 @@ private class BlockingSync : SyncCoordinator {
         check(request == SyncRequest.Initial)
         started.complete(Unit)
         release.await()
-        return SyncResult.Success()
+        return SyncResult.Success(counts = SyncCounts(calendars = 1))
     }
 }
 

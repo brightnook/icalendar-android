@@ -15,6 +15,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -26,6 +28,7 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +37,105 @@ import org.junit.runner.RunWith
 class MainCalendarScreenTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
     private val selectedDate = LocalDate.of(2026, 8, 15)
+
+    @Test
+    fun calendarContentStartsBelowTheSystemStatusBar() {
+        setScreen(state())
+
+        assertTrue(
+            "Month grid overlaps the status bar",
+            composeRule.onNodeWithTag(MONTH_GRID_TAG).fetchSemanticsNode().boundsInRoot.top > 0f,
+        )
+    }
+
+    @Test
+    fun monthGridUsesSevenEqualDateColumns() {
+        setScreen(state())
+
+        val dates = listOf(10, 11, 12, 13, 14, 15, 16).map { day ->
+            composeRule.onNodeWithTag("calendar-day-${LocalDate.of(2026, 8, day)}")
+                .fetchSemanticsNode().boundsInRoot
+        }
+        assertTrue(dates.maxOf { it.width } - dates.minOf { it.width } <= 1f)
+    }
+
+    @Test
+    fun twoDigitDateLabelRemainsInsideItsEqualWidthCell() {
+        setScreen(state())
+
+        val cell = composeRule.onNodeWithTag("calendar-day-2026-08-10")
+            .fetchSemanticsNode().boundsInRoot
+        val label = composeRule.onNodeWithText("10", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue(label.left >= cell.left && label.right <= cell.right)
+    }
+
+    @Test
+    fun refreshAndSettingsActionsHaveAVisibleGap() {
+        setScreen(state())
+
+        val refresh = composeRule.onNodeWithText(composeRule.activity.getString(R.string.calendar_refresh))
+            .fetchSemanticsNode().boundsInRoot
+        val settings = composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_title))
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue("Refresh and Settings actions touch", settings.left > refresh.right)
+    }
+
+    @Test
+    fun syncMessageDoesNotMoveTheMonthAndAgendaSplit() {
+        var screenState by mutableStateOf(state())
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = screenState,
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {}, onShowMonth = {}, onRefresh = {},
+                    onOpenEvent = {}, onCloseEvent = {}, onOpenExternalAction = {},
+                )
+            }
+        }
+        val monthBottomWithoutMessage = composeRule.onNodeWithTag(MONTH_GRID_TAG)
+            .fetchSemanticsNode().boundsInRoot.bottom
+        val agendaTopWithoutMessage = composeRule.onNodeWithTag(AGENDA_LIST_TAG)
+            .fetchSemanticsNode().boundsInRoot.top
+
+        screenState = screenState.copy(message = MainCalendarMessage.SYNC_FAILED)
+        composeRule.waitForIdle()
+
+        assertEquals(
+            monthBottomWithoutMessage,
+            composeRule.onNodeWithTag(MONTH_GRID_TAG).fetchSemanticsNode().boundsInRoot.bottom,
+        )
+        assertEquals(
+            agendaTopWithoutMessage,
+            composeRule.onNodeWithTag(AGENDA_LIST_TAG).fetchSemanticsNode().boundsInRoot.top,
+        )
+    }
+
+    @Test
+    fun verticalSwipeChangesMonthAndStillSelectsTheTappedDate() {
+        var displayedMonth by mutableStateOf(YearMonth.of(2026, 8))
+        var selected by mutableStateOf(selectedDate)
+        composeRule.setContent {
+            MaterialTheme {
+                MonthGrid(
+                    month = displayedMonth,
+                    selectedDate = selected,
+                    onSelectDate = { selected = it },
+                    onShowMonth = { displayedMonth = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MONTH_GRID_TAG).performTouchInput { swipeUp() }
+        composeRule.runOnIdle {
+            assertEquals(YearMonth.of(2026, 9), displayedMonth)
+        }
+        composeRule.onNodeWithTag("calendar-day-2026-09-10").performClick()
+        composeRule.runOnIdle {
+            assertEquals(LocalDate.of(2026, 9, 10), selected)
+        }
+    }
 
     @Test
     fun monthGridRemainsAboveAgendaAndAllDayEventsAreOrderedFirst() {
@@ -128,6 +230,8 @@ class MainCalendarScreenTest {
         composeRule.onNodeWithTag(MONTH_GRID_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(AGENDA_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Accessible event").assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.calendar_refresh)).assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_title)).assertIsDisplayed()
     }
 
     @Test
