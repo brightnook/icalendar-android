@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class MainActivity : ComponentActivity() {
     private lateinit var launchTargetDelivery: CalendarLaunchTargetDelivery
     private lateinit var launchTarget: MutableStateFlow<CalendarLaunchTarget?>
+    private val openSettingsRequest = MutableStateFlow(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +35,7 @@ class MainActivity : ComponentActivity() {
                     container = calendarApplication.container,
                     zoneIds = calendarApplication.timeZoneIds,
                     launchTarget = target,
+                    openSettingsRequest = openSettingsRequest.collectAsState().value,
                     onLaunchTargetConsumed = ::markLaunchTargetConsumed,
                 )
             }
@@ -65,6 +67,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun deliverLaunchTarget(intent: Intent?) {
+        if (intent?.getBooleanExtra(com.victor2319.ioscalendar.widget.WidgetIntentFactory.EXTRA_OPEN_SETTINGS, false) == true) {
+            openSettingsRequest.value += 1
+        }
         val date = runCatching { intent?.getStringExtra(CalendarLaunchTargetDelivery.EXTRA_DATE) }.getOrNull()
         val instanceId = runCatching {
             intent?.getStringExtra(CalendarLaunchTargetDelivery.EXTRA_INSTANCE_ID)

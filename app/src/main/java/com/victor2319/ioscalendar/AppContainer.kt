@@ -22,6 +22,9 @@ import com.victor2319.ioscalendar.sync.SyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncScheduler
 import com.victor2319.ioscalendar.sync.SyncSchedulerReadiness
 import com.victor2319.ioscalendar.sync.WorkManagerSyncScheduler
+import com.victor2319.ioscalendar.widget.RoomWidgetPreferences
+import com.victor2319.ioscalendar.widget.WidgetPreferences
+import com.victor2319.ioscalendar.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,10 +35,13 @@ class AppContainer(val application: Application) {
     private val database: CalendarDatabase by lazy {
         Room.databaseBuilder(application, CalendarDatabase::class.java, "calendar.db")
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
+            .addMigrations(CalendarDatabase.MIGRATION_2_3)
             .build()
     }
 
     val calendarRepository: CalendarRepository by lazy { RoomCalendarRepository(database) }
+    val widgetPreferences: WidgetPreferences by lazy { RoomWidgetPreferences(database) }
+    val widgetUpdater: WidgetUpdater by lazy { WidgetUpdater(application) }
     val settingsStore: SettingsStore by lazy { DataStoreSettingsStore(application) }
     val credentialsStore: CredentialsStore by lazy { KeystoreCredentialsStore(application) }
     val accountManager: AccountManager by lazy {

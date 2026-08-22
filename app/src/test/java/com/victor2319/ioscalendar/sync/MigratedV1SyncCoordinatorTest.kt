@@ -132,6 +132,7 @@ class MigratedV1SyncCoordinatorTest {
     private suspend fun openMigratedFixture(gateway: MigratedGateway): MigratedFixture {
         val opened = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
+            .addMigrations(CalendarDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         database = opened

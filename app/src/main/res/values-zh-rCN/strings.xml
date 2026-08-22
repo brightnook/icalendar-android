@@ -77,4 +77,13 @@
     <string name="settings_logout_message">此设备上保存的 iCloud 凭据将被删除。</string>
     <string name="settings_delete">删除</string>
     <string name="settings_cancel">取消</string>
+    <string name="widget_title">日程</string>
+    <string name="widget_refresh">刷新日程</string>
+    <string name="widget_empty">暂无近期日程</string>
+    <string name="widget_config_title">日程小组件</string>
+    <string name="widget_config_save">保存</string>
+    <string name="widget_range_today">今天</string>
+    <string name="widget_range_three_days">3 天</string>
+    <string name="widget_range_seven_days">7 天</string>
+    <string name="widget_range_thirty_days">30 天</string>
 </resources>

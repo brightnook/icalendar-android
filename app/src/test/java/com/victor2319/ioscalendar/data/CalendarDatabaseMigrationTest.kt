@@ -55,6 +55,7 @@ class CalendarDatabaseMigrationTest {
 
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
+            .addMigrations(CalendarDatabase.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase

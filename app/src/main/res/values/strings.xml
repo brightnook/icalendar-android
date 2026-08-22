@@ -80,4 +80,13 @@
     <string name="settings_logout_message">Your saved iCloud credentials will be removed from this device.</string>
     <string name="settings_delete">Delete</string>
     <string name="settings_cancel">Cancel</string>
+    <string name="widget_title">Agenda</string>
+    <string name="widget_refresh">Refresh agenda</string>
+    <string name="widget_empty">No upcoming events</string>
+    <string name="widget_config_title">Agenda widget</string>
+    <string name="widget_config_save">Save</string>
+    <string name="widget_range_today">Today</string>
+    <string name="widget_range_three_days">3 days</string>
+    <string name="widget_range_seven_days">7 days</string>
+    <string name="widget_range_thirty_days">30 days</string>
 </resources>

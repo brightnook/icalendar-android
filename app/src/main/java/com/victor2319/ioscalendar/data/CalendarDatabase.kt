@@ -16,13 +16,14 @@ import androidx.sqlite.execSQL
         WidgetConfigEntity::class,
         WidgetCalendarCrossRef::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun calendarDao(): CalendarDao
     abstract fun eventDao(): EventDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun widgetConfigDao(): WidgetConfigDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -40,6 +41,18 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "DELETE FROM sync_coverage WHERE calendarId IN " +
                         "(SELECT DISTINCT calendarId FROM event_masters WHERE remoteResourceHref IS NULL)",
                 )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
+                    "CREATE TABLE IF NOT EXISTS widget_configuration (appWidgetId INTEGER NOT NULL, rangeDays INTEGER NOT NULL, PRIMARY KEY(appWidgetId))",
+                )
+                connection.execSQL(
+                    "CREATE TABLE IF NOT EXISTS widget_calendar (appWidgetId INTEGER NOT NULL, calendarId TEXT NOT NULL, PRIMARY KEY(appWidgetId, calendarId), FOREIGN KEY(appWidgetId) REFERENCES widget_configuration(appWidgetId) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(calendarId) REFERENCES calendars(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                connection.execSQL("CREATE INDEX IF NOT EXISTS index_widget_calendar_calendarId ON widget_calendar(calendarId)")
             }
         }
     }

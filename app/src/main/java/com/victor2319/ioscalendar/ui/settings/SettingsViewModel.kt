@@ -13,6 +13,7 @@ import com.victor2319.ioscalendar.domain.ClockProvider
 import com.victor2319.ioscalendar.domain.SyncMode
 import com.victor2319.ioscalendar.domain.SystemClockProvider
 import com.victor2319.ioscalendar.sync.SyncScheduler
+import com.victor2319.ioscalendar.widget.WidgetRefreshNotifier
 import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ class SettingsViewModel(
     private val syncScheduler: SyncScheduler,
     private val accountManager: AccountManager,
     private val clock: ClockProvider = SystemClockProvider,
+    private val widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
 ) : ViewModel() {
     private val confirmation = MutableStateFlow<SettingsConfirmation?>(null)
     private val destructiveActionInProgress = MutableStateFlow(false)
@@ -66,7 +68,10 @@ class SettingsViewModel(
 
     fun setCalendarVisible(calendarId: String, visible: Boolean) {
         if (calendarId.isBlank()) return
-        launchSafe { repository.setCalendarVisible(calendarId, visible) }
+        launchSafe {
+            repository.setCalendarVisible(calendarId, visible)
+            widgetUpdater.refreshAll()
+        }
     }
 
     fun requestClearHistory() = requestConfirmation(SettingsConfirmation.ClearHistory)
@@ -145,10 +150,11 @@ class SettingsViewModelFactory(
     private val settingsStore: SettingsStore,
     private val syncScheduler: SyncScheduler,
     private val accountManager: AccountManager,
+    private val widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(SettingsViewModel::class.java))
-        return SettingsViewModel(repository, settingsStore, syncScheduler, accountManager) as T
+        return SettingsViewModel(repository, settingsStore, syncScheduler, accountManager, widgetUpdater = widgetUpdater) as T
     }
 }

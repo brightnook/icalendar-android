@@ -45,6 +45,7 @@ fun AppRoot(
     container: AppContainer,
     zoneIds: StateFlow<ZoneId>,
     launchTarget: CalendarLaunchTarget? = null,
+    openSettingsRequest: Int = 0,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit = {},
 ) {
     val accountState by container.accountManager.authenticationState.collectAsState()
@@ -65,8 +66,9 @@ fun AppRoot(
                 ),
                 zoneIds = zoneIds,
                 launchTarget = launchTarget,
+                openSettingsRequest = openSettingsRequest,
                 onLaunchTargetConsumed = onLaunchTargetConsumed,
-                settingsFactory = SettingsViewModelFactory(container.calendarRepository, container.settingsStore, container.syncScheduler, container.accountManager),
+                settingsFactory = SettingsViewModelFactory(container.calendarRepository, container.settingsStore, container.syncScheduler, container.accountManager, container.widgetUpdater),
             )
         },
         isAuthenticated = routesToAuthenticatedContent(accountState),
@@ -121,6 +123,7 @@ private fun MainCalendarDestination(
     factory: ViewModelProvider.Factory,
     zoneIds: StateFlow<ZoneId>,
     launchTarget: CalendarLaunchTarget?,
+    openSettingsRequest: Int,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit,
     settingsFactory: ViewModelProvider.Factory,
 ) {
@@ -135,6 +138,9 @@ private fun MainCalendarDestination(
             viewModel.handleLaunchTarget(it)
             consumeTarget(it)
         }
+    }
+    LaunchedEffect(openSettingsRequest) {
+        if (openSettingsRequest != 0) settingsOpen = true
     }
     if (settingsOpen) {
         val settingsViewModel: SettingsViewModel = viewModel(key = "settings", factory = settingsFactory)
