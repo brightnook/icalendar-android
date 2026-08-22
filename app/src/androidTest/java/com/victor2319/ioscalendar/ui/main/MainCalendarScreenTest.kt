@@ -78,7 +78,7 @@ class MainCalendarScreenTest {
     }
 
     @Test
-    fun selectedDateBackgroundKeepsTheSameCircleSizeForOneAndTwoDigitDates() {
+    fun selectedDateBackgroundKeepsTheSameRoundedSquareSizeForOneAndTwoDigitDates() {
         var selected by mutableStateOf(LocalDate.of(2026, 8, 1))
         composeRule.setContent {
             MaterialTheme {

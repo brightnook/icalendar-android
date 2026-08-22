@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,10 +24,14 @@ const val YEAR_CALENDAR_TAG = "year-calendar"
 
 @Composable
 fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate, List<Int>>, onSelectDate: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.verticalScroll(rememberScrollState()).testTag(YEAR_CALENDAR_TAG), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(year.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 16.dp))
+    val layout = fixedYearCalendarLayout()
+    Column(
+        modifier.padding(horizontal = layout.horizontalContentPadding).verticalScroll(rememberScrollState()).testTag(YEAR_CALENDAR_TAG),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(year.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("year-title"))
         (1..12).chunked(3).forEach { months ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(layout.monthGap)) {
                 months.forEach { number -> MiniMonth(YearMonth.of(year, number), selectedDate, markerColors, onSelectDate, Modifier.weight(1f)) }
             }
         }
@@ -35,17 +40,31 @@ fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate
 
 @Composable
 private fun MiniMonth(month: YearMonth, selectedDate: LocalDate, markerColors: Map<LocalDate, List<Int>>, onSelectDate: (LocalDate) -> Unit, modifier: Modifier) {
+    val layout = fixedYearCalendarLayout()
+    val today = LocalDate.now()
     val start = month.atDay(1).minusDays((month.atDay(1).dayOfWeek.value % 7).toLong())
     Column(modifier.testTag("year-month-$month"), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(month.atDay(1).format(DateTimeFormatter.ofPattern("MMM")), style = MaterialTheme.typography.labelMedium)
         repeat(6) { row -> Row(Modifier.fillMaxWidth()) { repeat(7) { col ->
             val date = start.plusDays((row * 7L) + col)
-            if (date.month == month.month) TextButton(onClick = { onSelectDate(date) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.weight(1f).height(24.dp).testTag("year-day-$date")) {
+            if (date.month == month.month) {
+                val highlight = calendarDayHighlight(date == today, date == selectedDate)
+                TextButton(onClick = { onSelectDate(date) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.weight(1f).height(28.dp).testTag("year-day-$date")) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelSmall, color = if (date == selectedDate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                    markerColors[date]?.firstOrNull()?.let { Box(Modifier.size(3.dp).clip(CircleShape).background(Color(it))) }
+                    Box(
+                        modifier = Modifier.size(layout.miniDateBoxSize).clip(RoundedCornerShape(layout.miniDateCornerRadius)).then(
+                            if (highlight == CalendarDayHighlight.FILLED_PRIMARY) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier,
+                        ).testTag("year-date-background-$date"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelSmall, color = if (highlight == CalendarDayHighlight.FILLED_PRIMARY) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+                    }
+                    Box(Modifier.height(layout.miniMarkerRowHeight), contentAlignment = Alignment.TopCenter) {
+                        markerColors[date]?.firstOrNull()?.let { Box(Modifier.padding(top = 1.dp).size(3.dp).clip(CircleShape).background(Color(it))) }
+                    }
                 }
-            } else Spacer(Modifier.weight(1f).height(24.dp))
+                }
+            } else Spacer(Modifier.weight(1f).height(28.dp))
         } } }
     }
 }

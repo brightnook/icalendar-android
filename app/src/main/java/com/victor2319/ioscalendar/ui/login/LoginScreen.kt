@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
 
 const val APPLE_ACCOUNT_URL = "https://account.apple.com/"
 const val APPLE_APP_PASSWORD_SUPPORT_URL = "https://support.apple.com/zh-cn/102654"
@@ -46,6 +48,8 @@ fun LoginScreen(
     val passwordVisibilityDescription = stringResource(R.string.login_toggle_password_visibility)
     val appleIdDescription = stringResource(R.string.login_apple_id_label)
     val passwordDescription = stringResource(R.string.login_app_password_label)
+    val connectDescription = stringResource(R.string.login_connect_and_sync)
+    val actionPresentation = transparentLabeledActionPresentation()
 
     LaunchedEffect(uiState.passwordClearToken) {
         if (uiState.passwordClearToken > 0) password = ""
@@ -98,14 +102,16 @@ fun LoginScreen(
                 }
             },
         )
-        Button(
+        TextButton(
             onClick = {
                 val submittedPassword = password.toCharArray()
                 password = ""
                 onConnect(appleId, submittedPassword)
             },
             enabled = uiState.phase != LoginPhase.DISCOVERING && uiState.phase != LoginPhase.SYNCING,
-            modifier = Modifier.heightIn(min = 48.dp),
+            modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).semantics {
+                contentDescription = connectDescription
+            },
         ) {
             androidx.compose.material3.Icon(
                 painter = painterResource(R.drawable.ic_action_login),

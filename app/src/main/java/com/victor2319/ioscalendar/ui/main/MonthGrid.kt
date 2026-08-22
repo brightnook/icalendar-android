@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -77,6 +79,8 @@ fun MonthGrid(
     val swipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
     val weekendColor = MaterialTheme.colorScheme.tertiary
     val weekdayHeaderColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val dayCellLayout = fixedCalendarDayCellLayout()
+    val today = LocalDate.now()
 
     Column(
         modifier
@@ -151,6 +155,7 @@ fun MonthGrid(
                 repeat(7) { dayIndex ->
                     val date = gridStart.plusDays((week * 7L) + dayIndex)
                     val selected = date == selectedDate
+                    val highlight = calendarDayHighlight(date == today, selected)
                     TextButton(
                         onClick = { onSelectDate(date) },
                         contentPadding = PaddingValues(0.dp),
@@ -171,10 +176,10 @@ fun MonthGrid(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
+                                    .size(dayCellLayout.dateBoxSize)
+                                    .clip(RoundedCornerShape(dayCellLayout.dateCornerRadius))
                                     .then(
-                                        if (selected) Modifier.background(MaterialTheme.colorScheme.primary)
+                                        if (highlight == CalendarDayHighlight.FILLED_PRIMARY) Modifier.background(MaterialTheme.colorScheme.primary)
                                         else Modifier,
                                     )
                                     .testTag("calendar-date-background-$date"),
@@ -185,7 +190,7 @@ fun MonthGrid(
                                     color = monthGridDateColor(
                                         date = date,
                                         month = month,
-                                        selected = selected,
+                                        selected = highlight == CalendarDayHighlight.FILLED_PRIMARY,
                                         onPrimary = MaterialTheme.colorScheme.onPrimary,
                                         weekday = MaterialTheme.colorScheme.onSurface,
                                         outsideMonth = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -197,8 +202,11 @@ fun MonthGrid(
                                 )
                             }
                             val colors = dayMarkerColors[date].orEmpty().take(MAX_MARKER_COLORS)
-                            if (colors.isNotEmpty()) {
-                                Row(
+                            Box(
+                                modifier = Modifier.height(dayCellLayout.markerRowHeight),
+                                contentAlignment = Alignment.TopCenter,
+                            ) {
+                                if (colors.isNotEmpty()) Row(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                                     modifier = Modifier.padding(top = 1.dp),
                                 ) {

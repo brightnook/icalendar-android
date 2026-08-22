@@ -21,11 +21,14 @@ import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
 
 @Composable
 fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode: (SyncMode) -> Unit, onSetCalendarVisible: (String, Boolean) -> Unit, onClearHistory: () -> Unit, onClearCache: () -> Unit, onLogout: () -> Unit, onDismissConfirmation: () -> Unit, onConfirmDestructiveAction: () -> Unit) {
     BackHandler(onBack = onClose)
     val closeDescription = stringResource(R.string.settings_close)
+    val logoutDescription = stringResource(R.string.settings_logout)
+    val actionPresentation = transparentLabeledActionPresentation()
     Column(
         Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
@@ -64,7 +67,12 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             SettingsSection(R.string.settings_data_and_sign_out, "data") {
                 Button(onClick = onClearHistory) { Text(stringResource(R.string.settings_clear_history)) }
                 Button(onClick = onClearCache) { Text(stringResource(R.string.settings_clear_cache)) }
-                Button(onClick = onLogout, modifier = Modifier.heightIn(min = 48.dp)) {
+                TextButton(
+                    onClick = onLogout,
+                    modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).semantics {
+                        contentDescription = logoutDescription
+                    },
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_action_logout),
                         contentDescription = null,
