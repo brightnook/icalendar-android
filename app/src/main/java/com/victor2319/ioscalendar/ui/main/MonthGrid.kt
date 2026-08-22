@@ -34,12 +34,28 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
 import java.time.LocalDate
+import java.time.DayOfWeek
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
 import java.util.Locale
 
 const val MONTH_GRID_TAG = "month-grid"
+
+internal fun monthGridDateColor(
+    date: LocalDate,
+    month: YearMonth,
+    selected: Boolean,
+    onPrimary: Color,
+    weekday: Color,
+    outsideMonth: Color,
+    weekend: Color,
+): Color = when {
+    selected -> onPrimary
+    date.dayOfWeek in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) -> weekend
+    date.month == month.month -> weekday
+    else -> outsideMonth
+}
 
 @Composable
 fun MonthGrid(
@@ -59,6 +75,8 @@ fun MonthGrid(
     val previousMonthDescription = stringResource(R.string.calendar_previous_month)
     val nextMonthDescription = stringResource(R.string.calendar_next_month)
     val swipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
+    val weekendColor = MaterialTheme.colorScheme.tertiary
+    val weekdayHeaderColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         modifier
@@ -122,6 +140,7 @@ fun MonthGrid(
                 Text(
                     dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale),
                     modifier = Modifier.weight(1f).padding(vertical = 2.dp),
+                    color = if (dayOfWeek in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)) weekendColor else weekdayHeaderColor,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -163,11 +182,15 @@ fun MonthGrid(
                             ) {
                                 Text(
                                     date.dayOfMonth.toString(),
-                                    color = when {
-                                        selected -> MaterialTheme.colorScheme.onPrimary
-                                        date.month == month.month -> MaterialTheme.colorScheme.onSurface
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
+                                    color = monthGridDateColor(
+                                        date = date,
+                                        month = month,
+                                        selected = selected,
+                                        onPrimary = MaterialTheme.colorScheme.onPrimary,
+                                        weekday = MaterialTheme.colorScheme.onSurface,
+                                        outsideMonth = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        weekend = weekendColor,
+                                    ),
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
                                     softWrap = false,

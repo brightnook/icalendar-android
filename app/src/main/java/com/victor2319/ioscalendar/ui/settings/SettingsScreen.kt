@@ -1,6 +1,7 @@
 package com.victor2319.ioscalendar.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -52,7 +54,7 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
 }
 
 @Composable private fun CalendarRow(calendar: CalendarSummary, update: (String, Boolean) -> Unit) = Row(Modifier.fillMaxWidth()) {
-    Box(Modifier.padding(top = 14.dp).size(14.dp).background(Color(calendar.colorArgb)).testTag("calendar-color-${calendar.id}"))
+    Box(Modifier.padding(top = 14.dp).size(14.dp).clip(CircleShape).background(Color(calendar.colorArgb)).testTag("calendar-color-${calendar.id}"))
     Text(calendar.name, Modifier.weight(1f).padding(start = 12.dp, top = 10.dp))
     Switch(calendar.isVisible, { update(calendar.id, it) }, Modifier.testTag("calendar-visibility-${calendar.id}"))
 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -12,8 +13,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.graphics.toPixelMap
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -48,6 +51,21 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Work").assertIsDisplayed()
         composeRule.onNodeWithTag("calendar-color-work").assertIsDisplayed()
         composeRule.onNodeWithTag("calendar-visibility-work").assertIsOff()
+    }
+
+    @Test
+    fun calendarColorIndicatorIsClippedToACircle() {
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(calendars = listOf(CalendarSummary("work", "Work", Color.Red.value.toInt(), true))),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        val pixels = composeRule.onNodeWithTag("calendar-color-work").captureToImage().toPixelMap()
+        assertNotEquals("A square swatch colors its corner like its center", pixels[0, 0], pixels[pixels.width / 2, pixels.height / 2])
     }
 
     @Test

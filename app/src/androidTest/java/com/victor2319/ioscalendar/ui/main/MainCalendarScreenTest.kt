@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.victor2319.ioscalendar.R
@@ -147,6 +148,22 @@ class MainCalendarScreenTest {
         assertTrue("Refresh and Settings actions touch", settings.left > refresh.right)
         assertTrue("Refresh must be icon-only", composeRule.onAllNodesWithText(refreshDescription)
             .fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun agendaHeaderDateIsVerticallyCenteredWithItsIconActions() {
+        setScreen(state())
+
+        val date = composeRule.onNodeWithTag(SELECTED_DATE_TAG).fetchSemanticsNode().boundsInRoot
+        val refresh = composeRule.onNodeWithContentDescription(
+            composeRule.activity.getString(R.string.calendar_refresh),
+        ).fetchSemanticsNode().boundsInRoot
+        val settings = composeRule.onNodeWithContentDescription(
+            composeRule.activity.getString(R.string.settings_title),
+        ).fetchSemanticsNode().boundsInRoot
+
+        assertTrue("Date is not centered with Refresh", kotlin.math.abs(date.center.y - refresh.center.y) <= 1f)
+        assertTrue("Date is not centered with Settings", kotlin.math.abs(date.center.y - settings.center.y) <= 1f)
     }
 
     @Test
