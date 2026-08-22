@@ -116,3 +116,8 @@ The current debug app and test APK installed successfully over the existing debu
 - Added a fixed, navigation-bar-safe five-action icon bar: Today, combined/year view toggle, date picker, Refresh, and Settings. Refresh and Settings no longer appear in the agenda header.
 - Default is combined month plus agenda. Year mode shows all twelve miniature months and reuses available day markers; tapping a year-day or date-picker result selects it and returns to combined view. Today selects the clock-zone current date.
 - The new APKs compiled locally. Device replacement was not attempted because it would not preserve the currently working signed installation's credentials/cache.
+
+### Subsequent device verification
+
+- A later data-preserving `adb install -r` updated both debug and test APKs successfully on `aaf08081`; no uninstall, cache clearing, credential access, or real iCloud action occurred.
+- Focused instrumentation result: `MainCalendarScreenTest.bottomActionBarExposesFiveAccessibleIconActions` and `tappingADayInYearViewReturnsToCombinedViewWithThatDateSelected` returned `OK (2 tests)`.
