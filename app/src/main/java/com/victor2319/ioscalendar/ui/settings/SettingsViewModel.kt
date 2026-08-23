@@ -98,7 +98,10 @@ class SettingsViewModel(
             try {
                 when (action) {
                     SettingsConfirmation.ClearHistory -> repository.clearCalendarHistory(historyBoundary())
-                    SettingsConfirmation.ClearCache -> repository.clearCalendarCache()
+                    SettingsConfirmation.ClearCache -> {
+                        repository.clearCalendarCache()
+                        widgetUpdater.refreshAll()
+                    }
                     is SettingsConfirmation.Logout -> showCleanupWarning.value = !accountManager.logout(action.clearCache)
                 }
             } catch (cancelled: CancellationException) {

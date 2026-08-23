@@ -3,6 +3,7 @@ package com.victor2319.ioscalendar.widget
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.text.format.DateFormat
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.victor2319.ioscalendar.CalendarApplication
@@ -12,7 +13,6 @@ import com.victor2319.ioscalendar.domain.TimeRange
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -99,6 +99,16 @@ class AgendaWidgetFactory(
             if (event.isAllDay) requireNotNull(event.startDate) else requireNotNull(event.startInstant).atZone(zoneId).toLocalDate()
     }
 
-    private fun formatDate(date: LocalDate): String = date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
-    private fun formatTime(instant: Instant): String = instant.atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+    private fun formatDate(date: LocalDate): String = WidgetDateTimeFormatter.formatDate(
+        date = date,
+        zoneId = ZoneId.systemDefault(),
+        locale = context.resources.configuration.locales[0],
+    )
+
+    private fun formatTime(instant: Instant): String = WidgetDateTimeFormatter.formatTime(
+        instant = instant,
+        zoneId = ZoneId.systemDefault(),
+        locale = context.resources.configuration.locales[0],
+        is24Hour = DateFormat.is24HourFormat(context),
+    )
 }

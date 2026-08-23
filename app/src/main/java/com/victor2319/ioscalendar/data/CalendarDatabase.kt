@@ -16,7 +16,7 @@ import androidx.sqlite.execSQL
         WidgetConfigEntity::class,
         WidgetCalendarCrossRef::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class CalendarDatabase : RoomDatabase() {
@@ -52,6 +52,20 @@ abstract class CalendarDatabase : RoomDatabase() {
                 connection.execSQL(
                     "CREATE TABLE IF NOT EXISTS widget_calendar (appWidgetId INTEGER NOT NULL, calendarId TEXT NOT NULL, PRIMARY KEY(appWidgetId, calendarId), FOREIGN KEY(appWidgetId) REFERENCES widget_configuration(appWidgetId) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(calendarId) REFERENCES calendars(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
                 )
+                connection.execSQL("CREATE INDEX IF NOT EXISTS index_widget_calendar_calendarId ON widget_calendar(calendarId)")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
+                    "CREATE TABLE IF NOT EXISTS widget_calendar_new (appWidgetId INTEGER NOT NULL, calendarId TEXT NOT NULL, PRIMARY KEY(appWidgetId, calendarId), FOREIGN KEY(appWidgetId) REFERENCES widget_configuration(appWidgetId) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                connection.execSQL(
+                    "INSERT INTO widget_calendar_new (appWidgetId, calendarId) SELECT appWidgetId, calendarId FROM widget_calendar",
+                )
+                connection.execSQL("DROP TABLE widget_calendar")
+                connection.execSQL("ALTER TABLE widget_calendar_new RENAME TO widget_calendar")
                 connection.execSQL("CREATE INDEX IF NOT EXISTS index_widget_calendar_calendarId ON widget_calendar(calendarId)")
             }
         }

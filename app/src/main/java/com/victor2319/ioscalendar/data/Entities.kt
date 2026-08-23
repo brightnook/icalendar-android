@@ -129,12 +129,6 @@ data class WidgetConfigEntity(
             childColumns = ["appWidgetId"],
             onDelete = ForeignKey.CASCADE,
         ),
-        ForeignKey(
-            entity = CalendarEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["calendarId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
     ],
     indices = [Index("calendarId")],
 )

@@ -41,6 +41,10 @@ class AgendaWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        if (intent.action in TIME_REFRESH_ACTIONS) {
+            WidgetUpdater(context.applicationContext).refreshAll()
+            return
+        }
         if (intent.action !in setOf(WidgetIntentFactory.ACTION_REFRESH, WidgetIntentFactory.ACTION_OPEN_TODAY)) return
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
@@ -66,5 +70,9 @@ class AgendaWidgetProvider : AppWidgetProvider() {
                 pending.finish()
             }
         }
+    }
+
+    private companion object {
+        val TIME_REFRESH_ACTIONS = setOf(Intent.ACTION_DATE_CHANGED, Intent.ACTION_TIMEZONE_CHANGED)
     }
 }

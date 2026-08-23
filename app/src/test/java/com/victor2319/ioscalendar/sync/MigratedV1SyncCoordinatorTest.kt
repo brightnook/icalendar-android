@@ -133,6 +133,7 @@ class MigratedV1SyncCoordinatorTest {
         val opened = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .addMigrations(CalendarDatabase.MIGRATION_2_3)
+            .addMigrations(CalendarDatabase.MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
         database = opened

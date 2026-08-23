@@ -36,6 +36,7 @@ class AppContainer(val application: Application) {
         Room.databaseBuilder(application, CalendarDatabase::class.java, "calendar.db")
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .addMigrations(CalendarDatabase.MIGRATION_2_3)
+            .addMigrations(CalendarDatabase.MIGRATION_3_4)
             .build()
     }
 

@@ -1,0 +1,5 @@
+<resources>
+    <color name="widget_background">#FF1B1B1F</color>
+    <color name="widget_primary_text">#FFE3E2E6</color>
+    <color name="widget_secondary_text">#FFC6C5CA</color>
+</resources>

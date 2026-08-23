@@ -20,6 +20,7 @@ import com.victor2319.ioscalendar.domain.SyncMode
 import com.victor2319.ioscalendar.domain.TimeRange
 import com.victor2319.ioscalendar.sync.SyncScheduler
 import com.victor2319.ioscalendar.sync.SyncSchedulerReadiness
+import com.victor2319.ioscalendar.widget.WidgetRefreshNotifier
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -129,6 +130,25 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun confirmedCacheDeletionRefreshesWidgetsToRemoveStaleRows() = runTest(dispatcher) {
+        // Catches clearing the cache while widget RemoteViews continue showing events from the removed database rows.
+        val refreshes = mutableListOf<Unit>()
+        val repository = InMemoryCalendarRepository(listOf(calendar("work", true)))
+        val viewModel = viewModel(
+            repository = repository,
+            widgetUpdater = WidgetRefreshNotifier { refreshes += Unit },
+        )
+        advanceUntilIdle()
+
+        viewModel.requestClearCache()
+        viewModel.confirmDestructiveAction()
+        advanceUntilIdle()
+
+        assertTrue(repository.calendars.value.isEmpty())
+        assertEquals(1, refreshes.size)
+    }
+
+    @Test
     fun logoutCancelsClearsCredentialsSignsOutAndReportsOnlySafeCacheFailure() = runTest(dispatcher) {
         // Catches reordering logout cleanup, retaining authenticated UI after credential deletion, or leaking a cache error.
         val operations = mutableListOf<String>()
@@ -165,12 +185,14 @@ class SettingsViewModelTest {
             InMemoryCredentialsStore(mutableListOf()),
             repository,
         ),
+        widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
     ) = SettingsViewModel(
         repository = repository,
         settingsStore = settings,
         syncScheduler = scheduler,
         accountManager = accountManager,
         clock = FixedClock,
+        widgetUpdater = widgetUpdater,
     )
 }
 

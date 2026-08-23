@@ -3,6 +3,9 @@ package com.victor2319.ioscalendar.data
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.victor2319.ioscalendar.widget.RoomWidgetPreferences
+import com.victor2319.ioscalendar.widget.WidgetConfig
+import com.victor2319.ioscalendar.widget.WidgetRange
 import com.victor2319.ioscalendar.domain.CalendarDelta
 import com.victor2319.ioscalendar.domain.CalendarEvent
 import com.victor2319.ioscalendar.domain.CalendarHistoryBoundary
@@ -738,6 +741,21 @@ class RoomCalendarRepositoryTest {
         assertThrows(IllegalArgumentException::class.java) {
             WidgetConfigEntity(appWidgetId = 1, rangeDays = 14)
         }
+    }
+
+    @Test
+    fun clearingCalendarCachePreservesWidgetCalendarSelections() = runTest {
+        // Catches a cache reset cascading through calendar IDs and turning configured widgets into empty selections.
+        repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents())
+        val preferences = RoomWidgetPreferences(database)
+        preferences.save(WidgetConfig(appWidgetId = 42, calendarIds = setOf("work"), range = WidgetRange.THIRTY_DAYS))
+
+        repository.clearCalendarCache()
+
+        assertEquals(
+            WidgetConfig(appWidgetId = 42, calendarIds = setOf("work"), range = WidgetRange.THIRTY_DAYS),
+            preferences.configFor(42),
+        )
     }
 
     private fun calendarSnapshotWithMixedEvents(): CalendarSnapshot {

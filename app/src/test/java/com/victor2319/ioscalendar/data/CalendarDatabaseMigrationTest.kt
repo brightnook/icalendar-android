@@ -56,6 +56,7 @@ class CalendarDatabaseMigrationTest {
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .addMigrations(CalendarDatabase.MIGRATION_2_3)
+            .addMigrations(CalendarDatabase.MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -79,6 +80,51 @@ class CalendarDatabaseMigrationTest {
                 while (cursor.moveToNext()) add(cursor.getString(name))
             }
             assertEquals(true, "index_event_masters_calendarId_remoteResourceHref" in indices)
+        }
+        database.close()
+        context.deleteDatabase(DATABASE_NAME)
+    }
+
+    @Test
+    fun migrationThreeToFourRetainsWidgetSelectionsWhenCalendarCacheIsCleared() {
+        // Catches migrating widget_calendar with its calendar foreign key, which deletes saved widget selections on a cache reset.
+        context.deleteDatabase(DATABASE_NAME)
+        val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).apply {
+            val schema = JSONObject(
+                context.assets.open("com.victor2319.ioscalendar.data.CalendarDatabase/3.json")
+                    .bufferedReader()
+                    .use { it.readText() },
+            ).getJSONObject("database")
+            val entities = schema.getJSONArray("entities")
+            repeat(entities.length()) { index ->
+                val entity = entities.getJSONObject(index)
+                execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                entity.optJSONArray("indices")?.let { indices ->
+                    repeat(indices.length()) { indexPosition ->
+                        execSQL(indices.getJSONObject(indexPosition).getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                    }
+                }
+            }
+            schema.getJSONArray("setupQueries").let { setupQueries ->
+                repeat(setupQueries.length()) { index -> execSQL(setupQueries.getString(index)) }
+            }
+            execSQL("INSERT INTO calendars VALUES ('work', 'Work', -1, 1)")
+            execSQL("INSERT INTO widget_configuration VALUES (42, 30)")
+            execSQL("INSERT INTO widget_calendar VALUES (42, 'work')")
+            version = 3
+            close()
+        }
+
+        val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
+            .addMigrations(CalendarDatabase.MIGRATION_3_4)
+            .allowMainThreadQueries()
+            .build()
+        val migrated = database.openHelper.writableDatabase
+        migrated.execSQL("DELETE FROM calendars")
+        migrated.query("SELECT calendarId FROM widget_calendar WHERE appWidgetId = 42").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("work", cursor.getString(0))
         }
         database.close()
         context.deleteDatabase(DATABASE_NAME)
