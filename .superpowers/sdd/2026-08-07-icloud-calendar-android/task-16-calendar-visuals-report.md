@@ -48,3 +48,17 @@
 
 - Language/weekday-header and Sunday/Monday week-start changes remain out of scope for this commit.
 - No device, emulator, or ADB operation was performed. Stage device validation remains pending before later theme/privacy/release work.
+
+## Review Follow-up: Round 2
+
+- Replaced the individually clickable mini-day buttons with one interactive mini-month grid. A tap is resolved from its grid coordinate to the visible in-month date, preserving the three-column visual layout and selection behavior without pretending every narrow visual cell is a 48dp-wide action.
+- The mini-month grid has a single minimum interactive component and exposes each valid in-month day as a full localized-date accessibility action. Leading and trailing dates remain non-selectable.
+- Corrected the Android UI assertion to measure the month-level target in pixels converted from 48dp, rather than comparing a pixel height directly to `48` or asserting an impossible mini-day width.
+- Added `YearCalendarHitTestingTest` to cover the coordinate mapping and adjacent-month rejection. Its date-selection assertion fails when the mapping is intentionally broken and passes after restoration.
+
+### Round 2 Verification
+
+- `:app:testDebugUnitTest --tests com.victor2319.ioscalendar.ui.main.YearCalendarHitTestingTest` — passed after the restored implementation; the intentional broken-map run failed that selection assertion as expected.
+- `:app:compileDebugAndroidTestKotlin` — passed; compilation only, no device was contacted.
+- `:app:testDebugUnitTest :app:assembleDebug` — passed.
+- No device, emulator, ADB, or network interaction was performed.

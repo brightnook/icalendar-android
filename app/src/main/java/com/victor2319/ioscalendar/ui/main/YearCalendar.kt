@@ -1,6 +1,7 @@
 package com.victor2319.ioscalendar.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -8,15 +9,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.YearMonth
@@ -75,6 +84,14 @@ private fun MiniMonth(
     val weekDays = calendarWeekdays(weekStart)
     val headers = calendarWeekdayHeaders(weekStart, locale)
     val start = calendarGridStart(month, weekStart)
+    var gridSize by androidx.compose.runtime.remember { mutableStateOf(IntSize.Zero) }
+    val dateActions = (1..month.lengthOfMonth()).map { day ->
+        val date = month.atDay(day)
+        CustomAccessibilityAction(yearDateContentDescription(date, locale)) {
+            onSelectDate(date)
+            true
+        }
+    }
     Column(modifier.testTag("year-month-$month"), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(yearMonthTitle(month, locale), style = MaterialTheme.typography.labelMedium)
         Row(Modifier.fillMaxWidth()) {
@@ -86,32 +103,78 @@ private fun MiniMonth(
                 )
             }
         }
-        repeat(6) { row -> Row(Modifier.fillMaxWidth()) { repeat(7) { col ->
-            val date = start.plusDays((row * 7L) + col)
-            if (date.month == month.month) {
-                val highlight = calendarDayHighlight(date == today, date == selectedDate)
-                TextButton(onClick = { onSelectDate(date) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.weight(1f).heightIn(min = layout.miniDayTouchTarget).testTag("year-day-$date").semantics { contentDescription = yearDateContentDescription(date, locale) }) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier.size(layout.miniDateBoxSize).clip(RoundedCornerShape(layout.miniDateCornerRadius)).then(
-                            if (highlight == CalendarDayHighlight.FILLED_PRIMARY) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier,
-                        ).testTag("year-date-background-$date"),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelSmall, color = if (highlight == CalendarDayHighlight.FILLED_PRIMARY) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .minimumInteractiveComponentSize()
+                .onSizeChanged { gridSize = it }
+                .pointerInput(month, weekStart, gridSize, onSelectDate) {
+                    detectTapGestures { tap ->
+                        miniMonthDateAt(month, weekStart, gridSize, tap)?.let(onSelectDate)
                     }
-                    Box(Modifier.height(layout.miniMarkerRowHeight), contentAlignment = Alignment.TopCenter) {
-                        markerColors[date]?.firstOrNull()?.let {
-                            Box(
-                                Modifier.padding(top = 1.dp).size(3.dp).clip(CircleShape)
-                                    .background(Color(it)).testTag("year-marker-$date"),
-                            )
+                }
+                .clearAndSetSemantics {
+                    contentDescription = yearMonthTitle(month, locale)
+                    customActions = dateActions
+                }
+                .testTag("year-month-grid-$month"),
+        ) {
+            Column {
+                repeat(6) { row ->
+                    Row(Modifier.fillMaxWidth()) {
+                        repeat(7) { col ->
+                            val date = start.plusDays((row * 7L) + col)
+                            if (date.month == month.month) {
+                                val highlight = calendarDayHighlight(date == today, date == selectedDate)
+                                Box(
+                                    modifier = Modifier.weight(1f).height(layout.miniDayRowHeight),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Box(
+                                            modifier = Modifier.size(layout.miniDateBoxSize)
+                                                .clip(RoundedCornerShape(layout.miniDateCornerRadius))
+                                                .then(
+                                                    if (highlight == CalendarDayHighlight.FILLED_PRIMARY) {
+                                                        Modifier.background(MaterialTheme.colorScheme.primary)
+                                                    } else {
+                                                        Modifier
+                                                    },
+                                                )
+                                                .testTag("year-date-background-$date"),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text(
+                                                date.dayOfMonth.toString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (highlight == CalendarDayHighlight.FILLED_PRIMARY) {
+                                                    MaterialTheme.colorScheme.onPrimary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                },
+                                            )
+                                        }
+                                        Box(
+                                            Modifier.height(layout.miniMarkerRowHeight),
+                                            contentAlignment = Alignment.TopCenter,
+                                        ) {
+                                            markerColors[date]?.firstOrNull()?.let {
+                                                Box(
+                                                    Modifier.padding(top = 1.dp).size(3.dp).clip(CircleShape)
+                                                        .background(Color(it)).testTag("year-marker-$date"),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Spacer(Modifier.weight(1f).height(layout.miniDayRowHeight))
+                            }
                         }
                     }
                 }
-                }
-            } else Spacer(Modifier.weight(1f).height(layout.miniDayTouchTarget))
-        } } }
+            }
+        }
     }
 }
 

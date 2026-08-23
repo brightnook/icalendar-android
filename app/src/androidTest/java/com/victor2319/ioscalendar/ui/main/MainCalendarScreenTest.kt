@@ -22,8 +22,12 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.click
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.victor2319.ioscalendar.R
@@ -89,7 +93,7 @@ class MainCalendarScreenTest {
     }
 
     @Test
-    fun yearViewUsesTheSameWeekStartForDateCellsAndEventMarkers() {
+    fun yearViewUsesTheSameWeekStartForDateCells() {
         val markedDay = LocalDate.of(2026, 8, 3)
         composeRule.setContent {
             MaterialTheme {
@@ -105,10 +109,16 @@ class MainCalendarScreenTest {
 
         val monday = composeRule.onNodeWithTag("year-weekday-2026-08-MONDAY").fetchSemanticsNode().boundsInRoot
         val sunday = composeRule.onNodeWithTag("year-weekday-2026-08-SUNDAY").fetchSemanticsNode().boundsInRoot
-        val marked = composeRule.onNodeWithTag("year-marker-$markedDay").fetchSemanticsNode().boundsInRoot
-        val date = composeRule.onNodeWithTag("year-day-$markedDay").fetchSemanticsNode().boundsInRoot
         assertTrue(monday.left < sunday.left)
-        assertTrue(marked.center.x == date.center.x)
+        assertEquals(
+            markedDay,
+            miniMonthDateAt(
+                month = YearMonth.of(2026, 8),
+                weekStart = WeekStart.MONDAY,
+                gridSize = IntSize(width = 140, height = 288),
+                tap = Offset(x = 10f, y = 72f),
+            ),
+        )
     }
 
     @Test
@@ -243,7 +253,9 @@ class MainCalendarScreenTest {
             }
         }
 
-        composeRule.onNodeWithTag("year-day-2026-10-08").performClick()
+        composeRule.onNodeWithTag("year-month-grid-2026-10").performTouchInput {
+            click(Offset(width * (4.5f / 7f), height * 0.25f))
+        }
         composeRule.runOnIdle {
             assertEquals(LocalDate.of(2026, 10, 8), screenState.selectedDate)
             assertEquals(CalendarViewMode.COMBINED, screenState.viewMode)
@@ -251,7 +263,7 @@ class MainCalendarScreenTest {
     }
 
     @Test
-    fun yearDaysExposeFullDateDescriptionsAndAtLeastFortyEightDpTargets() {
+    fun yearMonthGridUsesOneAccessibleTargetWithDateActions() {
         val target = LocalDate.of(2026, 8, 21)
         composeRule.setContent {
             MaterialTheme {
@@ -264,10 +276,16 @@ class MainCalendarScreenTest {
             }
         }
 
-        val day = composeRule.onNodeWithTag("year-day-$target").fetchSemanticsNode().boundsInRoot
-        assertTrue("Year day target is shorter than 48dp", day.height >= 48f)
-        composeRule.onNodeWithContentDescription(yearDateContentDescription(target, Locale.getDefault()))
-            .assertIsDisplayed()
+        val grid = composeRule.onNodeWithTag("year-month-grid-2026-08")
+            .fetchSemanticsNode()
+        val minimumTargetPx = 48f * composeRule.activity.resources.displayMetrics.density
+        assertTrue("Year month target is narrower than 48dp", grid.boundsInRoot.width >= minimumTargetPx)
+        assertTrue("Year month target is shorter than 48dp", grid.boundsInRoot.height >= minimumTargetPx)
+        assertTrue(
+            "Year month target does not expose the selected date as an accessibility action",
+            grid.config[SemanticsActions.CustomActions]
+                .any { action -> action.label == yearDateContentDescription(target, Locale.getDefault()) },
+        )
     }
 
     @Test

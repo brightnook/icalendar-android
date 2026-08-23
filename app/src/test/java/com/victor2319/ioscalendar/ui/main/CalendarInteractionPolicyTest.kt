@@ -9,11 +9,11 @@ import org.junit.Test
 
 class CalendarInteractionPolicyTest {
     @Test
-    fun yearDayActionsUseFullLocalizedDatesAndAnAccessibleTouchTarget() {
+    fun yearMonthActionsUseFullLocalizedDatesAndKeepRowsVisuallyCompact() {
         val date = LocalDate.of(2026, 8, 21)
 
         assertEquals("Friday, August 21, 2026", yearDateContentDescription(date, Locale.US))
-        assertEquals(48.dp, fixedYearCalendarLayout().miniDayTouchTarget)
+        assertEquals(48.dp, fixedYearCalendarLayout().miniDayRowHeight)
     }
 
     @Test
