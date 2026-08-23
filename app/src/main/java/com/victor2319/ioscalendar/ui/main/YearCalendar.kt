@@ -76,7 +76,7 @@ private fun MiniMonth(
     val headers = calendarWeekdayHeaders(weekStart, locale)
     val start = calendarGridStart(month, weekStart)
     Column(modifier.testTag("year-month-$month"), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(month.atDay(1).format(DateTimeFormatter.ofPattern("MMM")), style = MaterialTheme.typography.labelMedium)
+        Text(yearMonthTitle(month, locale), style = MaterialTheme.typography.labelMedium)
         Row(Modifier.fillMaxWidth()) {
             weekDays.zip(headers).forEach { (day, header) ->
                 Text(
@@ -114,3 +114,6 @@ private fun MiniMonth(
         } } }
     }
 }
+
+internal fun yearMonthTitle(month: YearMonth, locale: java.util.Locale): String =
+    month.atDay(1).format(DateTimeFormatter.ofPattern("MMM", locale))
