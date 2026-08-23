@@ -15,9 +15,9 @@ class CalendarVisualPolicyTest {
     }
 
     @Test
-    fun todayAndSelectionUseTheSameFilledRoundedSquareTreatment() {
+    fun todayStaysFilledWhileASeparatelySelectedDateUsesAnOutline() {
         assertEquals(CalendarDayHighlight.FILLED_PRIMARY, calendarDayHighlight(isToday = true, isSelected = false))
-        assertEquals(CalendarDayHighlight.FILLED_PRIMARY, calendarDayHighlight(isToday = false, isSelected = true))
+        assertEquals(CalendarDayHighlight.OUTLINE_PRIMARY, calendarDayHighlight(isToday = false, isSelected = true))
         assertEquals(CalendarDayHighlight.FILLED_PRIMARY, calendarDayHighlight(isToday = true, isSelected = true))
         assertEquals(CalendarDayHighlight.NONE, calendarDayHighlight(isToday = false, isSelected = false))
     }
@@ -28,5 +28,6 @@ class CalendarVisualPolicyTest {
 
         assertEquals(16.dp, layout.horizontalContentPadding)
         assertEquals(12.dp, layout.monthGap)
+        assertEquals(22.dp, layout.miniDayRowHeight)
     }
 }

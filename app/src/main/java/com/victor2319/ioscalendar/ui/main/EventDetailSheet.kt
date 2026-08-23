@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -121,6 +122,9 @@ fun EventDetailContent(
     zoneId: ZoneId,
     onClose: () -> Unit,
     onOpenExternalAction: (ExternalAction) -> Unit,
+    contentColor: Color,
+    secondaryContentColor: Color,
+    surfaceColor: Color,
 ) {
     Column(
         modifier = Modifier
@@ -132,49 +136,74 @@ fun EventDetailContent(
             .testTag(EVENT_DETAIL_CONTENT_TAG),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(detail.title, style = MaterialTheme.typography.headlineSmall)
+        Text(detail.title, style = MaterialTheme.typography.headlineSmall, color = contentColor)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(10.dp).background(Color(detail.calendarColorArgb), CircleShape))
-            Text(detail.calendarName, style = MaterialTheme.typography.titleMedium)
+            Text(detail.calendarName, style = MaterialTheme.typography.titleMedium, color = contentColor)
         }
-        DetailRow(stringResource(R.string.calendar_detail_time), detailRange(detail, zoneId))
+        DetailRow(stringResource(R.string.calendar_detail_time), detailRange(detail, zoneId), contentColor, secondaryContentColor)
         DetailRow(
             stringResource(R.string.calendar_detail_all_day),
             stringResource(if (detail.isAllDay) R.string.calendar_yes else R.string.calendar_no),
+            contentColor,
+            secondaryContentColor,
         )
         detail.location?.takeIf(String::isNotBlank)?.let { location ->
-            DetailRow(stringResource(R.string.calendar_detail_location), location)
+            DetailRow(stringResource(R.string.calendar_detail_location), location, contentColor, secondaryContentColor)
             parseExternalAction(location)?.let { action ->
-                TextButton(onClick = { onOpenExternalAction(action) }) {
+                TextButton(
+                    onClick = { onOpenExternalAction(action) },
+                    colors = ButtonDefaults.textButtonColors(contentColor = contentColor),
+                ) {
                     Text(stringResource(R.string.calendar_open_external))
                 }
             }
         }
         detail.notes?.takeIf(String::isNotBlank)?.let { notes ->
-            DetailRow(stringResource(R.string.calendar_detail_notes), notes)
+            DetailRow(stringResource(R.string.calendar_detail_notes), notes, contentColor, secondaryContentColor)
             parseExternalAction(notes)?.let { action ->
-                TextButton(onClick = { onOpenExternalAction(action) }) {
+                TextButton(
+                    onClick = { onOpenExternalAction(action) },
+                    colors = ButtonDefaults.textButtonColors(contentColor = contentColor),
+                ) {
                     Text(stringResource(R.string.calendar_open_external))
                 }
             }
         }
         detail.recurrenceRule?.takeIf(String::isNotBlank)?.let { rule ->
-            DetailRow(stringResource(R.string.calendar_detail_recurrence), humanRecurrence(rule))
+            DetailRow(
+                stringResource(R.string.calendar_detail_recurrence),
+                humanRecurrence(rule),
+                contentColor,
+                secondaryContentColor,
+            )
         }
-        Button(onClick = onClose, modifier = Modifier.align(Alignment.End)) {
+        Button(
+            onClick = onClose,
+            modifier = Modifier.align(Alignment.End),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = contentColor,
+                contentColor = surfaceColor,
+            ),
+        ) {
             Text(stringResource(R.string.calendar_close_detail))
         }
     }
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(
+    label: String,
+    value: String,
+    contentColor: Color,
+    secondaryContentColor: Color,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyLarge)
+        Text(label, style = MaterialTheme.typography.labelLarge, color = secondaryContentColor)
+        Text(value, style = MaterialTheme.typography.bodyLarge, color = contentColor)
     }
 }
 

@@ -26,10 +26,15 @@ internal fun fixedCalendarDayCellLayout() = CalendarDayCellLayout(
 internal enum class CalendarDayHighlight {
     NONE,
     FILLED_PRIMARY,
+    OUTLINE_PRIMARY,
 }
 
 internal fun calendarDayHighlight(isToday: Boolean, isSelected: Boolean) =
-    if (isToday || isSelected) CalendarDayHighlight.FILLED_PRIMARY else CalendarDayHighlight.NONE
+    when {
+        isToday -> CalendarDayHighlight.FILLED_PRIMARY
+        isSelected -> CalendarDayHighlight.OUTLINE_PRIMARY
+        else -> CalendarDayHighlight.NONE
+    }
 
 internal data class YearCalendarLayout(
     val horizontalContentPadding: Dp,
@@ -46,7 +51,7 @@ internal fun fixedYearCalendarLayout() = YearCalendarLayout(
     miniDateBoxSize = 16.dp,
     miniDateCornerRadius = 4.dp,
     miniMarkerRowHeight = 4.dp,
-    miniDayRowHeight = 48.dp,
+    miniDayRowHeight = 22.dp,
 )
 
 /**

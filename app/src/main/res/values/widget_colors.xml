@@ -2,4 +2,7 @@
     <color name="widget_background">#FFFFFFFF</color>
     <color name="widget_primary_text">#FF1A1C1E</color>
     <color name="widget_secondary_text">#FF5F6368</color>
+    <color name="widget_date_group_background">#FFEAF6EE</color>
+    <color name="widget_date_group_text">#FF20633F</color>
+    <color name="widget_event_title_background">#FFF4FAF6</color>
 </resources>

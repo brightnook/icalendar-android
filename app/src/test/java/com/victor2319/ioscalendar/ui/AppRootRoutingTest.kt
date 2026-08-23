@@ -2,6 +2,7 @@ package com.victor2319.ioscalendar.ui
 
 import com.victor2319.ioscalendar.domain.AccountAuthenticationState
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,5 +13,15 @@ class AppRootRoutingTest {
         assertTrue(routesToAuthenticatedContent(AccountAuthenticationState.Authenticated("p***@example.test")))
         assertFalse(routesToAuthenticatedContent(AccountAuthenticationState.SignedOut))
         assertFalse(routesToAuthenticatedContent(AccountAuthenticationState.Loading))
+    }
+
+    @Test
+    fun loadingCredentialsUsesStartupScreenInsteadOfLogin() {
+        assertEquals(AppStartupDestination.LOADING, appStartupDestination(AccountAuthenticationState.Loading))
+        assertEquals(AppStartupDestination.LOGIN, appStartupDestination(AccountAuthenticationState.SignedOut))
+        assertEquals(
+            AppStartupDestination.CALENDAR,
+            appStartupDestination(AccountAuthenticationState.Authenticated("p***@example.test")),
+        )
     }
 }

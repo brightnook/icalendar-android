@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.text.format.DateFormat
+import android.util.TypedValue
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.victor2319.ioscalendar.CalendarApplication
@@ -62,12 +63,22 @@ class AgendaWidgetFactory(
     override fun getViewTypeCount(): Int = 1
     override fun getViewAt(position: Int): RemoteViews {
         val row = rows[position]
+        val presentation = widgetPresentationForWidth(widgetWidthDp)
+        val rowPresentation = widgetRowPresentation(
+            title = row.event.title,
+            timeText = if (row.event.isAllDay) context.getString(R.string.calendar_all_day) else formatTime(row.event.startInstant!!),
+            calendarName = calendarNames[row.event.calendarId].orEmpty(),
+        )
         return RemoteViews(context.packageName, R.layout.agenda_widget_item).apply {
             setTextViewText(R.id.widget_item_date, if (row.startsDateGroup) formatDate(row.date) else "")
-            setTextViewText(R.id.widget_item_time, if (row.event.isAllDay) context.getString(R.string.calendar_all_day) else formatTime(row.event.startInstant!!))
-            setTextViewText(R.id.widget_item_title, row.event.title)
-            setTextViewText(R.id.widget_item_calendar, calendarNames[row.event.calendarId].orEmpty())
+            setViewVisibility(R.id.widget_item_date, if (row.startsDateGroup) android.view.View.VISIBLE else android.view.View.GONE)
+            setTextViewText(R.id.widget_item_title, rowPresentation.title)
+            setTextViewText(R.id.widget_item_calendar, rowPresentation.metadata)
             setTextColor(R.id.widget_item_color, row.event.calendarColorArgb)
+            setTextViewTextSize(R.id.widget_item_date, TypedValue.COMPLEX_UNIT_SP, presentation.secondaryTextSizeSp)
+            setTextViewTextSize(R.id.widget_item_title, TypedValue.COMPLEX_UNIT_SP, presentation.eventTitleTextSizeSp)
+            setTextViewTextSize(R.id.widget_item_calendar, TypedValue.COMPLEX_UNIT_SP, presentation.secondaryTextSizeSp)
+            setTextViewTextSize(R.id.widget_item_location, TypedValue.COMPLEX_UNIT_SP, presentation.secondaryTextSizeSp)
             setTextViewText(R.id.widget_item_location, row.event.location.orEmpty())
             val showLocation = widgetWidthDp >= 300 && !row.event.location.isNullOrBlank()
             setViewVisibility(R.id.widget_item_location, if (showLocation) android.view.View.VISIBLE else android.view.View.GONE)

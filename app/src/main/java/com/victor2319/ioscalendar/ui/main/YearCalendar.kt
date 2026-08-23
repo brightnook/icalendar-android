@@ -1,6 +1,7 @@
 package com.victor2319.ioscalendar.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -43,14 +44,27 @@ fun YearCalendar(
     onSelectDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     weekStart: WeekStart = WeekStart.SUNDAY,
+    contentColor: Color = Color.Unspecified,
+    secondaryContentColor: Color = Color.Unspecified,
+    saturdayColor: Color = Color.Unspecified,
+    sundayColor: Color = Color.Unspecified,
 ) {
     val layout = fixedYearCalendarLayout()
+    val resolvedContentColor = contentColor.yearColorOrDefault(MaterialTheme.colorScheme.onSurface)
+    val resolvedSecondaryContentColor = secondaryContentColor.yearColorOrDefault(MaterialTheme.colorScheme.onSurfaceVariant)
+    val resolvedSaturdayColor = saturdayColor.yearColorOrDefault(MaterialTheme.colorScheme.tertiary)
+    val resolvedSundayColor = sundayColor.yearColorOrDefault(MaterialTheme.colorScheme.tertiary)
     PrimaryControlRippleScope {
     Column(
         modifier.padding(horizontal = layout.horizontalContentPadding).verticalScroll(rememberScrollState()).testTag(YEAR_CALENDAR_TAG),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(year.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("year-title"))
+        Text(
+            year.toString(),
+            color = resolvedContentColor,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.testTag("year-title"),
+        )
         (1..12).chunked(3).forEach { months ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(layout.monthGap)) {
                 months.forEach { number ->
@@ -60,6 +74,10 @@ fun YearCalendar(
                         markerColors = markerColors,
                         onSelectDate = onSelectDate,
                         weekStart = weekStart,
+                        contentColor = resolvedContentColor,
+                        secondaryContentColor = resolvedSecondaryContentColor,
+                        saturdayColor = resolvedSaturdayColor,
+                        sundayColor = resolvedSundayColor,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -76,6 +94,10 @@ private fun MiniMonth(
     markerColors: Map<LocalDate, List<Int>>,
     onSelectDate: (LocalDate) -> Unit,
     weekStart: WeekStart,
+    contentColor: Color,
+    secondaryContentColor: Color,
+    saturdayColor: Color,
+    sundayColor: Color,
     modifier: Modifier,
 ) {
     val layout = fixedYearCalendarLayout()
@@ -93,12 +115,22 @@ private fun MiniMonth(
         }
     }
     Column(modifier.testTag("year-month-$month"), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(yearMonthTitle(month, locale), style = MaterialTheme.typography.labelMedium)
+        Text(
+            yearMonthTitle(month, locale),
+            color = contentColor,
+            style = MaterialTheme.typography.labelMedium,
+        )
         Row(Modifier.fillMaxWidth()) {
             weekDays.zip(headers).forEach { (day, header) ->
                 Text(
                     header,
                     modifier = Modifier.weight(1f).testTag("year-weekday-$month-$day"),
+                    color = calendarWeekdayTextColor(
+                        day,
+                        secondaryContentColor,
+                        saturdayColor,
+                        sundayColor,
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
@@ -135,10 +167,14 @@ private fun MiniMonth(
                                             modifier = Modifier.size(layout.miniDateBoxSize)
                                                 .clip(RoundedCornerShape(layout.miniDateCornerRadius))
                                                 .then(
-                                                    if (highlight == CalendarDayHighlight.FILLED_PRIMARY) {
-                                                        Modifier.background(MaterialTheme.colorScheme.primary)
-                                                    } else {
-                                                        Modifier
+                                                    when (highlight) {
+                                                        CalendarDayHighlight.FILLED_PRIMARY -> Modifier.background(MaterialTheme.colorScheme.primary)
+                                                        CalendarDayHighlight.OUTLINE_PRIMARY -> Modifier.border(
+                                                            width = 1.dp,
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            shape = RoundedCornerShape(layout.miniDateCornerRadius),
+                                                        )
+                                                        CalendarDayHighlight.NONE -> Modifier
                                                     },
                                                 )
                                                 .testTag("year-date-background-$date"),
@@ -150,7 +186,12 @@ private fun MiniMonth(
                                                 color = if (highlight == CalendarDayHighlight.FILLED_PRIMARY) {
                                                     MaterialTheme.colorScheme.onPrimary
                                                 } else {
-                                                    MaterialTheme.colorScheme.onSurface
+                                                    calendarWeekdayTextColor(
+                                                        date.dayOfWeek,
+                                                        contentColor,
+                                                        saturdayColor,
+                                                        sundayColor,
+                                                    )
                                                 },
                                             )
                                         }
@@ -177,6 +218,8 @@ private fun MiniMonth(
         }
     }
 }
+
+private fun Color.yearColorOrDefault(default: Color): Color = if (this == Color.Unspecified) default else this
 
 internal fun yearMonthTitle(month: YearMonth, locale: java.util.Locale): String =
     month.atDay(1).format(DateTimeFormatter.ofPattern("MMM", locale))

@@ -22,6 +22,8 @@ import com.victor2319.ioscalendar.sync.SyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncScheduler
 import com.victor2319.ioscalendar.sync.SyncSchedulerReadiness
 import com.victor2319.ioscalendar.sync.WorkManagerSyncScheduler
+import com.victor2319.ioscalendar.theme.PrivateThemeAssetStore
+import com.victor2319.ioscalendar.theme.ThemeAssetStore
 import com.victor2319.ioscalendar.widget.RoomWidgetPreferences
 import com.victor2319.ioscalendar.widget.WidgetPreferences
 import com.victor2319.ioscalendar.widget.WidgetUpdater
@@ -44,6 +46,7 @@ class AppContainer(val application: Application) {
     val widgetPreferences: WidgetPreferences by lazy { RoomWidgetPreferences(database) }
     val widgetUpdater: WidgetUpdater by lazy { WidgetUpdater(application) }
     val settingsStore: SettingsStore by lazy { DataStoreSettingsStore(application) }
+    val themeAssetStore: ThemeAssetStore by lazy { PrivateThemeAssetStore(application) }
     val credentialsStore: CredentialsStore by lazy { KeystoreCredentialsStore(application) }
     val accountManager: AccountManager by lazy {
         LocalAccountManager(credentialsStore, calendarRepository, syncScheduler, applicationScope)

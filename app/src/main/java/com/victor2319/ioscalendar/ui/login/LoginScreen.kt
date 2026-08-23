@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -114,12 +115,12 @@ fun LoginScreen(
             },
         ) {
             androidx.compose.material3.Icon(
-                painter = painterResource(R.drawable.ic_action_login),
+                painter = painterResource(R.drawable.ic_action_login_transparent),
                 contentDescription = null,
                 modifier = Modifier.testTag("login-connect-icon"),
                 tint = Color.Unspecified,
             )
-            androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 4.dp))
+            androidx.compose.foundation.layout.Spacer(Modifier.width(actionPresentation.iconTextSpacing))
             Text(stringResource(R.string.login_connect_and_sync))
         }
         LoginStatus(uiState, onViewCalendars)

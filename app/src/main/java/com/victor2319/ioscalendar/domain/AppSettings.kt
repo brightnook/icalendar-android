@@ -4,6 +4,7 @@ data class AppSettings(
     val syncMode: SyncMode = SyncMode.MANUAL,
     val weekStart: WeekStart = WeekStart.SUNDAY,
     val language: AppLanguage = AppLanguage.FOLLOW_SYSTEM,
+    val theme: ThemeSettings = ThemeSettings(),
 )
 
 enum class SyncMode {

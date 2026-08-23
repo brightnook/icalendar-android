@@ -2,8 +2,8 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.victor2319.ioscalendar.widget.WidgetConfigActivity"
     android:initialLayout="@layout/agenda_widget"
-    android:minHeight="110dp"
-    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:minWidth="110dp"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

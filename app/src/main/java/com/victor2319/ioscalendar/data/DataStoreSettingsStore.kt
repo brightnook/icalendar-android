@@ -3,6 +3,7 @@ package com.victor2319.ioscalendar.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -10,6 +11,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.victor2319.ioscalendar.domain.AppSettings
 import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
+import com.victor2319.ioscalendar.domain.ThemeSettings
 import com.victor2319.ioscalendar.domain.WeekStart
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -23,6 +26,9 @@ private val Context.settingsDataStore by preferencesDataStore(
 private val syncModeKey = stringPreferencesKey("sync_mode")
 private val weekStartKey = stringPreferencesKey("week_start")
 private val languageKey = stringPreferencesKey("language")
+private val themeModeKey = stringPreferencesKey("theme_mode")
+private val themeAssetKey = stringPreferencesKey("theme_asset_key")
+private val themeApplyToWidgetKey = booleanPreferencesKey("theme_apply_to_widget")
 
 class DataStoreSettingsStore(
     private val dataStore: DataStore<androidx.datastore.preferences.core.Preferences>,
@@ -38,6 +44,11 @@ class DataStoreSettingsStore(
                 syncMode = preferences[syncModeKey].toSyncMode(),
                 weekStart = preferences[weekStartKey].toWeekStart(),
                 language = preferences[languageKey].toAppLanguage(),
+                theme = ThemeSettings(
+                    mode = preferences[themeModeKey].toThemeBackgroundMode(),
+                    assetKey = preferences[themeAssetKey],
+                    applyToWidget = preferences[themeApplyToWidgetKey] ?: false,
+                ),
             )
         }
 
@@ -54,6 +65,14 @@ class DataStoreSettingsStore(
     override suspend fun setLanguage(language: AppLanguage) {
         dataStore.edit { preferences -> preferences[languageKey] = language.name }
     }
+
+    override suspend fun setTheme(settings: ThemeSettings) {
+        dataStore.edit { preferences ->
+            preferences[themeModeKey] = settings.mode.name
+            preferences[themeApplyToWidgetKey] = settings.applyToWidget
+            settings.assetKey?.let { preferences[themeAssetKey] = it } ?: preferences.remove(themeAssetKey)
+        }
+    }
 }
 
 private fun String?.toSyncMode(): SyncMode =
@@ -64,3 +83,6 @@ private fun String?.toWeekStart(): WeekStart =
 
 private fun String?.toAppLanguage(): AppLanguage =
     runCatching { AppLanguage.valueOf(this.orEmpty()) }.getOrDefault(AppLanguage.FOLLOW_SYSTEM)
+
+private fun String?.toThemeBackgroundMode(): ThemeBackgroundMode =
+    runCatching { ThemeBackgroundMode.valueOf(this.orEmpty()) }.getOrDefault(ThemeBackgroundMode.WHITE)

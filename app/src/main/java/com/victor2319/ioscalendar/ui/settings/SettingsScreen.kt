@@ -1,5 +1,8 @@
 package com.victor2319.ioscalendar.ui.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +30,7 @@ import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
 import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
@@ -44,8 +48,15 @@ fun SettingsScreen(
     onConfirmDestructiveAction: () -> Unit,
     onSelectWeekStart: (WeekStart) -> Unit = {},
     onSelectLanguage: (AppLanguage) -> Unit = {},
+    onSelectTheme: (ThemeBackgroundMode) -> Unit = {},
+    onImportTheme: (Uri) -> Unit = {},
+    onRemoveThemeImage: () -> Unit = {},
+    onSetApplyThemeToWidget: (Boolean) -> Unit = {},
 ) {
     BackHandler(onBack = onClose)
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(onImportTheme)
+    }
     val closeDescription = stringResource(R.string.settings_close)
     val logoutDescription = stringResource(R.string.settings_logout)
     val actionPresentation = transparentLabeledActionPresentation()
@@ -53,8 +64,14 @@ fun SettingsScreen(
     Column(
         Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.settings_title), Modifier.weight(1f))
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.settings_title),
+                Modifier.weight(1f).heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically).testTag("settings-title"),
+            )
             IconButton(
                 onClick = onClose,
                 modifier = Modifier.semantics { contentDescription = closeDescription },
@@ -84,12 +101,12 @@ fun SettingsScreen(
                         },
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_action_logout),
+                            painter = painterResource(R.drawable.ic_action_logout_transparent),
                             contentDescription = null,
                             modifier = Modifier.testTag("settings-logout-icon"),
                             tint = Color.Unspecified,
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(actionPresentation.iconTextSpacing))
                         Text(logoutDescription)
                     }
                 }
@@ -103,12 +120,28 @@ fun SettingsScreen(
             SettingsSection(R.string.settings_language, "language") {
                 LanguagePicker(state.language, onSelectLanguage)
             }
+            SettingsSection(R.string.settings_theme, "theme") {
+                ThemeSettingsSection(
+                    theme = state.theme,
+                    importError = state.themeImportError,
+                    photoPicker = photoPicker,
+                    onSelectTheme = onSelectTheme,
+                    onRemoveThemeImage = onRemoveThemeImage,
+                    onSetApplyThemeToWidget = onSetApplyThemeToWidget,
+                )
+            }
             SettingsSection(R.string.settings_calendars, "calendars") {
                 state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
             }
             SettingsSection(R.string.settings_data_and_sign_out, "data") {
-                Button(onClick = onClearHistory) { Text(stringResource(R.string.settings_clear_history)) }
-                Button(onClick = onClearCache) { Text(stringResource(R.string.settings_clear_cache)) }
+                TextButton(
+                    onClick = onClearHistory,
+                    modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).testTag("clear-history"),
+                ) { Text(stringResource(R.string.settings_clear_history)) }
+                TextButton(
+                    onClick = onClearCache,
+                    modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).testTag("clear-cache"),
+                ) { Text(stringResource(R.string.settings_clear_cache)) }
                 if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
                 if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
             }

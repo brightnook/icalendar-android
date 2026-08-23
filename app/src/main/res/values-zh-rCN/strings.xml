@@ -1,4 +1,5 @@
 <resources>
+    <string name="startup_loading">正在打开日历…</string>
     <string name="app_name">iOS 日历</string>
     <string name="login_title">连接 iCloud 日历</string>
     <string name="login_explanation">这里不能使用您的主 Apple 账户密码。请创建并仅使用 App 专用密码。</string>
@@ -21,6 +22,7 @@
     <string name="login_connected_title">iCloud 日历已连接</string>
     <string name="login_connected_placeholder">首次同步已完成。日历视图将在下一次更新中显示在这里。</string>
     <string name="calendar_refresh">刷新</string>
+    <string name="calendar_refresh_started">正在刷新日历…</string>
     <string name="calendar_today">今天</string>
     <string name="calendar_show_year">显示年度视图</string>
     <string name="calendar_show_combined">显示月历和日程</string>
@@ -67,6 +69,15 @@
     <string name="settings_week_start_monday">星期一</string>
     <string name="settings_language">语言</string>
     <string name="settings_language_follow_system">跟随系统</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_white">白色</string>
+    <string name="settings_theme_black">黑色</string>
+    <string name="settings_theme_image">图片 / 动态图片</string>
+    <string name="settings_theme_remove_image">移除导入的图片</string>
+    <string name="settings_theme_apply_to_widget">应用到小组件</string>
+    <string name="settings_theme_error_unsupported">此文件不是支持的图片格式。</string>
+    <string name="settings_theme_error_too_large">图片大小超过 20 MB。</string>
+    <string name="settings_theme_error_io">无法导入图片，请重试。</string>
     <string name="settings_calendars">日历</string>
     <string name="settings_data_and_sign_out">数据与退出登录</string>
     <string name="settings_clear_history">清除历史记录</string>

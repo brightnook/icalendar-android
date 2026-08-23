@@ -13,4 +13,15 @@ class ActionControlVisualPolicyTest {
         assertTrue(presentation.usesTransparentContainer)
         assertEquals(48.dp, presentation.minimumTouchTarget)
     }
+
+    @Test
+    fun labeledActionsUseACompactSixDpIconTextGap() {
+        val presentation = transparentLabeledActionPresentation()
+        val iconTextSpacing = presentation.javaClass.declaredFields
+            .single { it.name == "iconTextSpacing" }
+            .apply { isAccessible = true }
+            .get(presentation)
+
+        assertEquals(6f, iconTextSpacing as Float)
+    }
 }

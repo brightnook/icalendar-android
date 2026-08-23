@@ -41,7 +41,11 @@ fun AgendaList(
     listState: LazyListState,
     onOpenEvent: (String) -> Unit,
     modifier: Modifier = Modifier,
+    contentColor: Color = Color.Unspecified,
+    secondaryContentColor: Color = Color.Unspecified,
 ) {
+    val resolvedContentColor = contentColor.agendaColorOrDefault(MaterialTheme.colorScheme.onSurface)
+    val resolvedSecondaryContentColor = secondaryContentColor.agendaColorOrDefault(MaterialTheme.colorScheme.onSurfaceVariant)
     val sorted = agenda.sortedWith(
         compareByDescending<EventInstance> { it.isAllDay }
             .thenBy { it.startInstant }
@@ -50,7 +54,7 @@ fun AgendaList(
     )
     if (sorted.isEmpty()) {
         Box(modifier.testTag(AGENDA_LIST_TAG).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.calendar_no_events), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.calendar_no_events), color = resolvedSecondaryContentColor)
         }
         return
     }
@@ -61,6 +65,8 @@ fun AgendaList(
                 calendarName = calendars.firstOrNull { it.id == event.calendarId }?.name,
                 zoneId = zoneId,
                 onClick = { onOpenEvent(event.instanceId) },
+                contentColor = resolvedContentColor,
+                secondaryContentColor = resolvedSecondaryContentColor,
             )
         }
     }
@@ -72,6 +78,8 @@ private fun AgendaItem(
     calendarName: String?,
     zoneId: ZoneId,
     onClick: () -> Unit,
+    contentColor: Color,
+    secondaryContentColor: Color,
 ) {
     Row(
         modifier = Modifier
@@ -85,17 +93,19 @@ private fun AgendaItem(
             Modifier.padding(top = 5.dp).size(10.dp).background(Color(event.calendarColorArgb), CircleShape),
         )
         Column(Modifier.weight(1f)) {
-            Text(event.title, style = MaterialTheme.typography.titleMedium)
+            Text(event.title, color = contentColor, style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                calendarName?.let { Text(it, style = MaterialTheme.typography.labelMedium) }
-                Text(eventTime(event, zoneId), style = MaterialTheme.typography.bodyMedium)
+                calendarName?.let { Text(it, color = contentColor, style = MaterialTheme.typography.labelMedium) }
+                Text(eventTime(event, zoneId), color = contentColor, style = MaterialTheme.typography.bodyMedium)
             }
             event.location?.takeIf(String::isNotBlank)?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, style = MaterialTheme.typography.bodySmall, color = secondaryContentColor)
             }
         }
     }
 }
+
+private fun Color.agendaColorOrDefault(default: Color): Color = if (this == Color.Unspecified) default else this
 
 @Composable
 internal fun eventTime(event: EventInstance, zoneId: ZoneId): String {

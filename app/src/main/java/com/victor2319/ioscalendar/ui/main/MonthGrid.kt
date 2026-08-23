@@ -1,6 +1,7 @@
 package com.victor2319.ioscalendar.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,12 +53,25 @@ internal fun monthGridDateColor(
     onPrimary: Color,
     weekday: Color,
     outsideMonth: Color,
-    weekend: Color,
+    saturday: Color,
+    sunday: Color,
 ): Color = when {
     selected -> onPrimary
-    date.dayOfWeek in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) -> weekend
+    date.dayOfWeek == DayOfWeek.SATURDAY -> saturday
+    date.dayOfWeek == DayOfWeek.SUNDAY -> sunday
     date.month == month.month -> weekday
     else -> outsideMonth
+}
+
+internal fun calendarWeekdayTextColor(
+    dayOfWeek: DayOfWeek,
+    weekday: Color,
+    saturday: Color,
+    sunday: Color,
+): Color = when (dayOfWeek) {
+    DayOfWeek.SATURDAY -> saturday
+    DayOfWeek.SUNDAY -> sunday
+    else -> weekday
 }
 
 @Composable
@@ -69,6 +83,10 @@ fun MonthGrid(
     onShowMonth: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
     weekStart: WeekStart = WeekStart.SUNDAY,
+    contentColor: Color = Color.Unspecified,
+    secondaryContentColor: Color = Color.Unspecified,
+    saturdayColor: Color = Color.Unspecified,
+    sundayColor: Color = Color.Unspecified,
 ) {
     val locale = currentLocale()
     val weekDays = calendarWeekdays(weekStart)
@@ -77,8 +95,10 @@ fun MonthGrid(
     val previousMonthDescription = stringResource(R.string.calendar_previous_month)
     val nextMonthDescription = stringResource(R.string.calendar_next_month)
     val swipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
-    val weekendColor = MaterialTheme.colorScheme.tertiary
-    val weekdayHeaderColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val resolvedContentColor = contentColor.orDefault(MaterialTheme.colorScheme.onSurface)
+    val resolvedSecondaryContentColor = secondaryContentColor.orDefault(MaterialTheme.colorScheme.onSurfaceVariant)
+    val resolvedSaturdayColor = saturdayColor.orDefault(MaterialTheme.colorScheme.tertiary)
+    val resolvedSundayColor = sundayColor.orDefault(MaterialTheme.colorScheme.tertiary)
     val dayCellLayout = fixedCalendarDayCellLayout()
     val today = LocalDate.now()
 
@@ -127,17 +147,18 @@ fun MonthGrid(
                 onClick = { onShowMonth(month.minusMonths(1)) },
                 modifier = Modifier.semantics { contentDescription = previousMonthDescription },
             ) {
-                Text("‹", style = MaterialTheme.typography.headlineSmall)
+                Text("‹", color = resolvedContentColor, style = MaterialTheme.typography.headlineSmall)
             }
             Text(
                 month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)),
+                color = resolvedContentColor,
                 style = MaterialTheme.typography.titleLarge,
             )
             IconButton(
                 onClick = { onShowMonth(month.plusMonths(1)) },
                 modifier = Modifier.semantics { contentDescription = nextMonthDescription },
             ) {
-                Text("›", style = MaterialTheme.typography.headlineSmall)
+                Text("›", color = resolvedContentColor, style = MaterialTheme.typography.headlineSmall)
             }
         }
         Row(Modifier.fillMaxWidth()) {
@@ -145,7 +166,12 @@ fun MonthGrid(
                 Text(
                     header,
                     modifier = Modifier.weight(1f).padding(vertical = 2.dp).testTag("calendar-weekday-$dayOfWeek"),
-                    color = if (dayOfWeek in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)) weekendColor else weekdayHeaderColor,
+                    color = calendarWeekdayTextColor(
+                        dayOfWeek,
+                        resolvedSecondaryContentColor,
+                        resolvedSaturdayColor,
+                        resolvedSundayColor,
+                    ),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -180,8 +206,15 @@ fun MonthGrid(
                                     .size(dayCellLayout.dateBoxSize)
                                     .clip(RoundedCornerShape(dayCellLayout.dateCornerRadius))
                                     .then(
-                                        if (highlight == CalendarDayHighlight.FILLED_PRIMARY) Modifier.background(MaterialTheme.colorScheme.primary)
-                                        else Modifier,
+                                        when (highlight) {
+                                            CalendarDayHighlight.FILLED_PRIMARY -> Modifier.background(MaterialTheme.colorScheme.primary)
+                                            CalendarDayHighlight.OUTLINE_PRIMARY -> Modifier.border(
+                                                width = 1.5.dp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = RoundedCornerShape(dayCellLayout.dateCornerRadius),
+                                            )
+                                            CalendarDayHighlight.NONE -> Modifier
+                                        },
                                     )
                                     .testTag("calendar-date-background-$date"),
                                 contentAlignment = Alignment.Center,
@@ -193,9 +226,10 @@ fun MonthGrid(
                                         month = month,
                                         selected = highlight == CalendarDayHighlight.FILLED_PRIMARY,
                                         onPrimary = MaterialTheme.colorScheme.onPrimary,
-                                        weekday = MaterialTheme.colorScheme.onSurface,
-                                        outsideMonth = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        weekend = weekendColor,
+                                        weekday = resolvedContentColor,
+                                        outsideMonth = resolvedSecondaryContentColor,
+                                        saturday = resolvedSaturdayColor,
+                                        sunday = resolvedSundayColor,
                                     ),
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
@@ -230,6 +264,8 @@ fun MonthGrid(
     }
     }
 }
+
+private fun Color.orDefault(default: Color): Color = if (this == Color.Unspecified) default else this
 
 @Composable
 internal fun currentLocale(): Locale {

@@ -3,9 +3,13 @@ package com.victor2319.ioscalendar.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +22,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.AppContainer
@@ -39,6 +45,8 @@ import com.victor2319.ioscalendar.ui.main.ExternalAction
 import com.victor2319.ioscalendar.ui.main.MainCalendarScreen
 import com.victor2319.ioscalendar.ui.main.MainCalendarViewModel
 import com.victor2319.ioscalendar.ui.main.MainCalendarViewModelFactory
+import com.victor2319.ioscalendar.theme.ThemeAssetStore
+import com.victor2319.ioscalendar.ui.theme.calendarThemePresentation
 import java.time.ZoneId
 import kotlinx.coroutines.flow.StateFlow
 
@@ -70,17 +78,29 @@ fun AppRoot(
                 launchTarget = launchTarget,
                 openSettingsRequest = openSettingsRequest,
                 onLaunchTargetConsumed = onLaunchTargetConsumed,
-                settingsFactory = SettingsViewModelFactory(container.calendarRepository, container.settingsStore, container.syncScheduler, container.accountManager, container.widgetUpdater),
+                settingsFactory = SettingsViewModelFactory(
+                    repository = container.calendarRepository,
+                    settingsStore = container.settingsStore,
+                    syncScheduler = container.syncScheduler,
+                    accountManager = container.accountManager,
+                    widgetUpdater = container.widgetUpdater,
+                    themeAssetStore = container.themeAssetStore,
+                ),
                 settingsStore = container.settingsStore,
+                themeAssetStore = container.themeAssetStore,
             )
         },
-        isAuthenticated = routesToAuthenticatedContent(accountState),
+        accountState = accountState,
     )
 }
 
 @Composable
 fun AppRoot(loginViewModelFactory: ViewModelProvider.Factory) {
-    AppRootContent(loginViewModelFactory, authenticatedContent = { AuthenticatedPlaceholder() }, isAuthenticated = true)
+    AppRootContent(
+        loginViewModelFactory,
+        authenticatedContent = { AuthenticatedPlaceholder() },
+        accountState = AccountAuthenticationState.Authenticated("preview"),
+    )
 }
 
 @Composable
@@ -92,31 +112,61 @@ fun AppRoot(
     AppRootContent(
         loginViewModelFactory,
         authenticatedContent = { AuthenticatedPlaceholder() },
-        isAuthenticated = routesToAuthenticatedContent(accountState),
+        accountState = accountState,
     )
 }
 
 internal fun routesToAuthenticatedContent(state: AccountAuthenticationState): Boolean =
     state is AccountAuthenticationState.Authenticated
 
+enum class AppStartupDestination { LOADING, LOGIN, CALENDAR }
+
+internal fun appStartupDestination(state: AccountAuthenticationState): AppStartupDestination = when (state) {
+    AccountAuthenticationState.Loading -> AppStartupDestination.LOADING
+    AccountAuthenticationState.SignedOut -> AppStartupDestination.LOGIN
+    is AccountAuthenticationState.Authenticated -> AppStartupDestination.CALENDAR
+}
+
 @Composable
 private fun AppRootContent(
     loginViewModelFactory: ViewModelProvider.Factory,
     authenticatedContent: @Composable () -> Unit,
-    isAuthenticated: Boolean,
+    accountState: AccountAuthenticationState,
 ) {
     val context = LocalContext.current
     val loginViewModel: LoginViewModel = viewModel(factory = loginViewModelFactory)
     val uiState by loginViewModel.uiState.collectAsState()
 
-    if (isAuthenticated) {
-        authenticatedContent()
-    } else {
-        LoginScreen(
-            uiState = uiState,
-            onConnect = loginViewModel::connect,
-            onViewCalendars = loginViewModel::viewCalendars,
-            onOpenUri = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+    when (appStartupDestination(accountState)) {
+        AppStartupDestination.LOADING -> StartupLoadingScreen()
+        AppStartupDestination.CALENDAR -> authenticatedContent()
+        AppStartupDestination.LOGIN -> {
+            LoginScreen(
+                uiState = uiState,
+                onConnect = loginViewModel::connect,
+                onViewCalendars = loginViewModel::viewCalendars,
+                onOpenUri = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun StartupLoadingScreen() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Image(
+            painter = painterResource(R.mipmap.ic_launcher_foreground),
+            contentDescription = null,
+            modifier = Modifier.size(96.dp),
+        )
+        CircularProgressIndicator(modifier = Modifier.padding(top = 20.dp).size(24.dp))
+        Text(
+            text = stringResource(R.string.startup_loading),
+            modifier = Modifier.padding(top = 12.dp),
         )
     }
 }
@@ -130,12 +180,17 @@ private fun MainCalendarDestination(
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit,
     settingsFactory: ViewModelProvider.Factory,
     settingsStore: SettingsStore,
+    themeAssetStore: ThemeAssetStore,
 ) {
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
     val uiState by viewModel.uiState.collectAsState()
     val zoneId by zoneIds.collectAsState()
     val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
+    val themePresentation = calendarThemePresentation(
+        theme = appSettings.theme,
+        assetFile = appSettings.theme.assetKey?.let(themeAssetStore::fileFor),
+    )
     val consumeTarget by rememberUpdatedState(onLaunchTargetConsumed)
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(launchTarget) {
@@ -156,6 +211,10 @@ private fun MainCalendarDestination(
             onSelectSyncMode = settingsViewModel::selectSyncMode,
             onSelectWeekStart = settingsViewModel::selectWeekStart,
             onSelectLanguage = settingsViewModel::selectLanguage,
+            onSelectTheme = settingsViewModel::selectTheme,
+            onImportTheme = settingsViewModel::importTheme,
+            onRemoveThemeImage = settingsViewModel::removeThemeImage,
+            onSetApplyThemeToWidget = settingsViewModel::setApplyThemeToWidget,
             onSetCalendarVisible = settingsViewModel::setCalendarVisible,
             onClearHistory = settingsViewModel::requestClearHistory,
             onClearCache = settingsViewModel::requestClearCache,
@@ -177,6 +236,7 @@ private fun MainCalendarDestination(
         onToggleViewMode = viewModel::toggleViewMode,
         onSelectDateAndShowCombined = viewModel::selectDateAndShowCombined,
         weekStart = appSettings.weekStart,
+        themePresentation = themePresentation,
     )
 }
 

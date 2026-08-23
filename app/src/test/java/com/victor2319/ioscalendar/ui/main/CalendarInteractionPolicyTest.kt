@@ -13,7 +13,7 @@ class CalendarInteractionPolicyTest {
         val date = LocalDate.of(2026, 8, 21)
 
         assertEquals("Friday, August 21, 2026", yearDateContentDescription(date, Locale.US))
-        assertEquals(48.dp, fixedYearCalendarLayout().miniDayRowHeight)
+        assertEquals(22.dp, fixedYearCalendarLayout().miniDayRowHeight)
     }
 
     @Test

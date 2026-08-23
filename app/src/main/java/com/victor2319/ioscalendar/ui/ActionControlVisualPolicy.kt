@@ -10,11 +10,13 @@ import androidx.compose.ui.unit.dp
 internal data class LabeledActionPresentation(
     val usesTransparentContainer: Boolean,
     val minimumTouchTarget: Dp,
+    val iconTextSpacing: Dp,
 )
 
 internal fun transparentLabeledActionPresentation() = LabeledActionPresentation(
     usesTransparentContainer = true,
     minimumTouchTarget = 48.dp,
+    iconTextSpacing = 6.dp,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

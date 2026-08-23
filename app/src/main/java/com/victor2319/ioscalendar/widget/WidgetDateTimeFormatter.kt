@@ -13,4 +13,12 @@ internal object WidgetDateTimeFormatter {
 
     fun formatTime(instant: Instant, zoneId: ZoneId, locale: Locale, is24Hour: Boolean): String =
         instant.atZone(zoneId).format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a", locale))
+
+    fun formatHeaderDate(date: LocalDate, locale: Locale): String =
+        date.format(
+            DateTimeFormatter.ofPattern(
+                if (locale.language.equals("zh", ignoreCase = true)) "M月d日" else "MMM d",
+                locale,
+            ),
+        )
 }

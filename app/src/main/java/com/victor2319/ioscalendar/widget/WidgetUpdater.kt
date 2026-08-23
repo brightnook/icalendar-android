@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.TypedValue
 import android.widget.RemoteViews
 import com.victor2319.ioscalendar.R
 import java.time.LocalDate
@@ -33,6 +34,13 @@ class WidgetUpdater(private val context: Context) : WidgetRefreshNotifier {
     private fun views(manager: AppWidgetManager, appWidgetId: Int): RemoteViews = RemoteViews(context.packageName, R.layout.agenda_widget).apply {
         val widthDp = manager.getAppWidgetOptions(appWidgetId)
             .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val presentation = widgetPresentationForWidth(widthDp)
+        setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, presentation.titleTextSizeSp)
+        setTextViewText(R.id.widget_header_date, WidgetDateTimeFormatter.formatHeaderDate(
+            LocalDate.now(),
+            context.resources.configuration.locales[0],
+        ))
+        setTextViewTextSize(R.id.widget_header_date, TypedValue.COMPLEX_UNIT_SP, if (presentation.isCompact) 10f else 12f)
         val serviceIntent = Intent(context, AgendaWidgetService::class.java)
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             .putExtra(EXTRA_WIDGET_WIDTH_DP, widthDp)

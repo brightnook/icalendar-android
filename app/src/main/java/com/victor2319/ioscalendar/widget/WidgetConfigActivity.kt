@@ -11,6 +11,8 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -64,10 +66,22 @@ class WidgetConfigActivity : ComponentActivity() {
                 }
             }
         })
-        setContentView(ScrollView(this).apply {
+        val scrollView = ScrollView(this).apply {
             isFillViewport = true
             addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        })
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(scrollView) { _, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            root.setPadding(
+                48,
+                widgetConfigurationTopPadding(systemBars.top, contentPaddingPx = 48),
+                48,
+                systemBars.bottom + 48,
+            )
+            insets
+        }
+        setContentView(scrollView)
+        ViewCompat.requestApplyInsets(scrollView)
     }
 
     private fun bind(state: WidgetConfigUiState) {
@@ -89,6 +103,9 @@ class WidgetConfigActivity : ComponentActivity() {
         WidgetRange.THIRTY_DAYS -> R.string.widget_range_thirty_days
     }
 }
+
+internal fun widgetConfigurationTopPadding(statusBarInsetPx: Int, contentPaddingPx: Int): Int =
+    statusBarInsetPx + contentPaddingPx
 
 private class WidgetConfigViewModelFactory(
     private val appWidgetId: Int,

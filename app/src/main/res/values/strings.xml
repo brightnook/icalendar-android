@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">iOSCalendar</string>
+    <string name="startup_loading">Opening calendar…</string>
     <string name="login_title">Connect iCloud Calendar</string>
     <string name="login_explanation">Your main Apple Account password cannot be used here. Create and use an app-specific password instead.</string>
     <string name="login_create_app_password">Create an app-specific password</string>
@@ -22,6 +23,7 @@
     <string name="login_connected_title">iCloud Calendar connected</string>
     <string name="login_connected_placeholder">Your first sync is complete. Calendar views will appear here in the next update.</string>
     <string name="calendar_refresh">Refresh</string>
+    <string name="calendar_refresh_started">Refreshing calendar…</string>
     <string name="calendar_today">Today</string>
     <string name="calendar_show_year">Show year view</string>
     <string name="calendar_show_combined">Show month and agenda</string>
@@ -70,6 +72,15 @@
     <string name="settings_week_start_monday">Monday</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_follow_system">Follow system</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_white">White</string>
+    <string name="settings_theme_black">Black</string>
+    <string name="settings_theme_image">Image / animated image</string>
+    <string name="settings_theme_remove_image">Remove imported image</string>
+    <string name="settings_theme_apply_to_widget">Apply to widget</string>
+    <string name="settings_theme_error_unsupported">This file is not a supported image.</string>
+    <string name="settings_theme_error_too_large">This image is larger than 20 MB.</string>
+    <string name="settings_theme_error_io">The image could not be imported. Try again.</string>
     <string name="settings_calendars">Calendars</string>
     <string name="settings_data_and_sign_out">Data and sign out</string>
     <string name="settings_clear_history">Clear history</string>
