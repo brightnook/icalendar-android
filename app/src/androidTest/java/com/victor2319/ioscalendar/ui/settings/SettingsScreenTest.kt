@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.graphics.toPixelMap
 import com.victor2319.ioscalendar.domain.CalendarSummary
+import com.victor2319.ioscalendar.domain.WeekStart
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
@@ -74,6 +75,28 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Disabled").assertIsDisplayed()
         composeRule.onNodeWithTag("sync-mode-option-DISABLED").performClick()
         assertTrue(selected == com.victor2319.ioscalendar.domain.SyncMode.DISABLED)
+    }
+
+    @Test
+    fun calendarPreferencesExposeSundayMondayAndTheFollowSystemLanguageEntry() {
+        var selected: WeekStart? = null
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+                onSelectWeekStart = { selected = it },
+            )
+        }
+
+        composeRule.onNodeWithTag("week-start-picker").performClick()
+        composeRule.onNodeWithText("Sunday").assertIsDisplayed()
+        composeRule.onNodeWithText("Monday").assertIsDisplayed()
+        composeRule.onNodeWithTag("week-start-option-MONDAY").performClick()
+        assertTrue(selected == WeekStart.MONDAY)
+        composeRule.onNodeWithTag("language-picker").assertIsDisplayed()
+        composeRule.onNodeWithText("Follow system").assertIsDisplayed()
     }
 
     @Test

@@ -30,6 +30,7 @@ import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.EventDetail
 import com.victor2319.ioscalendar.domain.EventInstance
+import com.victor2319.ioscalendar.domain.WeekStart
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -64,6 +65,50 @@ class MainCalendarScreenTest {
                 .fetchSemanticsNode().boundsInRoot
         }
         assertTrue(dates.maxOf { it.width } - dates.minOf { it.width } <= 1f)
+    }
+
+    @Test
+    fun monthGridPlacesSundayFirstWhenSelectedAndMondayFirstWhenSelected() {
+        fun headerLeft(weekStart: WeekStart, day: String): Float {
+            composeRule.setContent {
+                MaterialTheme {
+                    MonthGrid(
+                        month = YearMonth.of(2026, 8),
+                        selectedDate = selectedDate,
+                        weekStart = weekStart,
+                        onSelectDate = {},
+                        onShowMonth = {},
+                    )
+                }
+            }
+            return composeRule.onNodeWithTag("calendar-weekday-$day").fetchSemanticsNode().boundsInRoot.left
+        }
+
+        assertTrue(headerLeft(WeekStart.SUNDAY, "SUNDAY") < headerLeft(WeekStart.SUNDAY, "MONDAY"))
+        assertTrue(headerLeft(WeekStart.MONDAY, "MONDAY") < headerLeft(WeekStart.MONDAY, "SUNDAY"))
+    }
+
+    @Test
+    fun yearViewUsesTheSameWeekStartForDateCellsAndEventMarkers() {
+        val markedDay = LocalDate.of(2026, 8, 3)
+        composeRule.setContent {
+            MaterialTheme {
+                YearCalendar(
+                    year = 2026,
+                    selectedDate = selectedDate,
+                    markerColors = mapOf(markedDay to listOf(0xff336699.toInt())),
+                    weekStart = WeekStart.MONDAY,
+                    onSelectDate = {},
+                )
+            }
+        }
+
+        val monday = composeRule.onNodeWithTag("year-weekday-2026-08-MONDAY").fetchSemanticsNode().boundsInRoot
+        val sunday = composeRule.onNodeWithTag("year-weekday-2026-08-SUNDAY").fetchSemanticsNode().boundsInRoot
+        val marked = composeRule.onNodeWithTag("year-marker-$markedDay").fetchSemanticsNode().boundsInRoot
+        val date = composeRule.onNodeWithTag("year-day-$markedDay").fetchSemanticsNode().boundsInRoot
+        assertTrue(monday.left < sunday.left)
+        assertTrue(marked.center.x == date.center.x)
     }
 
     @Test

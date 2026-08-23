@@ -8,6 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.victor2319.ioscalendar.ui.AppRoot
+import com.victor2319.ioscalendar.ui.LocalizedAppContent
+import com.victor2319.ioscalendar.domain.AppSettings
 import com.victor2319.ioscalendar.ui.main.CalendarLaunchTarget
 import com.victor2319.ioscalendar.ui.main.CalendarLaunchTargetDelivery
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,13 +33,16 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 val target by launchTarget.collectAsState()
                 val calendarApplication = application as CalendarApplication
-                AppRoot(
-                    container = calendarApplication.container,
-                    zoneIds = calendarApplication.timeZoneIds,
-                    launchTarget = target,
-                    openSettingsRequest = openSettingsRequest.collectAsState().value,
-                    onLaunchTargetConsumed = ::markLaunchTargetConsumed,
-                )
+                val settings by calendarApplication.container.settingsStore.settings.collectAsState(initial = AppSettings())
+                LocalizedAppContent(settings.language) {
+                    AppRoot(
+                        container = calendarApplication.container,
+                        zoneIds = calendarApplication.timeZoneIds,
+                        launchTarget = target,
+                        openSettingsRequest = openSettingsRequest.collectAsState().value,
+                        onLaunchTargetConsumed = ::markLaunchTargetConsumed,
+                    )
+                }
             }
         }
         deliverLaunchTarget(intent)

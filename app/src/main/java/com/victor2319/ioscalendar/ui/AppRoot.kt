@@ -23,6 +23,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.AppContainer
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.data.SettingsStore
+import com.victor2319.ioscalendar.domain.AppSettings
 import com.victor2319.ioscalendar.auth.CalDavLoginCoordinator
 import com.victor2319.ioscalendar.domain.AccountAuthenticationState
 import com.victor2319.ioscalendar.ui.settings.SettingsScreen
@@ -69,6 +71,7 @@ fun AppRoot(
                 openSettingsRequest = openSettingsRequest,
                 onLaunchTargetConsumed = onLaunchTargetConsumed,
                 settingsFactory = SettingsViewModelFactory(container.calendarRepository, container.settingsStore, container.syncScheduler, container.accountManager, container.widgetUpdater),
+                settingsStore = container.settingsStore,
             )
         },
         isAuthenticated = routesToAuthenticatedContent(accountState),
@@ -126,11 +129,13 @@ private fun MainCalendarDestination(
     openSettingsRequest: Int,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit,
     settingsFactory: ViewModelProvider.Factory,
+    settingsStore: SettingsStore,
 ) {
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
     val uiState by viewModel.uiState.collectAsState()
     val zoneId by zoneIds.collectAsState()
+    val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
     val consumeTarget by rememberUpdatedState(onLaunchTargetConsumed)
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(launchTarget) {
@@ -149,6 +154,8 @@ private fun MainCalendarDestination(
             state = settingsState,
             onClose = { settingsOpen = false },
             onSelectSyncMode = settingsViewModel::selectSyncMode,
+            onSelectWeekStart = settingsViewModel::selectWeekStart,
+            onSelectLanguage = settingsViewModel::selectLanguage,
             onSetCalendarVisible = settingsViewModel::setCalendarVisible,
             onClearHistory = settingsViewModel::requestClearHistory,
             onClearCache = settingsViewModel::requestClearCache,
@@ -169,6 +176,7 @@ private fun MainCalendarDestination(
         onToday = viewModel::showToday,
         onToggleViewMode = viewModel::toggleViewMode,
         onSelectDateAndShowCombined = viewModel::selectDateAndShowCombined,
+        weekStart = appSettings.weekStart,
     )
 }
 

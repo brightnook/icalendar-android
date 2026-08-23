@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -57,17 +58,26 @@ fun MainCalendarScreen(
     onToday: () -> Unit = {},
     onToggleViewMode: () -> Unit = {},
     onSelectDateAndShowCombined: (java.time.LocalDate) -> Unit = onSelectDate,
+    weekStart: WeekStart = WeekStart.SUNDAY,
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         if (state.viewMode == CalendarViewMode.YEAR) {
-            YearCalendar(state.displayedMonth.year, state.selectedDate, state.dayMarkerColors, onSelectDateAndShowCombined, Modifier.fillMaxWidth().weight(1f))
+            YearCalendar(
+                state.displayedMonth.year,
+                state.selectedDate,
+                state.dayMarkerColors,
+                onSelectDateAndShowCombined,
+                Modifier.fillMaxWidth().weight(1f),
+                weekStart,
+            )
         } else {
             MonthGrid(
                 month = state.displayedMonth, selectedDate = state.selectedDate, dayMarkerColors = state.dayMarkerColors,
                 onSelectDate = onSelectDate, onShowMonth = onShowMonth,
                 modifier = Modifier.fillMaxWidth().weight(0.58f).padding(horizontal = 8.dp),
+                weekStart = weekStart,
             )
             HorizontalDivider()
             Column(Modifier.fillMaxWidth().weight(0.42f)) {

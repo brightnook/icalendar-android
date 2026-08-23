@@ -65,6 +65,11 @@
     <string name="settings_mode_hourly">Hourly (approximately every hour)</string>
     <string name="settings_mode_daily">Daily (approximately once a day)</string>
     <string name="settings_mode_disabled">Disabled</string>
+    <string name="settings_week_start">Week starts on</string>
+    <string name="settings_week_start_sunday">Sunday</string>
+    <string name="settings_week_start_monday">Monday</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_follow_system">Follow system</string>
     <string name="settings_calendars">Calendars</string>
     <string name="settings_data_and_sign_out">Data and sign out</string>
     <string name="settings_clear_history">Clear history</string>

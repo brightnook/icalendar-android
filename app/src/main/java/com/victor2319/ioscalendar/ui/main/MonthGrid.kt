@@ -35,12 +35,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
+import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import java.time.LocalDate
 import java.time.DayOfWeek
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.temporal.WeekFields
 import java.util.Locale
 
 const val MONTH_GRID_TAG = "month-grid"
@@ -68,13 +68,12 @@ fun MonthGrid(
     onSelectDate: (LocalDate) -> Unit,
     onShowMonth: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
+    weekStart: WeekStart = WeekStart.SUNDAY,
 ) {
     val locale = currentLocale()
-    val firstDayOfWeek = WeekFields.of(locale).firstDayOfWeek
-    val weekDays = generateSequence(firstDayOfWeek) { it.plus(1) }.take(7).toList()
-    val firstOfMonth = month.atDay(1)
-    val offset = (firstOfMonth.dayOfWeek.value - firstDayOfWeek.value + 7) % 7
-    val gridStart = firstOfMonth.minusDays(offset.toLong())
+    val weekDays = calendarWeekdays(weekStart)
+    val weekDayHeaders = calendarWeekdayHeaders(weekStart, locale)
+    val gridStart = calendarGridStart(month, weekStart)
     val previousMonthDescription = stringResource(R.string.calendar_previous_month)
     val nextMonthDescription = stringResource(R.string.calendar_next_month)
     val swipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
@@ -142,10 +141,10 @@ fun MonthGrid(
             }
         }
         Row(Modifier.fillMaxWidth()) {
-            weekDays.forEach { dayOfWeek ->
+            weekDays.zip(weekDayHeaders).forEach { (dayOfWeek, header) ->
                 Text(
-                    dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale),
-                    modifier = Modifier.weight(1f).padding(vertical = 2.dp),
+                    header,
+                    modifier = Modifier.weight(1f).padding(vertical = 2.dp).testTag("calendar-weekday-$dayOfWeek"),
                     color = if (dayOfWeek in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)) weekendColor else weekdayHeaderColor,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,

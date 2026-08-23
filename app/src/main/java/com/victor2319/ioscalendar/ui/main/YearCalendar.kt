@@ -22,11 +22,19 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
+import com.victor2319.ioscalendar.domain.WeekStart
 
 const val YEAR_CALENDAR_TAG = "year-calendar"
 
 @Composable
-fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate, List<Int>>, onSelectDate: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
+fun YearCalendar(
+    year: Int,
+    selectedDate: LocalDate,
+    markerColors: Map<LocalDate, List<Int>>,
+    onSelectDate: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    weekStart: WeekStart = WeekStart.SUNDAY,
+) {
     val layout = fixedYearCalendarLayout()
     PrimaryControlRippleScope {
     Column(
@@ -36,7 +44,16 @@ fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate
         Text(year.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("year-title"))
         (1..12).chunked(3).forEach { months ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(layout.monthGap)) {
-                months.forEach { number -> MiniMonth(YearMonth.of(year, number), selectedDate, markerColors, onSelectDate, Modifier.weight(1f)) }
+                months.forEach { number ->
+                    MiniMonth(
+                        month = YearMonth.of(year, number),
+                        selectedDate = selectedDate,
+                        markerColors = markerColors,
+                        onSelectDate = onSelectDate,
+                        weekStart = weekStart,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
@@ -44,13 +61,31 @@ fun YearCalendar(year: Int, selectedDate: LocalDate, markerColors: Map<LocalDate
 }
 
 @Composable
-private fun MiniMonth(month: YearMonth, selectedDate: LocalDate, markerColors: Map<LocalDate, List<Int>>, onSelectDate: (LocalDate) -> Unit, modifier: Modifier) {
+private fun MiniMonth(
+    month: YearMonth,
+    selectedDate: LocalDate,
+    markerColors: Map<LocalDate, List<Int>>,
+    onSelectDate: (LocalDate) -> Unit,
+    weekStart: WeekStart,
+    modifier: Modifier,
+) {
     val layout = fixedYearCalendarLayout()
     val today = LocalDate.now()
     val locale = currentLocale()
-    val start = month.atDay(1).minusDays((month.atDay(1).dayOfWeek.value % 7).toLong())
+    val weekDays = calendarWeekdays(weekStart)
+    val headers = calendarWeekdayHeaders(weekStart, locale)
+    val start = calendarGridStart(month, weekStart)
     Column(modifier.testTag("year-month-$month"), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(month.atDay(1).format(DateTimeFormatter.ofPattern("MMM")), style = MaterialTheme.typography.labelMedium)
+        Row(Modifier.fillMaxWidth()) {
+            weekDays.zip(headers).forEach { (day, header) ->
+                Text(
+                    header,
+                    modifier = Modifier.weight(1f).testTag("year-weekday-$month-$day"),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
         repeat(6) { row -> Row(Modifier.fillMaxWidth()) { repeat(7) { col ->
             val date = start.plusDays((row * 7L) + col)
             if (date.month == month.month) {
@@ -66,7 +101,12 @@ private fun MiniMonth(month: YearMonth, selectedDate: LocalDate, markerColors: M
                         Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelSmall, color = if (highlight == CalendarDayHighlight.FILLED_PRIMARY) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
                     }
                     Box(Modifier.height(layout.miniMarkerRowHeight), contentAlignment = Alignment.TopCenter) {
-                        markerColors[date]?.firstOrNull()?.let { Box(Modifier.padding(top = 1.dp).size(3.dp).clip(CircleShape).background(Color(it))) }
+                        markerColors[date]?.firstOrNull()?.let {
+                            Box(
+                                Modifier.padding(top = 1.dp).size(3.dp).clip(CircleShape)
+                                    .background(Color(it)).testTag("year-marker-$date"),
+                            )
+                        }
                     }
                 }
                 }

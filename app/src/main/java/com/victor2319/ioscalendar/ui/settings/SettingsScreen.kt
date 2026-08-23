@@ -25,12 +25,26 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.CalendarSummary
+import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
 
 @Composable
-fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode: (SyncMode) -> Unit, onSetCalendarVisible: (String, Boolean) -> Unit, onClearHistory: () -> Unit, onClearCache: () -> Unit, onLogout: () -> Unit, onDismissConfirmation: () -> Unit, onConfirmDestructiveAction: () -> Unit) {
+fun SettingsScreen(
+    state: SettingsUiState,
+    onClose: () -> Unit,
+    onSelectSyncMode: (SyncMode) -> Unit,
+    onSetCalendarVisible: (String, Boolean) -> Unit,
+    onClearHistory: () -> Unit,
+    onClearCache: () -> Unit,
+    onLogout: () -> Unit,
+    onDismissConfirmation: () -> Unit,
+    onConfirmDestructiveAction: () -> Unit,
+    onSelectWeekStart: (WeekStart) -> Unit = {},
+    onSelectLanguage: (AppLanguage) -> Unit = {},
+) {
     BackHandler(onBack = onClose)
     val closeDescription = stringResource(R.string.settings_close)
     val logoutDescription = stringResource(R.string.settings_logout)
@@ -83,6 +97,12 @@ fun SettingsScreen(state: SettingsUiState, onClose: () -> Unit, onSelectSyncMode
             SettingsSection(R.string.settings_sync_mode, "sync") {
                 SyncModePicker(state.syncMode, onSelectSyncMode)
             }
+            SettingsSection(R.string.settings_week_start, "week-start") {
+                WeekStartPicker(state.weekStart, onSelectWeekStart)
+            }
+            SettingsSection(R.string.settings_language, "language") {
+                LanguagePicker(state.language, onSelectLanguage)
+            }
             SettingsSection(R.string.settings_calendars, "calendars") {
                 state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
             }
@@ -129,6 +149,48 @@ private fun SyncModePicker(selectedMode: SyncMode, onSelectMode: (SyncMode) -> U
 }
 
 @Composable
+private fun WeekStartPicker(selectedWeekStart: WeekStart, onSelectWeekStart: (WeekStart) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val title = stringResource(R.string.settings_week_start)
+    val selectedLabel = selectedWeekStart.label()
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("week-start-picker").semantics {
+                contentDescription = "$title: $selectedLabel"
+            },
+        ) {
+            Text(selectedLabel, modifier = Modifier.weight(1f))
+            Text("⌄")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            WeekStart.entries.forEach { weekStart ->
+                DropdownMenuItem(
+                    text = { Text(weekStart.label()) },
+                    onClick = {
+                        expanded = false
+                        onSelectWeekStart(weekStart)
+                    },
+                    modifier = Modifier.testTag("week-start-option-$weekStart"),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguagePicker(selectedLanguage: AppLanguage, onSelectLanguage: (AppLanguage) -> Unit) {
+    val title = stringResource(R.string.settings_language)
+    val label = selectedLanguage.label()
+    TextButton(
+        onClick = { onSelectLanguage(selectedLanguage) },
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("language-picker").semantics {
+            contentDescription = "$title: $label"
+        },
+    ) { Text(label, modifier = Modifier.weight(1f)) }
+}
+
+@Composable
 private fun SettingsSection(
     title: Int,
     tag: String,
@@ -155,6 +217,8 @@ private fun SettingsSection(
 }
 
 @Composable private fun SyncMode.label() = stringResource(when (this) { SyncMode.MANUAL -> R.string.settings_mode_manual; SyncMode.HOURLY -> R.string.settings_mode_hourly; SyncMode.DAILY -> R.string.settings_mode_daily; SyncMode.DISABLED -> R.string.settings_mode_disabled })
+@Composable private fun WeekStart.label() = stringResource(if (this == WeekStart.SUNDAY) R.string.settings_week_start_sunday else R.string.settings_week_start_monday)
+@Composable private fun AppLanguage.label() = stringResource(R.string.settings_language_follow_system)
 internal fun syncModePickerOptions(): List<SyncMode> = SyncMode.entries
 @Composable private fun SettingsConfirmation.title() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_title; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_title; is SettingsConfirmation.Logout -> R.string.settings_logout_title })
 @Composable private fun SettingsConfirmation.message() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_message; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_message; is SettingsConfirmation.Logout -> R.string.settings_logout_message })

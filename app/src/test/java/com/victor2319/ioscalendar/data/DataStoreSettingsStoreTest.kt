@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.domain.AppLanguage
+import com.victor2319.ioscalendar.domain.WeekStart
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -40,6 +42,28 @@ class DataStoreSettingsStoreTest {
         assertEquals(SyncMode.MANUAL, store.settings.first().syncMode)
         fixture.dataStore.edit { it[stringPreferencesKey("sync_mode")] = "removed-mode" }
         assertEquals(SyncMode.MANUAL, store.settings.first().syncMode)
+    }
+
+    @Test
+    fun weekStartDefaultsToSundayAndPersistsMondaySelection() = runTest {
+        // Catches a fresh install inheriting the locale's first weekday or losing a user's Monday choice.
+        val fixture = fixture()
+        val store = DataStoreSettingsStore(fixture.dataStore)
+
+        assertEquals(WeekStart.SUNDAY, store.settings.first().weekStart)
+        store.setWeekStart(WeekStart.MONDAY)
+        assertEquals(WeekStart.MONDAY, DataStoreSettingsStore(fixture.dataStore).settings.first().weekStart)
+    }
+
+    @Test
+    fun languageDefaultsToFollowSystemAndPersistsItsExtensionPoint() = runTest {
+        // Catches an app language preference being absent from stored settings, blocking future language choices.
+        val fixture = fixture()
+        val store = DataStoreSettingsStore(fixture.dataStore)
+
+        assertEquals(AppLanguage.FOLLOW_SYSTEM, store.settings.first().language)
+        store.setLanguage(AppLanguage.FOLLOW_SYSTEM)
+        assertEquals(AppLanguage.FOLLOW_SYSTEM, DataStoreSettingsStore(fixture.dataStore).settings.first().language)
     }
 
     @Test

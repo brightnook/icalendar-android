@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.victor2319.ioscalendar.data.SettingsStore
 import com.victor2319.ioscalendar.domain.AccountAuthenticationState
+import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.AccountManager
 import com.victor2319.ioscalendar.domain.CalendarHistoryBoundary
 import com.victor2319.ioscalendar.domain.CalendarRepository
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.ClockProvider
 import com.victor2319.ioscalendar.domain.SyncMode
+import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.domain.SystemClockProvider
 import com.victor2319.ioscalendar.sync.SyncScheduler
 import com.victor2319.ioscalendar.widget.WidgetRefreshNotifier
@@ -25,7 +27,7 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val repository: CalendarRepository,
-    settingsStore: SettingsStore,
+    private val settingsStore: SettingsStore,
     private val syncScheduler: SyncScheduler,
     private val accountManager: AccountManager,
     private val clock: ClockProvider = SystemClockProvider,
@@ -43,6 +45,8 @@ class SettingsViewModel(
     ) { settings, calendars, accountState ->
         SettingsUiState(
             syncMode = settings.syncMode,
+            weekStart = settings.weekStart,
+            language = settings.language,
             calendars = calendars,
             maskedAppleId = (accountState as? AccountAuthenticationState.Authenticated)?.maskedAppleId,
             accountLoading = accountState == AccountAuthenticationState.Loading,
@@ -65,6 +69,10 @@ class SettingsViewModel(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
     fun selectSyncMode(mode: SyncMode) = launchSafe { syncScheduler.applyMode(mode) }
+
+    fun selectWeekStart(weekStart: WeekStart) = launchSafe { settingsStore.setWeekStart(weekStart) }
+
+    fun selectLanguage(language: AppLanguage) = launchSafe { settingsStore.setLanguage(language) }
 
     fun setCalendarVisible(calendarId: String, visible: Boolean) {
         if (calendarId.isBlank()) return
@@ -130,6 +138,8 @@ class SettingsViewModel(
 
 data class SettingsUiState(
     val syncMode: SyncMode = SyncMode.MANUAL,
+    val weekStart: WeekStart = WeekStart.SUNDAY,
+    val language: AppLanguage = AppLanguage.FOLLOW_SYSTEM,
     val calendars: List<CalendarSummary> = emptyList(),
     val maskedAppleId: String? = null,
     val accountLoading: Boolean = true,

@@ -62,6 +62,11 @@
     <string name="settings_mode_hourly">每小时（大约每小时一次）</string>
     <string name="settings_mode_daily">每天（大约每天一次）</string>
     <string name="settings_mode_disabled">已禁用</string>
+    <string name="settings_week_start">一周开始于</string>
+    <string name="settings_week_start_sunday">星期日</string>
+    <string name="settings_week_start_monday">星期一</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_follow_system">跟随系统</string>
     <string name="settings_calendars">日历</string>
     <string name="settings_data_and_sign_out">数据与退出登录</string>
     <string name="settings_clear_history">清除历史记录</string>
