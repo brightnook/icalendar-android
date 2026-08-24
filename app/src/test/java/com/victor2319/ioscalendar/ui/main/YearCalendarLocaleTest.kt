@@ -9,10 +9,10 @@ import org.junit.Test
 
 class YearCalendarLocaleTest {
     @Test
-    fun yearMonthTitleUsesEnglishForJapaneseLocale() {
-        // Catches mini-month titles falling back to the process locale after the app resolves Japanese to English.
+    fun yearMonthTitleUsesJapaneseForJapaneseLocale() {
+        // Catches mini-month titles falling back to English after the app resolves Japanese.
         assertEquals(
-            "Aug",
+            "8月",
             yearMonthTitle(
                 YearMonth.of(2026, 8),
                 resolveAppLocale(AppLanguage.FOLLOW_SYSTEM, Locale.JAPANESE),
