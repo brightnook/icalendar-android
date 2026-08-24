@@ -2,6 +2,7 @@ package com.victor2319.ioscalendar.ui
 
 import android.content.ContextWrapper
 import com.victor2319.ioscalendar.domain.AppLanguage
+import com.victor2319.ioscalendar.domain.resolveAppLocale
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -17,9 +18,24 @@ class AppLanguageTest {
     }
 
     @Test
-    fun followSystemUsesEnglishForJapaneseSystemLocale() {
-        // Catches Android's Japanese resource and date fallback appearing in the app.
-        assertEquals(Locale.ENGLISH, resolveAppLocale(AppLanguage.FOLLOW_SYSTEM, Locale.JAPANESE))
+    fun followSystemUsesJapaneseForJapaneseSystemLocale() {
+        // Catches Japanese devices falling back to the default English resources.
+        assertEquals(Locale.JAPANESE, resolveAppLocale(AppLanguage.FOLLOW_SYSTEM, Locale.JAPANESE))
+    }
+
+    @Test
+    fun manualChineseOverridesTheSystemLocale() {
+        assertEquals(Locale.SIMPLIFIED_CHINESE, resolveAppLocale(AppLanguage.CHINESE, Locale.US))
+    }
+
+    @Test
+    fun manualEnglishOverridesTheSystemLocale() {
+        assertEquals(Locale.ENGLISH, resolveAppLocale(AppLanguage.ENGLISH, Locale.JAPANESE))
+    }
+
+    @Test
+    fun manualJapaneseOverridesTheSystemLocale() {
+        assertEquals(Locale.JAPANESE, resolveAppLocale(AppLanguage.JAPANESE, Locale.US))
     }
 
     @Test

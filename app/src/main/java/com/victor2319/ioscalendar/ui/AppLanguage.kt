@@ -9,22 +9,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import com.victor2319.ioscalendar.domain.AppLanguage
+import com.victor2319.ioscalendar.domain.resolveAppLocale as resolveDomainAppLocale
 import java.util.Locale
 
-fun resolveAppLocale(language: AppLanguage, systemLocale: Locale): Locale = when (language) {
-    AppLanguage.FOLLOW_SYSTEM -> if (systemLocale.language.equals("zh", ignoreCase = true)) {
-        Locale.SIMPLIFIED_CHINESE
-    } else {
-        Locale.ENGLISH
-    }
-}
+fun resolveAppLocale(language: AppLanguage, systemLocale: Locale): Locale =
+    resolveDomainAppLocale(language, systemLocale)
 
 @Composable
 fun LocalizedAppContent(language: AppLanguage, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val activityResultRegistryOwner = LocalActivityResultRegistryOwner.current
     val systemLocale = LocalConfiguration.current.locales[0]
-    val locale = resolveAppLocale(language, systemLocale)
+    val locale = resolveDomainAppLocale(language, systemLocale)
     val localizedContext = remember(context, locale) { context.localizedFor(locale) }
     CompositionLocalProvider(
         LocalContext provides localizedContext,

@@ -19,10 +19,9 @@ enum class WeekStart {
     MONDAY,
 }
 
-/**
- * Kept as a mode rather than a Boolean so future manual language choices can be added without
- * changing the persisted settings shape.
- */
 enum class AppLanguage {
     FOLLOW_SYSTEM,
+    CHINESE,
+    ENGLISH,
+    JAPANESE,
 }
