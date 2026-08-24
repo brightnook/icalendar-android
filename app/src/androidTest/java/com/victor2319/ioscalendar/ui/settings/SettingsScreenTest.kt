@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.graphics.toPixelMap
+import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.WeekStart
 import org.junit.Assert.assertTrue
@@ -97,6 +98,29 @@ class SettingsScreenTest {
         assertTrue(selected == WeekStart.MONDAY)
         composeRule.onNodeWithTag("language-picker").assertIsDisplayed()
         composeRule.onNodeWithText("Follow system").assertIsDisplayed()
+    }
+
+    @Test
+    fun languagePickerSelectsJapaneseFromTheAvailableLanguageOptions() {
+        // Catches a language control that has no selectable manual options or returns the wrong choice.
+        var selected: AppLanguage? = null
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+                onSelectLanguage = { selected = it },
+            )
+        }
+
+        composeRule.onNodeWithTag("language-picker").performClick()
+        AppLanguage.entries.forEach { language ->
+            composeRule.onNodeWithTag("language-option-$language").assertIsDisplayed()
+        }
+        composeRule.onNodeWithTag("language-option-JAPANESE").performClick()
+
+        assertTrue(selected == AppLanguage.JAPANESE)
     }
 
     @Test

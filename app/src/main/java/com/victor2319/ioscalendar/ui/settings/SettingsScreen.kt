@@ -213,14 +213,32 @@ private fun WeekStartPicker(selectedWeekStart: WeekStart, onSelectWeekStart: (We
 
 @Composable
 private fun LanguagePicker(selectedLanguage: AppLanguage, onSelectLanguage: (AppLanguage) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.settings_language)
-    val label = selectedLanguage.label()
-    TextButton(
-        onClick = { onSelectLanguage(selectedLanguage) },
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("language-picker").semantics {
-            contentDescription = "$title: $label"
-        },
-    ) { Text(label, modifier = Modifier.weight(1f)) }
+    val selectedLabel = selectedLanguage.label()
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("language-picker").semantics {
+                contentDescription = "$title: $selectedLabel"
+            },
+        ) {
+            Text(selectedLabel, modifier = Modifier.weight(1f))
+            Text("⌄")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            AppLanguage.entries.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(language.label()) },
+                    onClick = {
+                        expanded = false
+                        onSelectLanguage(language)
+                    },
+                    modifier = Modifier.testTag("language-option-$language"),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -251,7 +269,14 @@ private fun SettingsSection(
 
 @Composable private fun SyncMode.label() = stringResource(when (this) { SyncMode.MANUAL -> R.string.settings_mode_manual; SyncMode.HOURLY -> R.string.settings_mode_hourly; SyncMode.DAILY -> R.string.settings_mode_daily; SyncMode.DISABLED -> R.string.settings_mode_disabled })
 @Composable private fun WeekStart.label() = stringResource(if (this == WeekStart.SUNDAY) R.string.settings_week_start_sunday else R.string.settings_week_start_monday)
-@Composable private fun AppLanguage.label() = stringResource(R.string.settings_language_follow_system)
+@Composable private fun AppLanguage.label() = stringResource(
+    when (this) {
+        AppLanguage.FOLLOW_SYSTEM -> R.string.settings_language_follow_system
+        AppLanguage.CHINESE -> R.string.settings_language_chinese
+        AppLanguage.ENGLISH -> R.string.settings_language_english
+        AppLanguage.JAPANESE -> R.string.settings_language_japanese
+    },
+)
 internal fun syncModePickerOptions(): List<SyncMode> = SyncMode.entries
 @Composable private fun SettingsConfirmation.title() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_title; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_title; is SettingsConfirmation.Logout -> R.string.settings_logout_title })
 @Composable private fun SettingsConfirmation.message() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_message; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_message; is SettingsConfirmation.Logout -> R.string.settings_logout_message })

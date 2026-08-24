@@ -6,6 +6,7 @@ import com.victor2319.ioscalendar.data.SettingsStore
 import com.victor2319.ioscalendar.domain.AppSettings
 import com.victor2319.ioscalendar.domain.AccountAuthenticationState
 import com.victor2319.ioscalendar.domain.AccountManager
+import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.CalendarDelta
 import com.victor2319.ioscalendar.domain.CalendarEvent
 import com.victor2319.ioscalendar.domain.CalendarHistoryBoundary
@@ -72,6 +73,20 @@ class SettingsViewModelTest {
         assertEquals(listOf(SyncMode.HOURLY), scheduler.appliedModes)
         assertEquals(SyncMode.HOURLY, settings.settings.value.syncMode)
         assertEquals(SyncMode.HOURLY, viewModel.uiState.value.syncMode)
+    }
+
+    @Test
+    fun selectingJapanesePersistsAndImmediatelyUpdatesTheSettingsUiState() = runTest(dispatcher) {
+        // Catches a language selection that never persists, or leaves the visible settings value stale.
+        val settings = InMemorySettingsStore()
+        val viewModel = viewModel(settings = settings)
+        advanceUntilIdle()
+
+        viewModel.selectLanguage(AppLanguage.JAPANESE)
+        advanceUntilIdle()
+
+        assertEquals(AppLanguage.JAPANESE, settings.settings.value.language)
+        assertEquals(AppLanguage.JAPANESE, viewModel.uiState.value.language)
     }
 
     @Test
@@ -205,6 +220,10 @@ private class InMemorySettingsStore(initial: SyncMode = SyncMode.MANUAL) : Setti
     override val settings = MutableStateFlow(AppSettings(initial))
     override suspend fun setSyncMode(mode: SyncMode) {
         settings.value = AppSettings(mode)
+    }
+
+    override suspend fun setLanguage(language: AppLanguage) {
+        settings.value = settings.value.copy(language = language)
     }
 }
 
