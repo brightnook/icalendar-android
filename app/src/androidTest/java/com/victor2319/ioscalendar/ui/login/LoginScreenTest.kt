@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -48,6 +49,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Locale
 import kotlinx.coroutines.CompletableDeferred
+import androidx.compose.ui.unit.dp
 
 @RunWith(AndroidJUnit4::class)
 class LoginScreenTest {
@@ -159,6 +161,25 @@ class LoginScreenTest {
         }
 
         composeRule.onNodeWithTag("login-connect-icon").assertIsDisplayed()
+    }
+
+    @Test
+    fun passwordVisibilityActionKeepsEnoughWidthForEnglishLabel() {
+        // Catches the fixed 48dp action area wrapping the English "Show" label.
+        composeRule.setContent {
+            MaterialTheme {
+                LoginScreen(
+                    uiState = LoginUiState(),
+                    onConnect = { _, password -> password.fill('\u0000') },
+                    onViewCalendars = {},
+                    onOpenUri = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(
+            composeRule.activity.getString(R.string.login_toggle_password_visibility),
+        ).assertWidthIsAtLeast(64.dp)
     }
 
     private fun fillCredentials(context: Context = composeRule.activity) {

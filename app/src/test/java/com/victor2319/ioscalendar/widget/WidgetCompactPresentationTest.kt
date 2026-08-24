@@ -6,12 +6,21 @@ import org.junit.Test
 
 class WidgetCompactPresentationTest {
     @Test
-    fun twoByThreeWidgetUsesCompactTypography() {
+    fun narrowTwoColumnWidgetKeepsItsDateVisible() {
         val presentation = widgetPresentationForWidth(120)
 
         assertTrue(presentation.isCompact)
         assertEquals(14f, presentation.titleTextSizeSp)
         assertEquals(12f, presentation.eventTitleTextSizeSp)
+        assertTrue(presentation.showHeaderDate)
+    }
+
+    @Test
+    fun twoColumnWidgetWidthUsesTheCompactHeader() {
+        val presentation = widgetPresentationForWidth(184)
+
+        assertTrue(presentation.isCompact)
+        assertTrue(presentation.showHeaderDate)
     }
 
     @Test

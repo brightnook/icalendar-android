@@ -28,10 +28,12 @@ import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -73,6 +75,20 @@ class SettingsViewModelTest {
         assertEquals(listOf(SyncMode.HOURLY), scheduler.appliedModes)
         assertEquals(SyncMode.HOURLY, settings.settings.value.syncMode)
         assertEquals(SyncMode.HOURLY, viewModel.uiState.value.syncMode)
+    }
+
+    @Test
+    fun changingSyncModeEmitsOneSettingsSavedEvent() = runTest(dispatcher) {
+        // Catches a successful persisted setting change that leaves the UI without any acknowledgement.
+        val settings = InMemorySettingsStore()
+        val viewModel = viewModel(settings = settings, scheduler = PersistingScheduler(settings))
+        advanceUntilIdle()
+        val saved = async { viewModel.settingsSavedEvents.first() }
+
+        viewModel.selectSyncMode(SyncMode.DAILY)
+        advanceUntilIdle()
+
+        assertEquals(Unit, saved.await())
     }
 
     @Test

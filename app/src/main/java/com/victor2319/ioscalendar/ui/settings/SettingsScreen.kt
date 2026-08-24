@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -34,6 +36,8 @@ import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
 import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
 fun SettingsScreen(
@@ -52,6 +56,7 @@ fun SettingsScreen(
     onImportTheme: (Uri) -> Unit = {},
     onRemoveThemeImage: () -> Unit = {},
     onSetApplyThemeToWidget: (Boolean) -> Unit = {},
+    settingsSavedEvents: Flow<Unit> = emptyFlow(),
 ) {
     BackHandler(onBack = onClose)
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -59,7 +64,15 @@ fun SettingsScreen(
     }
     val closeDescription = stringResource(R.string.settings_close)
     val logoutDescription = stringResource(R.string.settings_logout)
+    val settingsSavedMessage = stringResource(R.string.settings_saved)
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(settingsSavedEvents) {
+        settingsSavedEvents.collect {
+            snackbarHostState.showSnackbar(settingsSavedMessage)
+        }
+    }
     val actionPresentation = transparentLabeledActionPresentation()
+    Box(Modifier.fillMaxSize()) {
     PrimaryControlRippleScope {
     Column(
         Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 24.dp, vertical = 20.dp),
@@ -147,6 +160,11 @@ fun SettingsScreen(
             }
         }
     }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+    )
     }
     state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_delete)) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
 }

@@ -91,6 +91,7 @@
     <string name="settings_logout">退出登录</string>
     <string name="settings_cleanup_warning">已退出登录，但部分本地日历数据无法删除。</string>
     <string name="settings_operation_failed">无法完成此设置更改。</string>
+    <string name="settings_saved">设置已保存</string>
     <string name="settings_clear_history_title">清除较早的历史记录？</string>
     <string name="settings_clear_history_message">本月之前的事件将被删除；当前和未来事件会保留。</string>
     <string name="settings_clear_cache_title">删除已缓存的日历数据？</string>

@@ -215,6 +215,7 @@ private fun MainCalendarDestination(
             onImportTheme = settingsViewModel::importTheme,
             onRemoveThemeImage = settingsViewModel::removeThemeImage,
             onSetApplyThemeToWidget = settingsViewModel::setApplyThemeToWidget,
+            settingsSavedEvents = settingsViewModel.settingsSavedEvents,
             onSetCalendarVisible = settingsViewModel::setCalendarVisible,
             onClearHistory = settingsViewModel::requestClearHistory,
             onClearCache = settingsViewModel::requestClearCache,

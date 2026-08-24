@@ -6,5 +6,7 @@
     android:minWidth="110dp"
     android:previewLayout="@layout/agenda_widget_preview"
     android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="3"
+    android:targetCellWidth="2"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

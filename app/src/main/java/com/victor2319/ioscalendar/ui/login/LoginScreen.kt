@@ -88,9 +88,9 @@ fun LoginScreen(
             trailingIcon = {
                 IconButton(
                     onClick = { passwordVisible = !passwordVisible },
-                    modifier = Modifier.semantics {
-                        contentDescription = passwordVisibilityDescription
-                    },
+                    modifier = Modifier
+                        .width(64.dp)
+                        .semantics { contentDescription = passwordVisibilityDescription },
                 ) {
                     Text(
                         text = if (passwordVisible) {
@@ -98,7 +98,8 @@ fun LoginScreen(
                         } else {
                             stringResource(R.string.login_show_password)
                         },
-                        modifier = Modifier,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             },

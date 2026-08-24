@@ -91,6 +91,7 @@
     <string name="settings_logout">Sign out</string>
     <string name="settings_cleanup_warning">Signed out, but some local calendar data could not be removed.</string>
     <string name="settings_operation_failed">This settings change could not be completed.</string>
+    <string name="settings_saved">Settings saved</string>
     <string name="settings_clear_history_title">Clear older history?</string>
     <string name="settings_clear_history_message">Events before this month will be removed. Current and future events will stay.</string>
     <string name="settings_clear_cache_title">Delete cached calendar data?</string>

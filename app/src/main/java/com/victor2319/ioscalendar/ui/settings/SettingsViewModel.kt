@@ -26,8 +26,11 @@ import java.io.File
 import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -47,6 +50,8 @@ class SettingsViewModel(
     private val showCleanupWarning = MutableStateFlow(false)
     private val showOperationError = MutableStateFlow(false)
     private val themeImportError = MutableStateFlow<ThemeAssetFailure?>(null)
+    private val _settingsSavedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val settingsSavedEvents: SharedFlow<Unit> = _settingsSavedEvents.asSharedFlow()
 
     private val content = combine(
         settingsStore.settings,
@@ -90,11 +95,29 @@ class SettingsViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
-    fun selectSyncMode(mode: SyncMode) = launchSafe { syncScheduler.applyMode(mode) }
+    fun selectSyncMode(mode: SyncMode) = launchSettingsSave {
+        if (settingsStore.settings.first().syncMode == mode) false
+        else {
+            syncScheduler.applyMode(mode)
+            true
+        }
+    }
 
-    fun selectWeekStart(weekStart: WeekStart) = launchSafe { settingsStore.setWeekStart(weekStart) }
+    fun selectWeekStart(weekStart: WeekStart) = launchSettingsSave {
+        if (settingsStore.settings.first().weekStart == weekStart) false
+        else {
+            settingsStore.setWeekStart(weekStart)
+            true
+        }
+    }
 
-    fun selectLanguage(language: AppLanguage) = launchSafe { settingsStore.setLanguage(language) }
+    fun selectLanguage(language: AppLanguage) = launchSettingsSave {
+        if (settingsStore.settings.first().language == language) false
+        else {
+            settingsStore.setLanguage(language)
+            true
+        }
+    }
 
     fun selectTheme(mode: ThemeBackgroundMode) {
         if (mode == ThemeBackgroundMode.IMAGE) return
@@ -102,6 +125,9 @@ class SettingsViewModel(
             val current = settingsStore.settings.first().theme
             if (current.mode != mode) {
                 persistTheme(current.copy(mode = mode))
+                true
+            } else {
+                false
             }
         }
     }
@@ -109,19 +135,23 @@ class SettingsViewModel(
     fun importTheme(uri: Uri) = launchThemeAction {
         val current = settingsStore.settings.first().theme
         when (val result = themeAssetStore.import(uri)) {
-            is ThemeAssetImport.Failure -> themeImportError.value = result.reason
+            is ThemeAssetImport.Failure -> {
+                themeImportError.value = result.reason
+                false
+            }
             is ThemeAssetImport.Success -> {
                 persistTheme(current.copy(mode = ThemeBackgroundMode.IMAGE, assetKey = result.assetKey))
                 current.assetKey
                     ?.takeIf { previousKey -> previousKey != result.assetKey }
                     ?.let { previousKey -> themeAssetStore.remove(previousKey) }
+                true
             }
         }
     }
 
     fun removeThemeImage() = launchThemeAction {
         val current = settingsStore.settings.first().theme
-        val assetKey = current.assetKey ?: return@launchThemeAction
+        val assetKey = current.assetKey ?: return@launchThemeAction false
         val updatedMode = if (current.mode == ThemeBackgroundMode.IMAGE) {
             ThemeBackgroundMode.WHITE
         } else {
@@ -129,20 +159,25 @@ class SettingsViewModel(
         }
         persistTheme(current.copy(mode = updatedMode, assetKey = null))
         themeAssetStore.remove(assetKey)
+        true
     }
 
     fun setApplyThemeToWidget(enabled: Boolean) = launchThemeAction {
         val current = settingsStore.settings.first().theme
         if (current.applyToWidget != enabled) {
             persistTheme(current.copy(applyToWidget = enabled))
+            true
+        } else {
+            false
         }
     }
 
     fun setCalendarVisible(calendarId: String, visible: Boolean) {
         if (calendarId.isBlank()) return
-        launchSafe {
+        launchSettingsSave {
             repository.setCalendarVisible(calendarId, visible)
             widgetUpdater.refreshAll()
+            true
         }
     }
 
@@ -183,23 +218,23 @@ class SettingsViewModel(
         if (!destructiveActionInProgress.value) confirmation.value = action
     }
 
-    private fun launchSafe(block: suspend () -> Unit) {
+    private fun launchThemeAction(block: suspend () -> Boolean) {
+        themeImportError.value = null
+        launchSettingsSave(block)
+    }
+
+    private fun launchSettingsSave(block: suspend () -> Boolean) {
         if (destructiveActionInProgress.value) return
         viewModelScope.launch {
             showOperationError.value = false
             try {
-                block()
+                if (block()) _settingsSavedEvents.tryEmit(Unit)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Throwable) {
                 showOperationError.value = true
             }
         }
-    }
-
-    private fun launchThemeAction(block: suspend () -> Unit) {
-        themeImportError.value = null
-        launchSafe(block)
     }
 
     private suspend fun persistTheme(theme: ThemeSettings) {

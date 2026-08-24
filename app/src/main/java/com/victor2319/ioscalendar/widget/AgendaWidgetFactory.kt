@@ -23,23 +23,24 @@ data class AgendaWidgetRow(
     val startsDateGroup: Boolean,
 )
 
-class AgendaWidgetFactory(
+internal class AgendaWidgetFactory(
     private val context: Context,
     private val appWidgetId: Int,
     private val widgetWidthDp: Int,
+    private val widgetThemeMode: WidgetThemeMode = WidgetThemeMode.LIGHT,
 ) : RemoteViewsService.RemoteViewsFactory {
     private var rows: List<AgendaWidgetRow> = emptyList()
     private var calendarNames: Map<String, String> = emptyMap()
-
     private var localizedContext: Context = context
+
     override fun onCreate() = Unit
 
     override fun onDataSetChanged() {
         val app = context.applicationContext as CalendarApplication
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
         val settings = runBlocking { app.container.settingsStore.settings.first() }
         localizedContext = WidgetLocaleContext.resolve(context, settings.language)
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
         val preferences = app.container.widgetPreferences
         val config = runBlocking { preferences.configFor(appWidgetId) }
         val calendars = runBlocking { app.container.calendarRepository.observeCalendars().first() }
@@ -72,12 +73,35 @@ class AgendaWidgetFactory(
             timeText = if (row.event.isAllDay) localizedContext.getString(R.string.calendar_all_day) else formatTime(row.event.startInstant!!),
             calendarName = calendarNames[row.event.calendarId].orEmpty(),
         )
+        val theme = widgetThemePresentationForMode(widgetThemeMode)
         return RemoteViews(context.packageName, R.layout.agenda_widget_item).apply {
             setTextViewText(R.id.widget_item_date, if (row.startsDateGroup) formatDate(row.date) else "")
             setViewVisibility(R.id.widget_item_date, if (row.startsDateGroup) android.view.View.VISIBLE else android.view.View.GONE)
             setTextViewText(R.id.widget_item_title, rowPresentation.title)
             setTextViewText(R.id.widget_item_calendar, rowPresentation.metadata)
             setTextColor(R.id.widget_item_color, row.event.calendarColorArgb)
+            setTextColor(R.id.widget_item_date, theme.dateGroupTextColor)
+            setTextColor(R.id.widget_item_title, theme.primaryTextColor)
+            setTextColor(R.id.widget_item_calendar, theme.secondaryTextColor)
+            setTextColor(R.id.widget_item_location, theme.secondaryTextColor)
+            setInt(
+                R.id.widget_item_date,
+                "setBackgroundResource",
+                if (widgetThemeMode == WidgetThemeMode.LIGHT) {
+                    R.drawable.widget_date_group_background
+                } else {
+                    R.drawable.widget_date_group_background_dark
+                },
+            )
+            setInt(
+                R.id.widget_item_title,
+                "setBackgroundResource",
+                if (widgetThemeMode == WidgetThemeMode.LIGHT) {
+                    R.drawable.widget_event_title_background
+                } else {
+                    R.drawable.widget_event_title_background_dark
+                },
+            )
             setTextViewTextSize(R.id.widget_item_date, TypedValue.COMPLEX_UNIT_SP, presentation.secondaryTextSizeSp)
             setTextViewTextSize(R.id.widget_item_title, TypedValue.COMPLEX_UNIT_SP, presentation.eventTitleTextSizeSp)
             setTextViewTextSize(R.id.widget_item_calendar, TypedValue.COMPLEX_UNIT_SP, presentation.secondaryTextSizeSp)
