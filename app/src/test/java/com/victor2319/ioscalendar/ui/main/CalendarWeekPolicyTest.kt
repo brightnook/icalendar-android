@@ -26,20 +26,54 @@ class CalendarWeekPolicyTest {
     }
 
     @Test
-    fun chineseHeadersUseSingleCharactersWithoutWeekPrefix() {
-        // Catches headers rendered with Android's longer Chinese weekday form such as \"周一\".
+    fun monthHeadersKeepThreeLetterEnglishNames() {
+        // Catches the combined month view inheriting the compact year labels.
         assertEquals(
-            listOf("一", "二", "三", "四", "五", "六", "日"),
-            calendarWeekdayHeaders(WeekStart.MONDAY, Locale.SIMPLIFIED_CHINESE),
+            listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"),
+            calendarWeekdayHeaders(
+                weekStart = WeekStart.SUNDAY,
+                locale = Locale.US,
+                presentation = CalendarWeekdayHeaderPresentation.MONTH,
+            ),
         )
     }
 
     @Test
-    fun japaneseHeadersUseEnglishRatherThanAndroidLocaleFallback() {
-        // Catches Japanese device locales leaking Japanese weekday labels into this Chinese-or-English app.
+    fun yearHeadersUseOneLetterEnglishNames() {
+        // Catches the compact year view retaining the wider month labels.
         assertEquals(
-            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
-            calendarWeekdayHeaders(WeekStart.MONDAY, Locale.JAPANESE),
+            listOf("S", "M", "T", "W", "T", "F", "S"),
+            calendarWeekdayHeaders(
+                weekStart = WeekStart.SUNDAY,
+                locale = Locale.US,
+                presentation = CalendarWeekdayHeaderPresentation.YEAR,
+            ),
+        )
+    }
+
+    @Test
+    fun chineseHeadersUseSingleCharactersWithoutWeekPrefix() {
+        // Catches headers rendered with Android's longer Chinese weekday form such as \"周一\".
+        assertEquals(
+            listOf("一", "二", "三", "四", "五", "六", "日"),
+            calendarWeekdayHeaders(
+                weekStart = WeekStart.MONDAY,
+                locale = Locale.SIMPLIFIED_CHINESE,
+                presentation = CalendarWeekdayHeaderPresentation.MONTH,
+            ),
+        )
+    }
+
+    @Test
+    fun japaneseHeadersUseSingleCharactersInConfiguredOrder() {
+        // Catches Japanese retaining English headers or ignoring the Sunday-first preference.
+        assertEquals(
+            listOf("日", "月", "火", "水", "木", "金", "土"),
+            calendarWeekdayHeaders(
+                weekStart = WeekStart.SUNDAY,
+                locale = Locale.JAPANESE,
+                presentation = CalendarWeekdayHeaderPresentation.YEAR,
+            ),
         )
     }
 }

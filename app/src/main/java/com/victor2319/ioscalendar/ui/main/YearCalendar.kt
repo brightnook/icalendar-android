@@ -104,7 +104,11 @@ private fun MiniMonth(
     val today = LocalDate.now()
     val locale = currentLocale()
     val weekDays = calendarWeekdays(weekStart)
-    val headers = calendarWeekdayHeaders(weekStart, locale)
+    val headers = calendarWeekdayHeaders(
+        weekStart = weekStart,
+        locale = locale,
+        presentation = CalendarWeekdayHeaderPresentation.YEAR,
+    )
     val start = calendarGridStart(month, weekStart)
     var gridSize by androidx.compose.runtime.remember { mutableStateOf(IntSize.Zero) }
     val dateActions = (1..month.lengthOfMonth()).map { day ->

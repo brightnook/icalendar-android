@@ -9,9 +9,22 @@ import java.util.Locale
 fun calendarWeekdays(weekStart: WeekStart): List<DayOfWeek> =
     generateSequence(weekStart.firstDay) { it.plus(1) }.take(7).toList()
 
-fun calendarWeekdayHeaders(weekStart: WeekStart, locale: Locale): List<String> =
+enum class CalendarWeekdayHeaderPresentation {
+    MONTH,
+    YEAR,
+}
+
+fun calendarWeekdayHeaders(
+    weekStart: WeekStart,
+    locale: Locale,
+    presentation: CalendarWeekdayHeaderPresentation,
+): List<String> =
     calendarWeekdays(weekStart).map { day ->
-        if (locale.language.equals("zh", ignoreCase = true)) day.chineseHeader else day.englishHeader
+        when (locale.language.lowercase(Locale.ROOT)) {
+            "zh" -> day.chineseHeader
+            "ja" -> day.japaneseHeader
+            else -> if (presentation == CalendarWeekdayHeaderPresentation.YEAR) day.englishShortHeader else day.englishHeader
+        }
     }
 
 fun calendarGridStart(month: YearMonth, weekStart: WeekStart): LocalDate {
@@ -43,4 +56,18 @@ private val DayOfWeek.englishHeader: String
         DayOfWeek.FRIDAY -> "Fri"
         DayOfWeek.SATURDAY -> "Sat"
         DayOfWeek.SUNDAY -> "Sun"
+    }
+
+private val DayOfWeek.englishShortHeader: String
+    get() = englishHeader.take(1)
+
+private val DayOfWeek.japaneseHeader: String
+    get() = when (this) {
+        DayOfWeek.MONDAY -> "月"
+        DayOfWeek.TUESDAY -> "火"
+        DayOfWeek.WEDNESDAY -> "水"
+        DayOfWeek.THURSDAY -> "木"
+        DayOfWeek.FRIDAY -> "金"
+        DayOfWeek.SATURDAY -> "土"
+        DayOfWeek.SUNDAY -> "日"
     }

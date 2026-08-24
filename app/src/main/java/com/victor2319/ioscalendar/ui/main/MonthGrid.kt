@@ -90,7 +90,11 @@ fun MonthGrid(
 ) {
     val locale = currentLocale()
     val weekDays = calendarWeekdays(weekStart)
-    val weekDayHeaders = calendarWeekdayHeaders(weekStart, locale)
+    val weekDayHeaders = calendarWeekdayHeaders(
+        weekStart = weekStart,
+        locale = locale,
+        presentation = CalendarWeekdayHeaderPresentation.MONTH,
+    )
     val gridStart = calendarGridStart(month, weekStart)
     val previousMonthDescription = stringResource(R.string.calendar_previous_month)
     val nextMonthDescription = stringResource(R.string.calendar_next_month)

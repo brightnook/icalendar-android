@@ -1,6 +1,5 @@
 package com.victor2319.ioscalendar.ui.main
 
-import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -22,9 +21,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -39,7 +36,6 @@ import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
 import com.victor2319.ioscalendar.domain.ThemeSettings
 import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
-import com.victor2319.ioscalendar.ui.findContext
 import com.victor2319.ioscalendar.ui.theme.CalendarBackground
 import com.victor2319.ioscalendar.ui.theme.CalendarThemePresentation
 import com.victor2319.ioscalendar.ui.theme.calendarThemePresentation
@@ -75,8 +71,6 @@ fun MainCalendarScreen(
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
-    val composeView = LocalView.current
-    val hostActivity = remember(composeView) { composeView.context.findContext(Activity::class.java) }
     val dividerColor = if (themePresentation.resolvedMode == ThemeBackgroundMode.WHITE) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
@@ -154,15 +148,13 @@ fun MainCalendarScreen(
             ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, R.drawable.ic_action_today, themePresentation, onToday)
             ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, R.drawable.ic_action_view_switch, themePresentation, onToggleViewMode)
             ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, R.drawable.ic_action_search, themePresentation) {
-                hostActivity?.let { activity ->
-                    android.app.DatePickerDialog(
-                        activity,
-                        { _, y, m, d -> onSelectDateAndShowCombined(java.time.LocalDate.of(y, m + 1, d)) },
-                        state.selectedDate.year,
-                        state.selectedDate.monthValue - 1,
-                        state.selectedDate.dayOfMonth,
-                    ).show()
-                }
+                android.app.DatePickerDialog(
+                    context,
+                    { _, y, m, d -> onSelectDateAndShowCombined(java.time.LocalDate.of(y, m + 1, d)) },
+                    state.selectedDate.year,
+                    state.selectedDate.monthValue - 1,
+                    state.selectedDate.dayOfMonth,
+                ).show()
             }
             ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, R.drawable.ic_action_refresh, themePresentation) {
                 onRefresh()
