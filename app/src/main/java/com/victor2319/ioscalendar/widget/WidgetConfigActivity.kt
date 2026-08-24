@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.victor2319.ioscalendar.CalendarApplication
 import com.victor2319.ioscalendar.R
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class WidgetConfigActivity : ComponentActivity() {
@@ -37,26 +38,28 @@ class WidgetConfigActivity : ComponentActivity() {
         }
         val app = application as CalendarApplication
         viewModel = ViewModelProvider(this, WidgetConfigViewModelFactory(appWidgetId, app.container.widgetPreferences, app.container.calendarRepository.observeCalendars()))[WidgetConfigViewModel::class.java]
-        render()
         lifecycleScope.launch {
+            val settings = app.container.settingsStore.settings.first()
+            render(WidgetLocaleContext.resolve(this@WidgetConfigActivity, settings.language))
             viewModel.uiState.collectLatest { state -> bind(state) }
         }
     }
 
-    private fun render() {
-        val root = LinearLayout(this).apply {
+    private fun render(localizedContext: android.content.Context) {
+        title = localizedContext.getString(R.string.widget_config_title)
+        val root = LinearLayout(localizedContext).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 48, 48, 48)
         }
-        root.addView(TextView(this).apply { setText(R.string.widget_config_title) })
-        calendars = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(TextView(localizedContext).apply { setText(R.string.widget_config_title) })
+        calendars = LinearLayout(localizedContext).apply { orientation = LinearLayout.VERTICAL }
         root.addView(calendars)
-        ranges = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        ranges = RadioGroup(localizedContext).apply { orientation = RadioGroup.VERTICAL }
         WidgetRange.entries.forEach { range ->
-            ranges.addView(RadioButton(this).apply { id = range.ordinal + 1; setText(rangeLabel(range)); setOnClickListener { viewModel.setRange(range) } })
+            ranges.addView(RadioButton(localizedContext).apply { id = range.ordinal + 1; setText(rangeLabel(range)); setOnClickListener { viewModel.setRange(range) } })
         }
         root.addView(ranges)
-        root.addView(Button(this).apply {
+        root.addView(Button(localizedContext).apply {
             setText(R.string.widget_config_save)
             setOnClickListener {
                 viewModel.save {
@@ -66,7 +69,7 @@ class WidgetConfigActivity : ComponentActivity() {
                 }
             }
         })
-        val scrollView = ScrollView(this).apply {
+        val scrollView = ScrollView(localizedContext).apply {
             isFillViewport = true
             addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
@@ -87,7 +90,7 @@ class WidgetConfigActivity : ComponentActivity() {
     private fun bind(state: WidgetConfigUiState) {
         calendars.removeAllViews()
         state.calendars.forEach { calendar ->
-            calendars.addView(CheckBox(this).apply {
+            calendars.addView(CheckBox(calendars.context).apply {
                 text = calendar.name
                 isChecked = calendar.id in state.selectedCalendarIds
                 setOnCheckedChangeListener { _, checked -> viewModel.setCalendarSelected(calendar.id, checked) }

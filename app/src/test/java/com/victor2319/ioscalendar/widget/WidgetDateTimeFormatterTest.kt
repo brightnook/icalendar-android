@@ -20,13 +20,15 @@ class WidgetDateTimeFormatterTest {
 
     @Test
     fun dateFormattingUsesTheRequestedLocale() {
-        // Catches the widget keeping a fixed English month-and-weekday pattern after a device locale change.
+        // Catches the widget keeping a fixed English month-and-weekday pattern after an app locale change.
         val date = LocalDate.of(2026, 8, 15)
 
         val american = WidgetDateTimeFormatter.formatDate(date, ZoneId.of("UTC"), Locale.US)
         val chinese = WidgetDateTimeFormatter.formatDate(date, ZoneId.of("UTC"), Locale.SIMPLIFIED_CHINESE)
+        val japanese = WidgetDateTimeFormatter.formatDate(date, ZoneId.of("UTC"), Locale.JAPANESE)
 
         assertTrue(american.contains("Aug"))
         assertTrue(chinese.contains("8月"))
+        assertTrue(japanese.contains("8月"))
     }
 }

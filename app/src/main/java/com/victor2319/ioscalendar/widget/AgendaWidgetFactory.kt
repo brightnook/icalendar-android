@@ -31,12 +31,15 @@ class AgendaWidgetFactory(
     private var rows: List<AgendaWidgetRow> = emptyList()
     private var calendarNames: Map<String, String> = emptyMap()
 
+    private var localizedContext: Context = context
     override fun onCreate() = Unit
 
     override fun onDataSetChanged() {
         val app = context.applicationContext as CalendarApplication
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
+        val settings = runBlocking { app.container.settingsStore.settings.first() }
+        localizedContext = WidgetLocaleContext.resolve(context, settings.language)
         val preferences = app.container.widgetPreferences
         val config = runBlocking { preferences.configFor(appWidgetId) }
         val calendars = runBlocking { app.container.calendarRepository.observeCalendars().first() }
@@ -66,7 +69,7 @@ class AgendaWidgetFactory(
         val presentation = widgetPresentationForWidth(widgetWidthDp)
         val rowPresentation = widgetRowPresentation(
             title = row.event.title,
-            timeText = if (row.event.isAllDay) context.getString(R.string.calendar_all_day) else formatTime(row.event.startInstant!!),
+            timeText = if (row.event.isAllDay) localizedContext.getString(R.string.calendar_all_day) else formatTime(row.event.startInstant!!),
             calendarName = calendarNames[row.event.calendarId].orEmpty(),
         )
         return RemoteViews(context.packageName, R.layout.agenda_widget_item).apply {
@@ -113,13 +116,13 @@ class AgendaWidgetFactory(
     private fun formatDate(date: LocalDate): String = WidgetDateTimeFormatter.formatDate(
         date = date,
         zoneId = ZoneId.systemDefault(),
-        locale = context.resources.configuration.locales[0],
+        locale = localizedContext.resources.configuration.locales[0],
     )
 
     private fun formatTime(instant: Instant): String = WidgetDateTimeFormatter.formatTime(
         instant = instant,
         zoneId = ZoneId.systemDefault(),
-        locale = context.resources.configuration.locales[0],
+        locale = localizedContext.resources.configuration.locales[0],
         is24Hour = DateFormat.is24HourFormat(context),
     )
 }
