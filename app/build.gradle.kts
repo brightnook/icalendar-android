@@ -35,6 +35,18 @@ android {
     }
 
     sourceSets["debug"].assets.directories.add("$projectDir/schemas")
+
+    val releaseAdMobAppId = providers.gradleProperty("adMobAppId")
+    buildTypes {
+        getByName("debug") {
+            manifestPlaceholders["adMobAppId"] = "ca-app-pub-3940256099942544~3347511713"
+        }
+        getByName("release") {
+            manifestPlaceholders["adMobAppId"] = releaseAdMobAppId.getOrElse(
+                "missing-release-admob-app-id",
+            )
+        }
+    }
 }
 
 kotlin {
@@ -73,6 +85,9 @@ dependencies {
     implementation(platform(libs.okhttp.bom))
     implementation(libs.okhttp)
     implementation(libs.ical4j)
+    implementation("com.google.android.gms:play-services-ads:25.4.0")
+    implementation("com.google.android.ump:user-messaging-platform:4.0.0")
+    implementation("com.android.billingclient:billing-ktx:9.1.0")
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit4)
@@ -97,4 +112,14 @@ dependencies {
     androidTestImplementation(platform(libs.okhttp.bom))
     androidTestImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4-android")
+}
+
+tasks.configureEach {
+    if (name == "packageRelease" || name == "bundleRelease") {
+        doFirst {
+            check(!providers.gradleProperty("adMobAppId").orNull.isNullOrBlank()) {
+                "Release packaging requires adMobAppId in untracked gradle.properties."
+            }
+        }
+    }
 }

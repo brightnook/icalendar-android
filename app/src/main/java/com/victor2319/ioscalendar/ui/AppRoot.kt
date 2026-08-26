@@ -1,5 +1,6 @@
 package com.victor2319.ioscalendar.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -33,6 +35,8 @@ import com.victor2319.ioscalendar.data.SettingsStore
 import com.victor2319.ioscalendar.domain.AppSettings
 import com.victor2319.ioscalendar.auth.CalDavLoginCoordinator
 import com.victor2319.ioscalendar.domain.AccountAuthenticationState
+import com.victor2319.ioscalendar.monetization.AdConsentManager
+import com.victor2319.ioscalendar.monetization.MonetizationUiState
 import com.victor2319.ioscalendar.ui.settings.SettingsScreen
 import com.victor2319.ioscalendar.ui.settings.SettingsViewModel
 import com.victor2319.ioscalendar.ui.settings.SettingsViewModelFactory
@@ -67,6 +71,10 @@ fun AppRoot(
             onAuthenticated = container.accountManager::markAuthenticated,
         ),
         authenticatedContent = {
+            val monetization by container.monetizationRepository.state.collectAsState()
+            LaunchedEffect(container.monetizationRepository) {
+                container.monetizationRepository.refresh()
+            }
             MainCalendarDestination(
                 factory = MainCalendarViewModelFactory(
                     repository = container.calendarRepository,
@@ -88,6 +96,7 @@ fun AppRoot(
                 ),
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,
+                monetization = monetization,
             )
         },
         accountState = accountState,
@@ -181,6 +190,7 @@ private fun MainCalendarDestination(
     settingsFactory: ViewModelProvider.Factory,
     settingsStore: SettingsStore,
     themeAssetStore: ThemeAssetStore,
+    monetization: MonetizationUiState,
 ) {
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
@@ -191,6 +201,7 @@ private fun MainCalendarDestination(
         theme = appSettings.theme,
         assetFile = appSettings.theme.assetKey?.let(themeAssetStore::fileFor),
     )
+    val adConsentReady = rememberAdConsentReady()
     val consumeTarget by rememberUpdatedState(onLaunchTargetConsumed)
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(launchTarget) {
@@ -238,7 +249,21 @@ private fun MainCalendarDestination(
         onSelectDateAndShowCombined = viewModel::selectDateAndShowCombined,
         weekStart = appSettings.weekStart,
         themePresentation = themePresentation,
+        monetization = monetization.copy(canShowAds = monetization.canShowAds && adConsentReady),
     )
+}
+
+@Composable
+private fun rememberAdConsentReady(): Boolean {
+    val activity = LocalContext.current as? Activity ?: return false
+    val consentManager = remember(activity) { AdConsentManager(activity) }
+    var ready by remember { mutableStateOf(false) }
+
+    LaunchedEffect(activity, consentManager) {
+        ready = false
+        consentManager.initialize(activity) { ready = true }
+    }
+    return ready
 }
 
 private fun openSafeExternalAction(context: android.content.Context, action: ExternalAction) {

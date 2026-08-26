@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -35,6 +36,8 @@ import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.EventDetail
 import com.victor2319.ioscalendar.domain.EventInstance
 import com.victor2319.ioscalendar.domain.WeekStart
+import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseUiState
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -49,6 +52,120 @@ import org.junit.runner.RunWith
 class MainCalendarScreenTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
     private val selectedDate = LocalDate.of(2026, 8, 15)
+
+    @Test
+    fun bannerIsShownOnlyWhenAdsAreAvailableAndKeepsSettingsAccessible() {
+        val ownedState = MonetizationUiState(
+            canShowAds = false,
+            purchaseState = PurchaseUiState.OWNED,
+            price = null,
+        )
+        val availableState = MonetizationUiState(
+            canShowAds = true,
+            purchaseState = PurchaseUiState.AVAILABLE,
+            price = null,
+        )
+        val unavailableState = MonetizationUiState(
+            canShowAds = false,
+            purchaseState = PurchaseUiState.UNAVAILABLE,
+            price = null,
+        )
+
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {},
+                    onShowMonth = {},
+                    onRefresh = {},
+                    onOpenEvent = {},
+                    onCloseEvent = {},
+                    onOpenExternalAction = {},
+                    monetization = ownedState,
+                )
+            }
+        }
+        composeRule.onAllNodesWithTag("ad-banner-slot").assertCountEquals(0)
+
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {},
+                    onShowMonth = {},
+                    onRefresh = {},
+                    onOpenEvent = {},
+                    onCloseEvent = {},
+                    onOpenExternalAction = {},
+                    monetization = unavailableState,
+                )
+            }
+        }
+        composeRule.onAllNodesWithTag("ad-banner-slot").assertCountEquals(0)
+
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {},
+                    onShowMonth = {},
+                    onRefresh = {},
+                    onOpenEvent = {},
+                    onCloseEvent = {},
+                    onOpenExternalAction = {},
+                    monetization = availableState,
+                )
+            }
+        }
+        composeRule.onNodeWithTag("ad-banner-slot").assertExists()
+        composeRule.onNodeWithTag(BOTTOM_SETTINGS_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun bannerHasNoRegionWhenConsentIsBlockedOrItsLoadFails() {
+        val consentBlockedState = MonetizationUiState(
+            canShowAds = false,
+            purchaseState = PurchaseUiState.AVAILABLE,
+            price = null,
+        )
+        val availableState = MonetizationUiState(
+            canShowAds = true,
+            purchaseState = PurchaseUiState.AVAILABLE,
+            price = null,
+        )
+
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {},
+                    onShowMonth = {},
+                    onRefresh = {},
+                    onOpenEvent = {},
+                    onCloseEvent = {},
+                    onOpenExternalAction = {},
+                    monetization = consentBlockedState,
+                )
+            }
+        }
+        composeRule.onAllNodesWithTag(AD_BANNER_SLOT_TAG).assertCountEquals(0)
+
+        composeRule.setContent {
+            MaterialTheme {
+                AdBannerSlotContent(
+                    state = availableState,
+                    loadState = AdBannerLoadState.FAILED,
+                )
+            }
+        }
+        val failedBannerBounds = composeRule.onNodeWithTag(AD_BANNER_SLOT_TAG)
+            .fetchSemanticsNode().boundsInRoot
+        assertEquals(0f, failedBannerBounds.height)
+    }
 
     @Test
     fun calendarContentStartsBelowTheSystemStatusBar() {

@@ -35,6 +35,8 @@ import com.victor2319.ioscalendar.R
 import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
 import com.victor2319.ioscalendar.domain.ThemeSettings
 import com.victor2319.ioscalendar.domain.WeekStart
+import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseUiState
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.theme.CalendarBackground
 import com.victor2319.ioscalendar.ui.theme.CalendarThemePresentation
@@ -68,6 +70,11 @@ fun MainCalendarScreen(
     onSelectDateAndShowCombined: (java.time.LocalDate) -> Unit = onSelectDate,
     weekStart: WeekStart = WeekStart.SUNDAY,
     themePresentation: CalendarThemePresentation = calendarThemePresentation(ThemeSettings(), null),
+    monetization: MonetizationUiState = MonetizationUiState(
+        canShowAds = false,
+        purchaseState = PurchaseUiState.UNAVAILABLE,
+        price = null,
+    ),
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
@@ -162,6 +169,7 @@ fun MainCalendarScreen(
             }
             ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, R.drawable.ic_action_settings, themePresentation, onOpenSettings)
         }
+        AdBannerSlot(monetization)
     }
     }
 

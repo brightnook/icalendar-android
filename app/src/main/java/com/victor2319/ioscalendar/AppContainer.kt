@@ -17,6 +17,9 @@ import com.victor2319.ioscalendar.data.SettingsStore
 import com.victor2319.ioscalendar.domain.CalendarRepository
 import com.victor2319.ioscalendar.domain.AccountManager
 import com.victor2319.ioscalendar.domain.SystemClockProvider
+import com.victor2319.ioscalendar.monetization.BillingGateway
+import com.victor2319.ioscalendar.monetization.MonetizationRepository
+import com.victor2319.ioscalendar.monetization.PlayBillingGateway
 import com.victor2319.ioscalendar.sync.DefaultSyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncCoordinator
 import com.victor2319.ioscalendar.sync.SyncScheduler
@@ -53,6 +56,8 @@ class AppContainer(val application: Application) {
     }
     val calDavGateway: CalDavGateway by lazy { ICloudCalDavGateway() }
     val icsParser: IcsParser by lazy { Ical4jIcsParser() }
+    private val billingGateway: BillingGateway by lazy { PlayBillingGateway.create(application) }
+    val monetizationRepository: MonetizationRepository by lazy { MonetizationRepository(billingGateway) }
     val syncCoordinator: SyncCoordinator by lazy {
         DefaultSyncCoordinator(
             credentialsStore = credentialsStore,
