@@ -1,5 +1,6 @@
 package com.victor2319.ioscalendar.monetization
 
+import android.app.Activity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +27,17 @@ class MonetizationRepository(
         load { billingGateway.restore() }
     }
 
+    suspend fun purchase(activity: Activity) {
+        _state.value = _state.value.copy(purchaseState = PurchaseUiState.LOADING)
+        try {
+            _state.value = billingGateway.purchase(activity).toUiState()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _state.value = unavailableUiState()
+        }
+    }
+
     private suspend fun load(operation: suspend () -> BillingSnapshot) {
         _state.value = _state.value.copy(purchaseState = PurchaseUiState.LOADING)
         try {
@@ -33,13 +45,26 @@ class MonetizationRepository(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            _state.value = MonetizationUiState(
-                canShowAds = true,
-                purchaseState = PurchaseUiState.UNAVAILABLE,
-                price = null,
-            )
+            _state.value = unavailableUiState()
         }
     }
+
+    private fun PurchaseOutcome.toUiState(): MonetizationUiState = when (this) {
+        is PurchaseOutcome.Completed -> snapshot.toUiState()
+        is PurchaseOutcome.Pending -> snapshot.toUiState()
+        is PurchaseOutcome.Cancelled -> MonetizationUiState(
+            canShowAds = true,
+            purchaseState = PurchaseUiState.AVAILABLE,
+            price = price,
+        )
+        PurchaseOutcome.Failed -> unavailableUiState()
+    }
+
+    private fun unavailableUiState() = MonetizationUiState(
+        canShowAds = true,
+        purchaseState = PurchaseUiState.UNAVAILABLE,
+        price = null,
+    )
 
     private fun BillingSnapshot.toUiState(): MonetizationUiState {
         val purchaseState = when {

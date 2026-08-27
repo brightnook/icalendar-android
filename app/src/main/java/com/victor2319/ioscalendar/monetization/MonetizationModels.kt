@@ -14,6 +14,16 @@ data class BillingSnapshot(
     val pending: Boolean = false,
 )
 
+sealed interface PurchaseOutcome {
+    data class Completed(val snapshot: BillingSnapshot) : PurchaseOutcome
+
+    data class Pending(val snapshot: BillingSnapshot) : PurchaseOutcome
+
+    data class Cancelled(val price: String?) : PurchaseOutcome
+
+    data object Failed : PurchaseOutcome
+}
+
 data class MonetizationUiState(
     val canShowAds: Boolean,
     val purchaseState: PurchaseUiState,
