@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
@@ -20,6 +21,7 @@ import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.monetization.MonetizationUiState
 import com.victor2319.ioscalendar.monetization.PurchaseUiState
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
@@ -31,8 +33,10 @@ class SettingsScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun availablePurchaseShowsRemoveAdsActionAndPlayPrice() {
-        // Catches a purchasable state that hides the Play-provided price or purchase action.
+    fun availablePurchaseShowsRemoveAdsActionPriceAndInvokesCallbacks() {
+        // Catches a purchasable state that hides the Play-provided price, action, or callback.
+        var purchaseCalls = 0
+        var restoreCalls = 0
         composeRule.setContent {
             SettingsScreen(
                 state = SettingsUiState(),
@@ -43,13 +47,20 @@ class SettingsScreenTest {
                 ),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
-                onConfirmDestructiveAction = {}, onPurchase = {},
+                onConfirmDestructiveAction = {},
+                onPurchase = { purchaseCalls++ },
+                onRestorePurchase = { restoreCalls++ },
             )
         }
 
         composeRule.onNodeWithTag("settings-section-support").assertIsDisplayed()
         composeRule.onNodeWithTag("remove-ads").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("¥250").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("¥250", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("remove-ads").performClick()
+        composeRule.onNodeWithTag("restore-purchases").performClick()
+
+        assertEquals(1, purchaseCalls)
+        assertEquals(1, restoreCalls)
     }
 
     @Test
@@ -70,6 +81,67 @@ class SettingsScreenTest {
         }
 
         composeRule.onNodeWithTag("remove-ads").assertDoesNotExist()
+        composeRule.onNodeWithText("Ads have been removed.").assertIsDisplayed()
+    }
+
+    @Test
+    fun loadingPurchaseShowsProgressAndDisablesBothActions() {
+        // Catches loading state enabling purchase or restore while billing work is in progress.
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                monetization = MonetizationUiState(true, PurchaseUiState.LOADING, null),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Checking Google Play…").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("remove-ads").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithTag("restore-purchases").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun pendingPurchaseShowsPendingCopyAndDisablesRestore() {
+        // Catches a pending payment being treated as purchasable or restorable ownership.
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                monetization = MonetizationUiState(true, PurchaseUiState.PENDING, "¥250"),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Your payment is pending.", substring = true)
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("restore-purchases").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithTag("remove-ads").assertDoesNotExist()
+    }
+
+    @Test
+    fun unavailablePurchaseShowsBillingMessageAndInvokesRestore() {
+        // Catches unavailable billing hiding the only available recovery action or dropping its callback.
+        var restoreCalls = 0
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                monetization = MonetizationUiState(true, PurchaseUiState.UNAVAILABLE, null),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+                onRestorePurchase = { restoreCalls++ },
+            )
+        }
+
+        composeRule.onNodeWithText("Google Play billing is unavailable.", substring = true)
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("remove-ads").assertDoesNotExist()
+        composeRule.onNodeWithTag("restore-purchases").performClick()
+
+        assertEquals(1, restoreCalls)
     }
 
     @Test

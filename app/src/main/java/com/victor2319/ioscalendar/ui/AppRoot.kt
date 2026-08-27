@@ -54,6 +54,7 @@ import com.victor2319.ioscalendar.theme.ThemeAssetStore
 import com.victor2319.ioscalendar.ui.theme.calendarThemePresentation
 import java.time.ZoneId
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
@@ -102,8 +103,8 @@ fun AppRoot(
                 themeAssetStore = container.themeAssetStore,
                 monetization = monetization,
                 onPurchase = {
-                    activity?.let { purchaseActivity ->
-                        coroutineScope.launch { container.monetizationRepository.purchase(purchaseActivity) }
+                    launchPurchaseIfActivity(activity, coroutineScope) { purchaseActivity ->
+                        container.monetizationRepository.purchase(purchaseActivity)
                     }
                 },
                 onRestorePurchase = {
@@ -113,6 +114,16 @@ fun AppRoot(
         },
         accountState = accountState,
     )
+}
+
+internal fun launchPurchaseIfActivity(
+    activity: Activity?,
+    coroutineScope: CoroutineScope,
+    onPurchase: suspend (Activity) -> Unit,
+) {
+    activity?.let { purchaseActivity ->
+        coroutineScope.launch { onPurchase(purchaseActivity) }
+    }
 }
 
 @Composable
