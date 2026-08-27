@@ -71,6 +71,8 @@
     <string name="settings_payment_pending">お支払いを処理しています。購入が確認されるまで広告は表示されます。</string>
     <string name="settings_ads_removed">広告を削除しました。</string>
     <string name="settings_billing_unavailable">Google Play の課金を利用できません。以前の購入は復元できます。</string>
+    <string name="settings_purchase_cancelled">購入をキャンセルしました。</string>
+    <string name="settings_purchase_failed">購入を完了できませんでした。もう一度お試しください。</string>
     <string name="settings_sync_mode">同期モード</string>
     <string name="settings_mode_manual">手動</string>
     <string name="settings_mode_hourly">毎時（約1時間ごと）</string>

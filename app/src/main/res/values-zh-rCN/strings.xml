@@ -71,6 +71,8 @@
     <string name="settings_payment_pending">您的付款正在处理中。购买确认前仍会显示广告。</string>
     <string name="settings_ads_removed">广告已移除。</string>
     <string name="settings_billing_unavailable">Google Play 结算服务不可用。您仍可恢复以前的购买。</string>
+    <string name="settings_purchase_cancelled">购买已取消。</string>
+    <string name="settings_purchase_failed">无法完成购买，请重试。</string>
     <string name="settings_sync_mode">同步方式</string>
     <string name="settings_mode_manual">手动</string>
     <string name="settings_mode_hourly">每小时（大约每小时一次）</string>

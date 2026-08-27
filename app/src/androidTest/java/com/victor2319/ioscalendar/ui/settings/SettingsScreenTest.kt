@@ -4,7 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.captureToImage
@@ -20,7 +20,9 @@ import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseFeedback
 import com.victor2319.ioscalendar.monetization.PurchaseUiState
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
@@ -64,6 +66,24 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun availableStateWithoutPlayPriceDoesNotEnablePurchase() {
+        // Catches an absent or non-purchasable Play offer opening an invalid billing flow.
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                monetization = MonetizationUiState(true, PurchaseUiState.AVAILABLE, null),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("remove-ads").assertDoesNotExist()
+        composeRule.onNodeWithText("Google Play billing is unavailable.", substring = true)
+            .performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun ownedPurchaseDoesNotOfferRemoveAdsAction() {
         // Catches showing a redundant purchase action after confirmed ownership.
         composeRule.setContent {
@@ -103,8 +123,9 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun pendingPurchaseShowsPendingCopyAndDisablesRestore() {
-        // Catches a pending payment being treated as purchasable or restorable ownership.
+    fun pendingPurchaseShowsPendingCopyAndAllowsOwnershipRequery() {
+        // Catches a pending payment getting stuck because no same-session ownership requery is possible.
+        var restoreCalls = 0
         composeRule.setContent {
             SettingsScreen(
                 state = SettingsUiState(),
@@ -112,13 +133,51 @@ class SettingsScreenTest {
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
                 onConfirmDestructiveAction = {},
+                onRestorePurchase = { restoreCalls++ },
             )
         }
 
         composeRule.onNodeWithText("Your payment is pending.", substring = true)
             .performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("restore-purchases").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithTag("restore-purchases").performScrollTo().assertIsEnabled().performClick()
         composeRule.onNodeWithTag("remove-ads").assertDoesNotExist()
+        assertEquals(1, restoreCalls)
+    }
+
+    @Test
+    fun purchaseCancellationShowsShortUserFacingFeedback() {
+        // Catches cancellation returning silently from Google Play.
+        val feedback = MutableSharedFlow<PurchaseFeedback>(extraBufferCapacity = 1)
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                purchaseFeedbackEvents = feedback,
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.runOnIdle { feedback.tryEmit(PurchaseFeedback.CANCELLED) }
+        composeRule.onNodeWithText("Purchase cancelled.").assertIsDisplayed()
+    }
+
+    @Test
+    fun purchaseFailureShowsShortUserFacingFeedback() {
+        // Catches a billing failure returning silently from Google Play.
+        val feedback = MutableSharedFlow<PurchaseFeedback>(extraBufferCapacity = 1)
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                purchaseFeedbackEvents = feedback,
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.runOnIdle { feedback.tryEmit(PurchaseFeedback.FAILED) }
+        composeRule.onNodeWithText("Could not complete the purchase. Try again.").assertIsDisplayed()
     }
 
     @Test

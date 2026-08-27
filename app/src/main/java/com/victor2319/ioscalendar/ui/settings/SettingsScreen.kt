@@ -35,6 +35,7 @@ import com.victor2319.ioscalendar.domain.SyncMode
 import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
 import com.victor2319.ioscalendar.domain.WeekStart
 import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseFeedback
 import com.victor2319.ioscalendar.monetization.PurchaseUiState
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
@@ -59,6 +60,7 @@ fun SettingsScreen(
     onRemoveThemeImage: () -> Unit = {},
     onSetApplyThemeToWidget: (Boolean) -> Unit = {},
     settingsSavedEvents: Flow<Unit> = emptyFlow(),
+    purchaseFeedbackEvents: Flow<PurchaseFeedback> = emptyFlow(),
     monetization: MonetizationUiState = MonetizationUiState(
         canShowAds = true,
         purchaseState = PurchaseUiState.UNAVAILABLE,
@@ -74,10 +76,22 @@ fun SettingsScreen(
     val closeDescription = stringResource(R.string.settings_close)
     val logoutDescription = stringResource(R.string.settings_logout)
     val settingsSavedMessage = stringResource(R.string.settings_saved)
+    val purchaseCancelledMessage = stringResource(R.string.settings_purchase_cancelled)
+    val purchaseFailedMessage = stringResource(R.string.settings_purchase_failed)
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(settingsSavedEvents) {
         settingsSavedEvents.collect {
             snackbarHostState.showSnackbar(settingsSavedMessage)
+        }
+    }
+    LaunchedEffect(purchaseFeedbackEvents) {
+        purchaseFeedbackEvents.collect { feedback ->
+            snackbarHostState.showSnackbar(
+                when (feedback) {
+                    PurchaseFeedback.CANCELLED -> purchaseCancelledMessage
+                    PurchaseFeedback.FAILED -> purchaseFailedMessage
+                },
+            )
         }
     }
     val actionPresentation = transparentLabeledActionPresentation()
@@ -193,15 +207,17 @@ private fun PurchaseSupportContent(
 ) {
     when (monetization.purchaseState) {
         PurchaseUiState.AVAILABLE -> {
-            Text(
-                monetization.price?.let { stringResource(R.string.settings_play_price, it) }
-                    ?: stringResource(R.string.settings_play_price_unavailable),
-            )
-            TextButton(
-                onClick = onPurchase,
-                modifier = Modifier.testTag("remove-ads"),
-            ) { Text(stringResource(R.string.settings_remove_ads_forever)) }
-            RestorePurchasesAction(onRestorePurchase)
+            if (monetization.price.isNullOrBlank()) {
+                Text(stringResource(R.string.settings_billing_unavailable))
+                RestorePurchasesAction(onRestorePurchase)
+            } else {
+                Text(stringResource(R.string.settings_play_price, monetization.price))
+                TextButton(
+                    onClick = onPurchase,
+                    modifier = Modifier.testTag("remove-ads"),
+                ) { Text(stringResource(R.string.settings_remove_ads_forever)) }
+                RestorePurchasesAction(onRestorePurchase)
+            }
         }
         PurchaseUiState.LOADING -> {
             Text(stringResource(R.string.settings_billing_loading))
@@ -214,7 +230,7 @@ private fun PurchaseSupportContent(
         }
         PurchaseUiState.PENDING -> {
             Text(stringResource(R.string.settings_payment_pending))
-            RestorePurchasesAction(onRestorePurchase, enabled = false)
+            RestorePurchasesAction(onRestorePurchase)
         }
         PurchaseUiState.OWNED -> Text(stringResource(R.string.settings_ads_removed))
         PurchaseUiState.UNAVAILABLE -> {

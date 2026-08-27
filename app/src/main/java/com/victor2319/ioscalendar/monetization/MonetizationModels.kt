@@ -21,7 +21,14 @@ sealed interface PurchaseOutcome {
 
     data class Cancelled(val price: String?) : PurchaseOutcome
 
+    data object Unavailable : PurchaseOutcome
+
     data object Failed : PurchaseOutcome
+}
+
+enum class PurchaseFeedback {
+    CANCELLED,
+    FAILED,
 }
 
 data class MonetizationUiState(

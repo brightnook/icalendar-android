@@ -38,6 +38,7 @@ import com.victor2319.ioscalendar.auth.CalDavLoginCoordinator
 import com.victor2319.ioscalendar.domain.AccountAuthenticationState
 import com.victor2319.ioscalendar.monetization.AdConsentManager
 import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseFeedback
 import com.victor2319.ioscalendar.ui.settings.SettingsScreen
 import com.victor2319.ioscalendar.ui.settings.SettingsViewModel
 import com.victor2319.ioscalendar.ui.settings.SettingsViewModelFactory
@@ -53,6 +54,7 @@ import com.victor2319.ioscalendar.ui.main.MainCalendarViewModelFactory
 import com.victor2319.ioscalendar.theme.ThemeAssetStore
 import com.victor2319.ioscalendar.ui.theme.calendarThemePresentation
 import java.time.ZoneId
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -102,6 +104,7 @@ fun AppRoot(
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,
                 monetization = monetization,
+                purchaseFeedbackEvents = container.monetizationRepository.purchaseFeedbackEvents,
                 onPurchase = {
                     launchPurchaseIfActivity(activity, coroutineScope) { purchaseActivity ->
                         container.monetizationRepository.purchase(purchaseActivity)
@@ -214,6 +217,7 @@ private fun MainCalendarDestination(
     settingsStore: SettingsStore,
     themeAssetStore: ThemeAssetStore,
     monetization: MonetizationUiState,
+    purchaseFeedbackEvents: Flow<PurchaseFeedback>,
     onPurchase: () -> Unit,
     onRestorePurchase: () -> Unit,
 ) {
@@ -252,6 +256,7 @@ private fun MainCalendarDestination(
             onRemoveThemeImage = settingsViewModel::removeThemeImage,
             onSetApplyThemeToWidget = settingsViewModel::setApplyThemeToWidget,
             settingsSavedEvents = settingsViewModel.settingsSavedEvents,
+            purchaseFeedbackEvents = purchaseFeedbackEvents,
             onSetCalendarVisible = settingsViewModel::setCalendarVisible,
             onClearHistory = settingsViewModel::requestClearHistory,
             onClearCache = settingsViewModel::requestClearCache,

@@ -71,6 +71,8 @@
     <string name="settings_payment_pending">Your payment is pending. Ads will remain until the purchase is confirmed.</string>
     <string name="settings_ads_removed">Ads have been removed.</string>
     <string name="settings_billing_unavailable">Google Play billing is unavailable. You can still restore past purchases.</string>
+    <string name="settings_purchase_cancelled">Purchase cancelled.</string>
+    <string name="settings_purchase_failed">Could not complete the purchase. Try again.</string>
     <string name="settings_sync_mode">Sync mode</string>
     <string name="settings_mode_manual">Manual</string>
     <string name="settings_mode_hourly">Hourly (approximately every hour)</string>

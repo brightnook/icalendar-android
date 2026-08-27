@@ -46,11 +46,11 @@ class PlayBillingGateway private constructor(
         }
         val productDetails = productDetailsResult.productDetailsList.orEmpty()
             .firstOrNull { it.productId == REMOVE_ADS_FOREVER }
-            ?: return@withLock PurchaseOutcome.Failed
+            ?: return@withLock PurchaseOutcome.Unavailable
         val offerDetails = productDetails.oneTimePurchaseOfferDetails
-            ?: return@withLock PurchaseOutcome.Failed
+            ?: return@withLock PurchaseOutcome.Unavailable
         val offerToken = offerDetails.offerToken
-            ?: return@withLock PurchaseOutcome.Failed
+            ?: return@withLock PurchaseOutcome.Unavailable
         val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(productDetails)
             .setOfferToken(offerToken)

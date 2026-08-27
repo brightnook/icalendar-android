@@ -55,11 +55,11 @@ class MainCalendarScreenTest {
 
     @Test
     fun pendingPurchaseKeepsBannerVisibleWhileOwnedHidesIt() {
-        val pendingState = MonetizationUiState(
+        val monetization = mutableStateOf(MonetizationUiState(
             canShowAds = true,
             purchaseState = PurchaseUiState.PENDING,
             price = null,
-        )
+        ))
         val ownedState = MonetizationUiState(
             canShowAds = false,
             purchaseState = PurchaseUiState.OWNED,
@@ -77,32 +77,17 @@ class MainCalendarScreenTest {
                     onOpenEvent = {},
                     onCloseEvent = {},
                     onOpenExternalAction = {},
-                    monetization = pendingState,
+                    monetization = monetization.value,
                 )
             }
         }
         composeRule.onNodeWithTag(AD_BANNER_SLOT_TAG).assertExists()
-
-        composeRule.setContent {
-            MaterialTheme {
-                MainCalendarScreen(
-                    state = state(),
-                    zoneId = ZoneId.of("Asia/Tokyo"),
-                    onSelectDate = {},
-                    onShowMonth = {},
-                    onRefresh = {},
-                    onOpenEvent = {},
-                    onCloseEvent = {},
-                    onOpenExternalAction = {},
-                    monetization = ownedState,
-                )
-            }
-        }
+        composeRule.runOnIdle { monetization.value = ownedState }
         composeRule.onAllNodesWithTag(AD_BANNER_SLOT_TAG).assertCountEquals(0)
     }
 
     @Test
-    fun bannerIsShownOnlyWhenAdsAreAvailableAndKeepsSettingsAccessible() {
+    fun bannerIsHiddenOnlyForOwnedStateAndKeepsSettingsAccessible() {
         val ownedState = MonetizationUiState(
             canShowAds = false,
             purchaseState = PurchaseUiState.OWNED,
@@ -114,10 +99,11 @@ class MainCalendarScreenTest {
             price = null,
         )
         val unavailableState = MonetizationUiState(
-            canShowAds = false,
+            canShowAds = true,
             purchaseState = PurchaseUiState.UNAVAILABLE,
             price = null,
         )
+        val monetization = mutableStateOf(ownedState)
 
         composeRule.setContent {
             MaterialTheme {
@@ -130,44 +116,14 @@ class MainCalendarScreenTest {
                     onOpenEvent = {},
                     onCloseEvent = {},
                     onOpenExternalAction = {},
-                    monetization = ownedState,
+                    monetization = monetization.value,
                 )
             }
         }
         composeRule.onAllNodesWithTag("ad-banner-slot").assertCountEquals(0)
-
-        composeRule.setContent {
-            MaterialTheme {
-                MainCalendarScreen(
-                    state = state(),
-                    zoneId = ZoneId.of("Asia/Tokyo"),
-                    onSelectDate = {},
-                    onShowMonth = {},
-                    onRefresh = {},
-                    onOpenEvent = {},
-                    onCloseEvent = {},
-                    onOpenExternalAction = {},
-                    monetization = unavailableState,
-                )
-            }
-        }
-        composeRule.onAllNodesWithTag("ad-banner-slot").assertCountEquals(0)
-
-        composeRule.setContent {
-            MaterialTheme {
-                MainCalendarScreen(
-                    state = state(),
-                    zoneId = ZoneId.of("Asia/Tokyo"),
-                    onSelectDate = {},
-                    onShowMonth = {},
-                    onRefresh = {},
-                    onOpenEvent = {},
-                    onCloseEvent = {},
-                    onOpenExternalAction = {},
-                    monetization = availableState,
-                )
-            }
-        }
+        composeRule.runOnIdle { monetization.value = unavailableState }
+        composeRule.onNodeWithTag("ad-banner-slot").assertExists()
+        composeRule.runOnIdle { monetization.value = availableState }
         composeRule.onNodeWithTag("ad-banner-slot").assertExists()
         composeRule.onNodeWithTag(BOTTOM_SETTINGS_TAG).assertIsDisplayed()
     }
@@ -184,32 +140,32 @@ class MainCalendarScreenTest {
             purchaseState = PurchaseUiState.AVAILABLE,
             price = null,
         )
+        val showFailedBanner = mutableStateOf(false)
 
         composeRule.setContent {
             MaterialTheme {
-                MainCalendarScreen(
-                    state = state(),
-                    zoneId = ZoneId.of("Asia/Tokyo"),
-                    onSelectDate = {},
-                    onShowMonth = {},
-                    onRefresh = {},
-                    onOpenEvent = {},
-                    onCloseEvent = {},
-                    onOpenExternalAction = {},
-                    monetization = consentBlockedState,
-                )
+                if (showFailedBanner.value) {
+                    AdBannerSlotContent(
+                        state = availableState,
+                        loadState = AdBannerLoadState.FAILED,
+                    )
+                } else {
+                    MainCalendarScreen(
+                        state = state(),
+                        zoneId = ZoneId.of("Asia/Tokyo"),
+                        onSelectDate = {},
+                        onShowMonth = {},
+                        onRefresh = {},
+                        onOpenEvent = {},
+                        onCloseEvent = {},
+                        onOpenExternalAction = {},
+                        monetization = consentBlockedState,
+                    )
+                }
             }
         }
         composeRule.onAllNodesWithTag(AD_BANNER_SLOT_TAG).assertCountEquals(0)
-
-        composeRule.setContent {
-            MaterialTheme {
-                AdBannerSlotContent(
-                    state = availableState,
-                    loadState = AdBannerLoadState.FAILED,
-                )
-            }
-        }
+        composeRule.runOnIdle { showFailedBanner.value = true }
         val failedBannerBounds = composeRule.onNodeWithTag(AD_BANNER_SLOT_TAG)
             .fetchSemanticsNode().boundsInRoot
         assertEquals(0f, failedBannerBounds.height)
