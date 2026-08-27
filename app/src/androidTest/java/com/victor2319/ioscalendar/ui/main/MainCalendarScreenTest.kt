@@ -54,6 +54,54 @@ class MainCalendarScreenTest {
     private val selectedDate = LocalDate.of(2026, 8, 15)
 
     @Test
+    fun pendingPurchaseKeepsBannerVisibleWhileOwnedHidesIt() {
+        val pendingState = MonetizationUiState(
+            canShowAds = true,
+            purchaseState = PurchaseUiState.PENDING,
+            price = null,
+        )
+        val ownedState = MonetizationUiState(
+            canShowAds = false,
+            purchaseState = PurchaseUiState.OWNED,
+            price = null,
+        )
+
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {},
+                    onShowMonth = {},
+                    onRefresh = {},
+                    onOpenEvent = {},
+                    onCloseEvent = {},
+                    onOpenExternalAction = {},
+                    monetization = pendingState,
+                )
+            }
+        }
+        composeRule.onNodeWithTag(AD_BANNER_SLOT_TAG).assertExists()
+
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {},
+                    onShowMonth = {},
+                    onRefresh = {},
+                    onOpenEvent = {},
+                    onCloseEvent = {},
+                    onOpenExternalAction = {},
+                    monetization = ownedState,
+                )
+            }
+        }
+        composeRule.onAllNodesWithTag(AD_BANNER_SLOT_TAG).assertCountEquals(0)
+    }
+
+    @Test
     fun bannerIsShownOnlyWhenAdsAreAvailableAndKeepsSettingsAccessible() {
         val ownedState = MonetizationUiState(
             canShowAds = false,
