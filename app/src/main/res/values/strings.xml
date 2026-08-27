@@ -62,6 +62,15 @@
     <string name="settings_close">Close</string>
     <string name="settings_account">Account</string>
     <string name="settings_account_signed_out">Not connected</string>
+    <string name="settings_support">Support</string>
+    <string name="settings_remove_ads_forever">Remove ads forever</string>
+    <string name="settings_restore_purchases">Restore purchases</string>
+    <string name="settings_play_price">Google Play price: %1$s</string>
+    <string name="settings_play_price_unavailable">Google Play price is unavailable.</string>
+    <string name="settings_billing_loading">Checking Google Play…</string>
+    <string name="settings_payment_pending">Your payment is pending. Ads will remain until the purchase is confirmed.</string>
+    <string name="settings_ads_removed">Ads have been removed.</string>
+    <string name="settings_billing_unavailable">Google Play billing is unavailable. You can still restore past purchases.</string>
     <string name="settings_sync_mode">Sync mode</string>
     <string name="settings_mode_manual">Manual</string>
     <string name="settings_mode_hourly">Hourly (approximately every hour)</string>

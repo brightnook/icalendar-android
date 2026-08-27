@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -53,6 +54,7 @@ import com.victor2319.ioscalendar.theme.ThemeAssetStore
 import com.victor2319.ioscalendar.ui.theme.calendarThemePresentation
 import java.time.ZoneId
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppRoot(
@@ -62,6 +64,8 @@ fun AppRoot(
     openSettingsRequest: Int = 0,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit = {},
 ) {
+    val activity = LocalContext.current as? Activity
+    val coroutineScope = rememberCoroutineScope()
     val accountState by container.accountManager.authenticationState.collectAsState()
     AppRootContent(
         loginViewModelFactory = LoginViewModelFactory(
@@ -97,6 +101,14 @@ fun AppRoot(
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,
                 monetization = monetization,
+                onPurchase = {
+                    activity?.let { purchaseActivity ->
+                        coroutineScope.launch { container.monetizationRepository.purchase(purchaseActivity) }
+                    }
+                },
+                onRestorePurchase = {
+                    coroutineScope.launch { container.monetizationRepository.restore() }
+                },
             )
         },
         accountState = accountState,
@@ -191,6 +203,8 @@ private fun MainCalendarDestination(
     settingsStore: SettingsStore,
     themeAssetStore: ThemeAssetStore,
     monetization: MonetizationUiState,
+    onPurchase: () -> Unit,
+    onRestorePurchase: () -> Unit,
 ) {
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
@@ -233,6 +247,9 @@ private fun MainCalendarDestination(
             onLogout = { settingsViewModel.requestLogout(clearCache = false) },
             onDismissConfirmation = settingsViewModel::dismissConfirmation,
             onConfirmDestructiveAction = settingsViewModel::confirmDestructiveAction,
+            monetization = monetization,
+            onPurchase = onPurchase,
+            onRestorePurchase = onRestorePurchase,
         )
     } else MainCalendarScreen(
         state = uiState,

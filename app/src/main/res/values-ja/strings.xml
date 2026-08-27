@@ -62,6 +62,15 @@
     <string name="settings_close">閉じる</string>
     <string name="settings_account">アカウント</string>
     <string name="settings_account_signed_out">未接続</string>
+    <string name="settings_support">サポート</string>
+    <string name="settings_remove_ads_forever">広告を永久に削除</string>
+    <string name="settings_restore_purchases">購入を復元</string>
+    <string name="settings_play_price">Google Play の価格: %1$s</string>
+    <string name="settings_play_price_unavailable">Google Play の価格を取得できません。</string>
+    <string name="settings_billing_loading">Google Play を確認しています…</string>
+    <string name="settings_payment_pending">お支払いを処理しています。購入が確認されるまで広告は表示されます。</string>
+    <string name="settings_ads_removed">広告を削除しました。</string>
+    <string name="settings_billing_unavailable">Google Play の課金を利用できません。以前の購入は復元できます。</string>
     <string name="settings_sync_mode">同期モード</string>
     <string name="settings_mode_manual">手動</string>
     <string name="settings_mode_hourly">毎時（約1時間ごと）</string>

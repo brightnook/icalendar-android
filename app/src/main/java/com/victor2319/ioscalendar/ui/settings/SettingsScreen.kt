@@ -34,6 +34,8 @@ import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.SyncMode
 import com.victor2319.ioscalendar.domain.ThemeBackgroundMode
 import com.victor2319.ioscalendar.domain.WeekStart
+import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseUiState
 import com.victor2319.ioscalendar.ui.PrimaryControlRippleScope
 import com.victor2319.ioscalendar.ui.transparentLabeledActionPresentation
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +59,13 @@ fun SettingsScreen(
     onRemoveThemeImage: () -> Unit = {},
     onSetApplyThemeToWidget: (Boolean) -> Unit = {},
     settingsSavedEvents: Flow<Unit> = emptyFlow(),
+    monetization: MonetizationUiState = MonetizationUiState(
+        canShowAds = true,
+        purchaseState = PurchaseUiState.UNAVAILABLE,
+        price = null,
+    ),
+    onPurchase: () -> Unit = {},
+    onRestorePurchase: () -> Unit = {},
 ) {
     BackHandler(onBack = onClose)
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -124,6 +133,13 @@ fun SettingsScreen(
                     }
                 }
             }
+            SettingsSection(R.string.settings_support, "support") {
+                PurchaseSupportContent(
+                    monetization = monetization,
+                    onPurchase = onPurchase,
+                    onRestorePurchase = onRestorePurchase,
+                )
+            }
             SettingsSection(R.string.settings_sync_mode, "sync") {
                 SyncModePicker(state.syncMode, onSelectSyncMode)
             }
@@ -167,6 +183,54 @@ fun SettingsScreen(
     )
     }
     state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_delete)) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
+}
+
+@Composable
+private fun PurchaseSupportContent(
+    monetization: MonetizationUiState,
+    onPurchase: () -> Unit,
+    onRestorePurchase: () -> Unit,
+) {
+    when (monetization.purchaseState) {
+        PurchaseUiState.AVAILABLE -> {
+            Text(
+                monetization.price?.let { stringResource(R.string.settings_play_price, it) }
+                    ?: stringResource(R.string.settings_play_price_unavailable),
+            )
+            TextButton(
+                onClick = onPurchase,
+                modifier = Modifier.testTag("remove-ads"),
+            ) { Text(stringResource(R.string.settings_remove_ads_forever)) }
+            RestorePurchasesAction(onRestorePurchase)
+        }
+        PurchaseUiState.LOADING -> {
+            Text(stringResource(R.string.settings_billing_loading))
+            TextButton(
+                onClick = onPurchase,
+                enabled = false,
+                modifier = Modifier.testTag("remove-ads"),
+            ) { Text(stringResource(R.string.settings_remove_ads_forever)) }
+            RestorePurchasesAction(onRestorePurchase, enabled = false)
+        }
+        PurchaseUiState.PENDING -> {
+            Text(stringResource(R.string.settings_payment_pending))
+            RestorePurchasesAction(onRestorePurchase, enabled = false)
+        }
+        PurchaseUiState.OWNED -> Text(stringResource(R.string.settings_ads_removed))
+        PurchaseUiState.UNAVAILABLE -> {
+            Text(stringResource(R.string.settings_billing_unavailable))
+            RestorePurchasesAction(onRestorePurchase)
+        }
+    }
+}
+
+@Composable
+private fun RestorePurchasesAction(onRestorePurchase: () -> Unit, enabled: Boolean = true) {
+    TextButton(
+        onClick = onRestorePurchase,
+        enabled = enabled,
+        modifier = Modifier.testTag("restore-purchases"),
+    ) { Text(stringResource(R.string.settings_restore_purchases)) }
 }
 
 @Composable

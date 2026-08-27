@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
@@ -17,6 +18,8 @@ import androidx.compose.ui.graphics.toPixelMap
 import com.victor2319.ioscalendar.domain.AppLanguage
 import com.victor2319.ioscalendar.domain.CalendarSummary
 import com.victor2319.ioscalendar.domain.WeekStart
+import com.victor2319.ioscalendar.monetization.MonetizationUiState
+import com.victor2319.ioscalendar.monetization.PurchaseUiState
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
@@ -26,6 +29,48 @@ import org.junit.Test
 class SettingsScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun availablePurchaseShowsRemoveAdsActionAndPlayPrice() {
+        // Catches a purchasable state that hides the Play-provided price or purchase action.
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                monetization = MonetizationUiState(
+                    canShowAds = true,
+                    purchaseState = PurchaseUiState.AVAILABLE,
+                    price = "¥250",
+                ),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {}, onPurchase = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("settings-section-support").assertIsDisplayed()
+        composeRule.onNodeWithTag("remove-ads").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("¥250").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun ownedPurchaseDoesNotOfferRemoveAdsAction() {
+        // Catches showing a redundant purchase action after confirmed ownership.
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                monetization = MonetizationUiState(
+                    canShowAds = false,
+                    purchaseState = PurchaseUiState.OWNED,
+                    price = null,
+                ),
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("remove-ads").assertDoesNotExist()
+    }
 
     @Test
     fun settingsShowsMaskedAccountApproximateModeCopyAndCalendarVisibility() {

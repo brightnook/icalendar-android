@@ -62,6 +62,15 @@
     <string name="settings_close">关闭</string>
     <string name="settings_account">账户</string>
     <string name="settings_account_signed_out">未连接</string>
+    <string name="settings_support">支持</string>
+    <string name="settings_remove_ads_forever">永久移除广告</string>
+    <string name="settings_restore_purchases">恢复购买</string>
+    <string name="settings_play_price">Google Play 价格：%1$s</string>
+    <string name="settings_play_price_unavailable">Google Play 价格暂不可用。</string>
+    <string name="settings_billing_loading">正在检查 Google Play…</string>
+    <string name="settings_payment_pending">您的付款正在处理中。购买确认前仍会显示广告。</string>
+    <string name="settings_ads_removed">广告已移除。</string>
+    <string name="settings_billing_unavailable">Google Play 结算服务不可用。您仍可恢复以前的购买。</string>
     <string name="settings_sync_mode">同步方式</string>
     <string name="settings_mode_manual">手动</string>
     <string name="settings_mode_hourly">每小时（大约每小时一次）</string>
