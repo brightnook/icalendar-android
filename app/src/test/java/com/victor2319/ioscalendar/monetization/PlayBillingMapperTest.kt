@@ -1,5 +1,6 @@
 package com.victor2319.ioscalendar.monetization
 
+import com.android.billingclient.api.BillingClient
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
@@ -7,6 +8,60 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class PlayBillingMapperTest {
+    @Test
+    fun completedPlayPurchaseMapsToCompletedOutcome() {
+        val purchase = PlayPurchase(
+            state = PlayPurchaseState.PURCHASED,
+            acknowledged = true,
+        )
+
+        val outcome = purchaseOutcome(
+            responseCode = BillingClient.BillingResponseCode.OK,
+            purchases = listOf(purchase),
+            price = "¥250",
+        )
+
+        assertEquals(PurchaseOutcome.Completed(BillingSnapshot(true, "¥250")), outcome)
+    }
+
+    @Test
+    fun userCancelledResultMapsToCancelledOutcome() {
+        val outcome = purchaseOutcome(
+            responseCode = BillingClient.BillingResponseCode.USER_CANCELED,
+            purchases = emptyList(),
+            price = "¥250",
+        )
+
+        assertEquals(PurchaseOutcome.Cancelled("¥250"), outcome)
+    }
+
+    @Test
+    fun pendingPlayPurchaseMapsToPendingOutcome() {
+        val purchase = PlayPurchase(
+            state = PlayPurchaseState.PENDING,
+            acknowledged = false,
+        )
+
+        val outcome = purchaseOutcome(
+            responseCode = BillingClient.BillingResponseCode.OK,
+            purchases = listOf(purchase),
+            price = "¥250",
+        )
+
+        assertEquals(PurchaseOutcome.Pending(BillingSnapshot(false, "¥250", pending = true)), outcome)
+    }
+
+    @Test
+    fun nonOkPlayResultMapsToFailedOutcome() {
+        val outcome = purchaseOutcome(
+            responseCode = BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            purchases = emptyList(),
+            price = "¥250",
+        )
+
+        assertEquals(PurchaseOutcome.Failed, outcome)
+    }
+
     @Test
     fun purchasedItemMapsToAnEntitledSnapshot() {
         val purchasedItem = PlayPurchase(
