@@ -3,6 +3,7 @@ package com.victor2319.ioscalendar.monetization
 import com.android.billingclient.api.BillingClient
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -60,6 +61,43 @@ class PlayBillingMapperTest {
         )
 
         assertEquals(PurchaseOutcome.Failed, outcome)
+    }
+
+    @Test
+    fun cancelledCallerKeepsItsPlaySessionUntilTheTerminalCallback() = runTest {
+        val sessions = PurchaseCallbackSessions()
+        var launchCount = 0
+        val firstAwaiting = CompletableDeferred<Unit>()
+        val cancelledCaller = async {
+            sessions.runPurchaseSession(
+                price = "¥250",
+                launch = { launchCount += 1 },
+                awaitOutcome = { session ->
+                    firstAwaiting.complete(Unit)
+                    session.awaiter.await()
+                },
+            )
+        }
+        firstAwaiting.await()
+
+        cancelledCaller.cancelAndJoin()
+        val retryAwaiting = CompletableDeferred<Unit>()
+        val retry = async {
+            sessions.runPurchaseSession(
+                price = "¥250",
+                launch = { launchCount += 1 },
+                awaitOutcome = { session ->
+                    retryAwaiting.complete(Unit)
+                    session.awaiter.await()
+                },
+            )
+        }
+        retryAwaiting.await()
+
+        assertEquals(1, launchCount)
+        sessions.completeCurrent(PurchaseOutcome.Cancelled("¥250"), emptyList())
+
+        assertEquals(PurchaseOutcome.Cancelled("¥250"), retry.await())
     }
 
     @Test

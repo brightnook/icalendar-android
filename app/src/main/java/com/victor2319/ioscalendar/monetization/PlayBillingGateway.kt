@@ -28,19 +28,17 @@ class PlayBillingGateway private constructor(
     private val connectionMutex = Mutex()
     private val purchaseMutex = Mutex()
     private val purchaseAcknowledgements = PurchaseAcknowledgements()
-    private val callbackPurchases = AtomicReference<List<Purchase>?>(null)
-
-    @Volatile
-    private var purchaseAwaiter: CompletableDeferred<PurchaseOutcome>? = null
-
-    @Volatile
-    private var purchasePrice: String? = null
+    private val purchaseSessions = PurchaseCallbackSessions()
 
     override suspend fun refresh(): BillingSnapshot = loadSnapshot()
 
     override suspend fun restore(): BillingSnapshot = loadSnapshot()
 
     override suspend fun purchase(activity: Activity): PurchaseOutcome = purchaseMutex.withLock {
+        purchaseSessions.current()?.let { activeSession ->
+            return@withLock awaitPurchase(activeSession)
+        }
+
         ensureConnected()
         val productDetailsResult = billingClient.queryProductDetails(productDetailsQuery())
         if (productDetailsResult.billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -60,37 +58,16 @@ class PlayBillingGateway private constructor(
         val billingFlowParams = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(productDetailsParams))
             .build()
-        val awaiter = CompletableDeferred<PurchaseOutcome>()
-
-        purchasePrice = offerDetails.formattedPrice
-        callbackPurchases.set(null)
-        purchaseAwaiter = awaiter
-        try {
-            val launchResult = billingClient.launchBillingFlow(activity, billingFlowParams)
-            if (launchResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                completePurchase(launchResult, emptyList())
-            }
-
-            val outcome = awaiter.await()
-            if (outcome is PurchaseOutcome.Completed) {
-                callbackPurchases.get().orEmpty()
-                    .filter { purchase ->
-                        REMOVE_ADS_FOREVER in purchase.products &&
-                            purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
-                            !purchase.isAcknowledged
-                    }
-                    .forEach { purchase ->
-                        purchaseAcknowledgements.acknowledgeOnce(purchase.purchaseToken) {
-                            acknowledge(purchase)
-                        }
-                    }
-            }
-            outcome
-        } finally {
-            purchaseAwaiter = null
-            purchasePrice = null
-            callbackPurchases.set(null)
-        }
+        purchaseSessions.runPurchaseSession(
+            price = offerDetails.formattedPrice,
+            launch = { session ->
+                val launchResult = billingClient.launchBillingFlow(activity, billingFlowParams)
+                if (launchResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                    completePurchase(session, launchResult, emptyList())
+                }
+            },
+            awaitOutcome = ::awaitPurchase,
+        )
     }
 
     private suspend fun loadSnapshot(): BillingSnapshot {
@@ -149,16 +126,42 @@ class PlayBillingGateway private constructor(
         ).requireSuccess()
     }
 
-    private fun completePurchase(billingResult: BillingResult, purchases: List<Purchase>) {
-        val awaiter = purchaseAwaiter ?: return
-        val matchingPurchases = purchases.filter { REMOVE_ADS_FOREVER in it.products }
-        if (!callbackPurchases.compareAndSet(null, matchingPurchases)) return
+    private suspend fun awaitPurchase(session: PurchaseCallbackSession): PurchaseOutcome {
+        val outcome = session.awaiter.await()
+        if (outcome is PurchaseOutcome.Completed) {
+            session.callbackPurchases.get().orEmpty()
+                .filter { purchase ->
+                    REMOVE_ADS_FOREVER in purchase.products &&
+                        purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                        !purchase.isAcknowledged
+                }
+                .forEach { purchase ->
+                    purchaseAcknowledgements.acknowledgeOnce(purchase.purchaseToken) {
+                        acknowledge(purchase)
+                    }
+                }
+        }
+        return outcome
+    }
 
-        awaiter.complete(
-            purchaseOutcome(
+    private fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>) {
+        val session = purchaseSessions.current() ?: return
+        completePurchase(session, billingResult, purchases)
+    }
+
+    private fun completePurchase(
+        session: PurchaseCallbackSession,
+        billingResult: BillingResult,
+        purchases: List<Purchase>,
+    ) {
+        val matchingPurchases = purchases.filter { REMOVE_ADS_FOREVER in it.products }
+        purchaseSessions.complete(
+            session = session,
+            callbackPurchases = matchingPurchases,
+            outcome = purchaseOutcome(
                 responseCode = billingResult.responseCode,
                 purchases = matchingPurchases.map { it.toPlayPurchase() },
-                price = purchasePrice,
+                price = session.price,
             ),
         )
     }
@@ -209,9 +212,72 @@ class PlayBillingGateway private constructor(
                 .enableAutoServiceReconnection()
                 .build()
             return PlayBillingGateway(billingClient).also { gateway ->
-                purchasesUpdatedBridge.onPurchasesUpdated = gateway::completePurchase
+                purchasesUpdatedBridge.onPurchasesUpdated = gateway::onPurchasesUpdated
             }
         }
+    }
+}
+
+internal data class PurchaseCallbackSession(
+    val price: String?,
+    val awaiter: CompletableDeferred<PurchaseOutcome> = CompletableDeferred(),
+    val callbackPurchases: AtomicReference<List<Purchase>?> = AtomicReference(null),
+)
+
+private data class PurchaseCallbackSessionClaim(
+    val session: PurchaseCallbackSession,
+    val shouldLaunch: Boolean,
+)
+
+internal class PurchaseCallbackSessions {
+    private val activeSession = AtomicReference<PurchaseCallbackSession?>(null)
+
+    fun current(): PurchaseCallbackSession? = activeSession.get()
+
+    private fun beginOrJoin(price: String?): PurchaseCallbackSessionClaim {
+        while (true) {
+            activeSession.get()?.let { active ->
+                return PurchaseCallbackSessionClaim(active, shouldLaunch = false)
+            }
+            val newSession = PurchaseCallbackSession(price)
+            if (activeSession.compareAndSet(null, newSession)) {
+                return PurchaseCallbackSessionClaim(newSession, shouldLaunch = true)
+            }
+        }
+    }
+
+    suspend fun runPurchaseSession(
+        price: String?,
+        launch: (PurchaseCallbackSession) -> Unit,
+        awaitOutcome: suspend (PurchaseCallbackSession) -> PurchaseOutcome,
+    ): PurchaseOutcome {
+        val claim = beginOrJoin(price)
+        if (claim.shouldLaunch) {
+            try {
+                launch(claim.session)
+            } catch (failure: Throwable) {
+                complete(claim.session, PurchaseOutcome.Failed, emptyList())
+                throw failure
+            }
+        }
+        return awaitOutcome(claim.session)
+    }
+
+    fun completeCurrent(outcome: PurchaseOutcome, callbackPurchases: List<Purchase>): Boolean {
+        val session = activeSession.get() ?: return false
+        return complete(session, outcome, callbackPurchases)
+    }
+
+    fun complete(
+        session: PurchaseCallbackSession,
+        outcome: PurchaseOutcome,
+        callbackPurchases: List<Purchase>,
+    ): Boolean {
+        if (activeSession.get() !== session) return false
+        if (!session.callbackPurchases.compareAndSet(null, callbackPurchases)) return false
+        if (!session.awaiter.complete(outcome)) return false
+        activeSession.compareAndSet(session, null)
+        return true
     }
 }
 
