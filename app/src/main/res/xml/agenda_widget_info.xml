@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:configure="com.victor2319.ioscalendar.widget.WidgetConfigActivity"
+    android:configure="com.brightnook.nookcalendar.widget.WidgetConfigActivity"
     android:initialLayout="@layout/agenda_widget"
     android:minHeight="180dp"
     android:minWidth="110dp"

@@ -19,3 +19,4 @@ artifacts-*.png
 *.aab
 *.jks
 *.keystore
+keystore.properties

@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Package name: `com.victor2319.ioscalendar`.
+- Package name: `com.brightnook.nookcalendar`.
 - Working application name: `iOSCalendar`; store-facing naming is deferred to the Google Play release phase.
 - `minSdk = 28` (Android 9), `compileSdk = 36`, and `targetSdk = 36`.
 - Android 16 is the primary physical-device target; Android 9 and Android 12 are compatibility targets.
@@ -94,7 +94,7 @@ Install the current stable Android Studio with JDK 17 and Android SDK Platform 3
 - [ ] **Step 2: Create the failing smoke test**
 
 ```kotlin
-package com.victor2319.ioscalendar
+package com.brightnook.nookcalendar
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -102,7 +102,7 @@ import org.junit.jupiter.api.Test
 class BuildSmokeTest {
     @Test
     fun packageNameIsStable() {
-        assertEquals("com.victor2319.ioscalendar", BuildConfig.APPLICATION_ID)
+        assertEquals("com.brightnook.nookcalendar", BuildConfig.APPLICATION_ID)
     }
 }
 ```
@@ -263,7 +263,7 @@ Create a non-exportable AES-256 key named `ioscalendar.credentials.v1`, generate
 
 - [ ] **Step 4: Verify both test layers**
 
-Run: `.\gradlew.bat testDebugUnitTest --tests "*KeystoreCredentialsStoreTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.auth.KeystoreCredentialsStoreInstrumentedTest`
+Run: `.\gradlew.bat testDebugUnitTest --tests "*KeystoreCredentialsStoreTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.auth.KeystoreCredentialsStoreInstrumentedTest`
 
 Expected: fake and device round-trip tests pass; plaintext assertions pass.
 
@@ -540,7 +540,7 @@ Trim surrounding whitespace from the Apple ID and password, preserve the passwor
 
 - [ ] **Step 5: Verify JVM and Compose UI tests**
 
-Run: `.\gradlew.bat testDebugUnitTest --tests "*LoginViewModelTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.ui.login.LoginScreenTest`
+Run: `.\gradlew.bat testDebugUnitTest --tests "*LoginViewModelTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.ui.login.LoginScreenTest`
 
 Expected: validation, browser intent, accessibility labels, failure copy, and successful navigation pass in Chinese and English resources.
 
@@ -592,7 +592,7 @@ Display title, calendar, start/end, all-day state, location, notes, and human-re
 
 - [ ] **Step 5: Verify state and UI**
 
-Run: `.\gradlew.bat testDebugUnitTest --tests "*MainCalendarViewModelTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.ui.main.MainCalendarScreenTest`
+Run: `.\gradlew.bat testDebugUnitTest --tests "*MainCalendarViewModelTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.ui.main.MainCalendarScreenTest`
 
 Expected: month/day selection, ordering, sheet open/close, large font, dark mode, and incoming launch target tests pass.
 
@@ -710,7 +710,7 @@ Add a `WidgetUpdater` invoked after successful or partial sync and visibility ch
 
 - [ ] **Step 6: Verify JVM and device behavior**
 
-Run: `.\gradlew.bat testDebugUnitTest --tests "*WidgetConfigViewModelTest" --tests "*AgendaWidgetFactoryTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.widget.WidgetLaunchTest`
+Run: `.\gradlew.bat testDebugUnitTest --tests "*WidgetConfigViewModelTest" --tests "*AgendaWidgetFactoryTest" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.widget.WidgetLaunchTest`
 
 Expected: independent configuration, rendering order, refresh routing, and event launch pass.
 

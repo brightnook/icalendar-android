@@ -58,7 +58,7 @@ fun cancelledPurchaseKeepsAdsAndPriceAvailable() = runTest {
 
 - [ ] **Step 2: Run the new tests and verify RED**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests "com.victor2319.ioscalendar.monetization.MonetizationRepositoryTest" --no-daemon --console=plain`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests "com.brightnook.nookcalendar.monetization.MonetizationRepositoryTest" --no-daemon --console=plain`
 
 Expected: compilation failure because `PurchaseOutcome` and `MonetizationRepository.purchase` do not exist.
 
@@ -122,7 +122,7 @@ fun cancelledPlayPurchaseMapsToAvailableOutcome() {
 
 - [ ] **Step 2: Run mapper tests and verify RED**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests "com.victor2319.ioscalendar.monetization.PlayBillingMapperTest" --no-daemon --console=plain`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests "com.brightnook.nookcalendar.monetization.PlayBillingMapperTest" --no-daemon --console=plain`
 
 Expected: compilation failure because `purchaseOutcome` does not exist.
 
@@ -176,7 +176,7 @@ fun ownedMonetizationDoesNotOfferPurchase() {
 
 - [ ] **Step 2: Run settings UI tests and verify RED**
 
-Run: `./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.ui.settings.SettingsScreenTest`
+Run: `./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.ui.settings.SettingsScreenTest`
 
 Expected: compilation failure because SettingsScreen has no monetization parameter or purchase action tag.
 
@@ -218,7 +218,7 @@ fun pendingPurchaseStillDisplaysBanner() {
 
 - [ ] **Step 2: Run the focused main screen test and verify RED**
 
-Run: `./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.ui.main.MainCalendarScreenTest`
+Run: `./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.ui.main.MainCalendarScreenTest`
 
 Expected: fail until the test tag and pending banner behaviour are explicit.
 
@@ -231,8 +231,8 @@ Expose the existing banner container with the `ad-banner-slot` test tag without 
 Run:
 
 ```bash
-./gradlew.bat :app:testDebugUnitTest --tests "com.victor2319.ioscalendar.monetization.*" --no-daemon --console=plain
-./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.victor2319.ioscalendar.ui.main.MainCalendarScreenTest
+./gradlew.bat :app:testDebugUnitTest --tests "com.brightnook.nookcalendar.monetization.*" --no-daemon --console=plain
+./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.brightnook.nookcalendar.ui.main.MainCalendarScreenTest
 ./gradlew.bat :app:assembleDebug --no-daemon --console=plain
 ```
 

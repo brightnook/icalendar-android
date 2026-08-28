@@ -99,7 +99,7 @@ Expected: the files identify the support address and describe creation/editing/d
 
 - [x] **Step 1: Document release configuration checks**
 
-Include the exact current application ID `com.victor2319.ioscalendar`, minimum SDK 28, target SDK 36, the need to increment `versionCode` for every upload, and the requirement to produce a signed Android App Bundle.
+Include the exact current application ID `com.brightnook.nookcalendar`, minimum SDK 28, target SDK 36, the need to increment `versionCode` for every upload, and the requirement to produce a signed Android App Bundle.
 
 - [x] **Step 2: Document Play Console assets and declarations**
 

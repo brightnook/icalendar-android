@@ -12,7 +12,7 @@
 
 ## Product and Release Model
 
-Google Play will distribute one free iOSCalendar application under the existing application ID, `com.victor2319.ioscalendar`.
+Google Play will distribute one free iOSCalendar application under the existing application ID, `com.brightnook.nookcalendar`.
 
 - The `ad-supported` branch contains the public Google Play build, Google Mobile Ads integration, and Google Play Billing integration.
 - The `ad-free` branch excludes the Google Mobile Ads SDK. It is a clean source variant for internal use or a future non-Play distribution channel.

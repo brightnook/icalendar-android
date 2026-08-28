@@ -50,7 +50,7 @@ Add a Robolectric resource test that loads `R.string.settings_language_japanese`
 
 - [ ] **Step 2: Run the focused tests to verify they fail**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests com.victor2319.ioscalendar.ui.AppLanguageTest --tests com.victor2319.ioscalendar.data.AppLanguageResourceTest`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests com.brightnook.nookcalendar.ui.AppLanguageTest --tests com.brightnook.nookcalendar.data.AppLanguageResourceTest`
 
 Expected: compilation failure for missing enum values/resource or assertion failure for the prior Japanese-to-English mapping.
 
@@ -93,7 +93,7 @@ Add a view-model test that selects `AppLanguage.JAPANESE`, advances the dispatch
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `./gradlew.bat :app:compileDebugAndroidTestKotlin :app:testDebugUnitTest --tests com.victor2319.ioscalendar.ui.settings.SettingsViewModelTest`
+Run: `./gradlew.bat :app:compileDebugAndroidTestKotlin :app:testDebugUnitTest --tests com.brightnook.nookcalendar.ui.settings.SettingsViewModelTest`
 
 Expected: missing dropdown option/tag or failed selection assertion. Do not run instrumentation tests on a device.
 
@@ -137,7 +137,7 @@ Add a test that resolves `FOLLOW_SYSTEM` using `Locale.JAPANESE` and expects Jap
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests com.victor2319.ioscalendar.widget.WidgetDateTimeFormatterTest --tests com.victor2319.ioscalendar.widget.WidgetLocaleContextTest`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests com.brightnook.nookcalendar.widget.WidgetDateTimeFormatterTest --tests com.brightnook.nookcalendar.widget.WidgetLocaleContextTest`
 
 Expected: missing locale-context API or prior widget code continues to use the raw system context.
 
@@ -180,7 +180,7 @@ Also load `R.layout.agenda_widget_preview` through Robolectric and assert it con
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests com.victor2319.ioscalendar.widget.WidgetProviderResourcesTest`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests com.brightnook.nookcalendar.widget.WidgetProviderResourcesTest`
 
 Expected: missing preview-layout attribute/layout resource.
 

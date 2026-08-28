@@ -4,7 +4,7 @@ This document records the release work still required before publishing iOSCalen
 
 ## Current project baseline
 
-- Application ID: `com.victor2319.ioscalendar`
+- Application ID: `com.brightnook.nookcalendar`
 - Minimum Android version: Android 9 (API 28)
 - Target Android version: API 36
 - Current version: `1.0` (`versionCode` 1)

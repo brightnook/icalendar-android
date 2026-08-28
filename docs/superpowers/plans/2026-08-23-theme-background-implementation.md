@@ -63,7 +63,7 @@
 
 - [ ] **Step 2: Run the tests and verify the expected missing-type/API failure.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.data.ThemeSettingsStoreTest' --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.data.ThemeSettingsStoreTest' --no-daemon`
 
 Expected: compilation fails because `ThemeSettings` and `setTheme` do not yet exist.
 
@@ -85,7 +85,7 @@ Use `runCatching { ThemeBackgroundMode.valueOf(value.orEmpty()) }.getOrDefault(T
 
 - [ ] **Step 4: Run the focused tests and full unit suite.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.data.ThemeSettingsStoreTest' :app:testDebugUnitTest --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.data.ThemeSettingsStoreTest' :app:testDebugUnitTest --no-daemon`
 
 Expected: all pass.
 
@@ -121,7 +121,7 @@ Expected: all pass.
 
 - [ ] **Step 2: Run focused tests and verify expected missing symbols.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.theme.*' --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.theme.*' --no-daemon`
 
 Expected: compilation fails because the asset and preview APIs do not exist.
 
@@ -135,7 +135,7 @@ Use `ImageDecoder.createSource(source)` and `ImageDecoder.decodeBitmap` to obtai
 
 - [ ] **Step 5: Run focused and full tests.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.theme.*' :app:testDebugUnitTest --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.theme.*' :app:testDebugUnitTest --no-daemon`
 
 Expected: all pass.
 
@@ -172,7 +172,7 @@ Expected: all pass.
 
 - [ ] **Step 2: Run focused tests and verify expected API failure.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.ui.settings.ThemeSettingsViewModelTest' --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.ui.settings.ThemeSettingsViewModelTest' --no-daemon`
 
 Expected: compilation fails because the ViewModel theme actions do not exist.
 
@@ -186,7 +186,7 @@ After each successful `setTheme`, `importTheme`, `removeThemeImage`, or apply-to
 
 - [ ] **Step 5: Run focused and full tests.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.ui.settings.ThemeSettingsViewModelTest' :app:testDebugUnitTest --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.ui.settings.ThemeSettingsViewModelTest' :app:testDebugUnitTest --no-daemon`
 
 Expected: all pass.
 
@@ -231,7 +231,7 @@ Expected: all pass.
 
 - [ ] **Step 2: Run the focused test and verify expected missing symbols.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.ui.theme.CalendarThemePresentationTest' --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.ui.theme.CalendarThemePresentationTest' --no-daemon`
 
 Expected: compilation fails because the presentation API does not exist.
 
@@ -245,7 +245,7 @@ Pass explicit presentation colors to `MonthGrid` and `YearCalendar`. Use the res
 
 - [ ] **Step 5: Run focused and full tests.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.ui.theme.CalendarThemePresentationTest' :app:testDebugUnitTest --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.ui.theme.CalendarThemePresentationTest' :app:testDebugUnitTest --no-daemon`
 
 Expected: all pass.
 
@@ -280,7 +280,7 @@ Expected: all pass.
 
 - [ ] **Step 2: Run the focused test and verify expected missing symbols.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.widget.WidgetThemePresentationTest' --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.widget.WidgetThemePresentationTest' --no-daemon`
 
 Expected: compilation fails because widget theme resolution does not exist.
 
@@ -290,7 +290,7 @@ Add a background `ImageView` under the widget content and use `setImageViewBitma
 
 - [ ] **Step 4: Run focused and full tests.**
 
-Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.victor2319.ioscalendar.widget.WidgetThemePresentationTest' :app:testDebugUnitTest --no-daemon`
+Run: `./gradlew.bat :app:testDebugUnitTest --tests 'com.brightnook.nookcalendar.widget.WidgetThemePresentationTest' :app:testDebugUnitTest --no-daemon`
 
 Expected: all pass.
 

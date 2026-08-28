@@ -1,5 +1,13 @@
 import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use(::load)
+}
+val releaseSigningProperties = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.isFile }?.inputStream()?.use(::load)
+}
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,15 +16,15 @@ plugins {
 }
 
 android {
-    namespace = "com.victor2319.ioscalendar"
+    namespace = "com.brightnook.nookcalendar"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.victor2319.ioscalendar"
+        applicationId = "com.brightnook.nookcalendar"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -37,11 +45,30 @@ android {
     sourceSets["debug"].assets.directories.add("$projectDir/schemas")
 
     val releaseAdMobAppId = providers.gradleProperty("adMobAppId")
+        .orElse(localProperties.getProperty("adMobAppId") ?: "")
+    signingConfigs {
+        create("release") {
+            val storePath = releaseSigningProperties.getProperty("storeFile")
+            if (!storePath.isNullOrBlank()) {
+                storeFile = rootProject.file(storePath)
+                storePassword = releaseSigningProperties.getProperty("storePassword")
+                keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                keyPassword = releaseSigningProperties.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["adMobAppId"] = "ca-app-pub-3940256099942544~3347511713"
         }
         getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             manifestPlaceholders["adMobAppId"] = releaseAdMobAppId.getOrElse(
                 "missing-release-admob-app-id",
             )
@@ -117,8 +144,13 @@ dependencies {
 tasks.configureEach {
     if (name == "packageRelease" || name == "bundleRelease") {
         doFirst {
-            check(!providers.gradleProperty("adMobAppId").orNull.isNullOrBlank()) {
-                "Release packaging requires adMobAppId in untracked gradle.properties."
+            val configuredAdMobAppId = providers.gradleProperty("adMobAppId").orNull
+                ?: localProperties.getProperty("adMobAppId")
+            check(!configuredAdMobAppId.isNullOrBlank()) {
+                "Release packaging requires adMobAppId in untracked local.properties or gradle.properties."
+            }
+            check(releaseSigningProperties.getProperty("storeFile") != null) {
+                "Release packaging requires untracked keystore.properties."
             }
         }
     }
