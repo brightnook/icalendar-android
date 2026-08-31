@@ -7,6 +7,7 @@ import com.brightnook.nookcalendar.caldav.CalDavGateway
 import com.brightnook.nookcalendar.caldav.IcsParseException
 import com.brightnook.nookcalendar.caldav.IcsParser
 import com.brightnook.nookcalendar.caldav.Ical4jIcsParser
+import com.brightnook.nookcalendar.caldav.NetworkFailureDetail
 import com.brightnook.nookcalendar.caldav.ParsedCalendar
 import com.brightnook.nookcalendar.caldav.ParsedEvent
 import com.brightnook.nookcalendar.caldav.ParsedInstance
@@ -319,6 +320,26 @@ class DefaultSyncCoordinatorTest {
     }
 
     @Test
+    fun refreshTimeoutFallsBackToAReplacementSnapshotAndAdvancesTheToken() = runTest {
+        // Catches an iCloud sync-collection timeout leaving new events unreachable until the cache is erased.
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(calendars = listOf(calendar)).apply {
+            deltaFailures["work"] = CalDavFailure.NetworkUnavailable(NetworkFailureDetail.TIMEOUT)
+        }
+        val repository = FakeRepository()
+        val id = stableIdFor(calendar)
+        repository.states[id] = CalendarSyncState("stalled-token", emptyList())
+
+        val result = coordinator(gateway, FakeParser(), repository).sync(SyncRequest.Refresh)
+
+        assertEquals(SyncResult.Success(SyncCounts(1, 1, 1), setOf(id)), result)
+        assertEquals(1, gateway.deltaCalls.size)
+        assertEquals(1, gateway.rangeCalls.size)
+        assertEquals("snapshot-work", repository.states.getValue(id).syncToken)
+        assertEquals(1, repository.snapshots.size)
+    }
+
+    @Test
     fun refreshRejectsTheSameStableInstanceIdFromTwoCanonicalResourcesWithoutAdvancingToken() = runTest {
         // Catches independently deduplicating instances and pairing one resource's instance with another owner.
         val calendar = remote("work", "/calendars/work/")
@@ -615,6 +636,7 @@ private open class FakeGateway(
     val rangeCalls = mutableListOf<Pair<RemoteCalendar, TimeRange>>()
     val deltaCalls = mutableListOf<Pair<RemoteCalendar, String>>()
     val failures = mutableMapOf<String, Throwable>()
+    val deltaFailures = mutableMapOf<String, Throwable>()
     val resourceContents = mutableMapOf<String, String>()
 
     override suspend fun authenticate(credentials: Credentials): Principal = tracked {
@@ -638,6 +660,7 @@ private open class FakeGateway(
 
     override suspend fun fetchDelta(calendar: RemoteCalendar, syncToken: String): RemoteDelta = tracked {
         deltaCalls += calendar to syncToken
+        deltaFailures[calendar.id]?.let { throw it }
         failures[calendar.id]?.let { throw it }
         deltas.getValue(calendar.id)
     }

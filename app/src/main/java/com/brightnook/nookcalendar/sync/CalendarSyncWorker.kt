@@ -18,9 +18,17 @@ class CalendarSyncWorker @JvmOverloads constructor(
         val result = coordinator.sync(SyncRequest.Refresh)
         if (result is SyncResult.Success || result is SyncResult.PartialSuccess) widgetUpdater.refreshAll()
         return when (result) {
-            is SyncResult.Success,
-            is SyncResult.PartialSuccess,
-            -> Result.success()
+            is SyncResult.Success -> Result.success()
+
+            is SyncResult.PartialSuccess -> if (
+                result.failures.values.any {
+                    it == SyncFailureCategory.NETWORK || it == SyncFailureCategory.TEMPORARY
+                }
+            ) {
+                Result.retry()
+            } else {
+                Result.success()
+            }
 
             is SyncResult.AuthenticationRequired -> Result.failure()
             is SyncResult.RetryableFailure -> Result.retry()

@@ -46,6 +46,20 @@ class CalendarSyncWorkerTest {
         assertEquals(ListenableWorker.Result.success(), partial)
     }
 
+    @Test
+    fun partialNetworkFailureRequestsRetryAfterPublishingSuccessfulCalendars() = runTest {
+        // Catches a failed calendar being silently abandoned just because another calendar completed.
+        val result = worker(
+            SyncResult.PartialSuccess(
+                counts = SyncCounts(calendars = 2),
+                calendarIds = setOf("personal", "work"),
+                failures = mapOf("shared" to SyncFailureCategory.NETWORK),
+            ),
+        ).doWork()
+
+        assertEquals(ListenableWorker.Result.retry(), result)
+    }
+
     private fun worker(syncResult: SyncResult): CalendarSyncWorker {
         val context = ApplicationProvider.getApplicationContext<Context>()
         return TestListenableWorkerBuilder<CalendarSyncWorker>(context)

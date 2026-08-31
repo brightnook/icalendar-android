@@ -23,8 +23,8 @@ android {
         applicationId = "com.brightnook.nookcalendar"
         minSdk = 28
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 6
+        versionName = "1.0.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -59,7 +59,12 @@ android {
     }
     buildTypes {
         getByName("debug") {
-            manifestPlaceholders["adMobAppId"] = "ca-app-pub-3940256099942544~3347511713"
+            manifestPlaceholders["adMobAppId"] = "ca-app-pub-7357814564478740~3121912347"
+            buildConfigField(
+                "String",
+                "BANNER_AD_UNIT_ID",
+                "\"ca-app-pub-3940256099942544/9214589741\"",
+            )
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
@@ -71,6 +76,11 @@ android {
             )
             manifestPlaceholders["adMobAppId"] = releaseAdMobAppId.getOrElse(
                 "missing-release-admob-app-id",
+            )
+            buildConfigField(
+                "String",
+                "BANNER_AD_UNIT_ID",
+                "\"ca-app-pub-7357814564478740/8148143789\"",
             )
         }
     }

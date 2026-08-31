@@ -10,6 +10,7 @@ import java.time.Duration
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -37,11 +38,7 @@ class ICloudCalDavGateway private constructor(
     private var activeSession: Session? = null
 
     constructor() : this(
-        OkHttpClient.Builder()
-            .addInterceptor(SensitiveLoggingInterceptor())
-            .followRedirects(false)
-            .followSslRedirects(false)
-            .build(),
+        productionClientForTesting(),
         PRODUCTION_URL,
         CalDavUrlPolicy.production(),
     )
@@ -233,7 +230,7 @@ class ICloudCalDavGateway private constructor(
                 if (!continuation.isActive) return
                 val cancellation = e.causeSequence().filterIsInstance<CancellationException>().firstOrNull()
                 continuation.resumeWith(
-                    Result.failure(cancellation ?: CalDavFailure.NetworkUnavailable()),
+                    Result.failure(cancellation ?: CalDavFailure.NetworkUnavailable(NetworkFailureDetail.from(e))),
                 )
             }
 
@@ -249,7 +246,7 @@ class ICloudCalDavGateway private constructor(
                     if (!continuation.isActive) return
                     val mapped = when (failure) {
                         is CalDavFailure -> failure
-                        is IOException -> CalDavFailure.NetworkUnavailable()
+                        is IOException -> CalDavFailure.NetworkUnavailable(NetworkFailureDetail.from(failure))
                         else -> CalDavFailure.InvalidServerData()
                     }
                     continuation.resumeWith(Result.failure(mapped))
@@ -334,6 +331,16 @@ class ICloudCalDavGateway private constructor(
         value?.toLongOrNull()?.takeIf { it in 0..MAX_RETRY_AFTER_SECONDS }
 
     companion object {
+        internal fun productionClientForTesting(): OkHttpClient = OkHttpClient.Builder()
+            .addInterceptor(SensitiveLoggingInterceptor())
+            .connectTimeout(CALDAV_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(CALDAV_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(CALDAV_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(CALDAV_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+
         internal fun forTesting(client: OkHttpClient, baseUrl: HttpUrl): ICloudCalDavGateway =
             ICloudCalDavGateway(client, baseUrl, CalDavUrlPolicy.testing(baseUrl))
 
@@ -342,6 +349,10 @@ class ICloudCalDavGateway private constructor(
             .host("caldav.icloud.com")
             .addPathSegment("")
             .build()
+        private const val CALDAV_CONNECT_TIMEOUT_SECONDS = 30L
+        private const val CALDAV_READ_TIMEOUT_SECONDS = 30L
+        private const val CALDAV_WRITE_TIMEOUT_SECONDS = 30L
+        private const val CALDAV_CALL_TIMEOUT_SECONDS = 45L
         private val XML_MEDIA_TYPE = "application/xml; charset=utf-8".toMediaType()
         private val UTC_BASIC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC)
         private const val MAX_RESPONSE_BYTES = 1_048_576

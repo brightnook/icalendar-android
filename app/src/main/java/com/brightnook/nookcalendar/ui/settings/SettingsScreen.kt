@@ -68,6 +68,8 @@ fun SettingsScreen(
     ),
     onPurchase: () -> Unit = {},
     onRestorePurchase: () -> Unit = {},
+    privacyOptionsRequired: Boolean = false,
+    onOpenPrivacyOptions: () -> Unit = {},
 ) {
     BackHandler(onBack = onClose)
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -153,6 +155,12 @@ fun SettingsScreen(
                     onPurchase = onPurchase,
                     onRestorePurchase = onRestorePurchase,
                 )
+                if (privacyOptionsRequired) {
+                    TextButton(
+                        onClick = onOpenPrivacyOptions,
+                        modifier = Modifier.testTag("privacy-options"),
+                    ) { Text(stringResource(R.string.settings_privacy_options)) }
+                }
             }
             SettingsSection(R.string.settings_sync_mode, "sync") {
                 SyncModePicker(state.syncMode, onSelectSyncMode)

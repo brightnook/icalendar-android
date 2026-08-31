@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">iOSカレンダー</string>
+    <string name="app_name">nookcalendar</string>
     <string name="startup_loading">カレンダーを開いています…</string>
     <string name="login_title">iCloudカレンダーに接続</string>
     <string name="login_explanation">ここではApple Accountのメインパスワードは使用できません。代わりにApp用パスワードを作成して使用してください。</string>
@@ -65,6 +65,7 @@
     <string name="settings_support">サポート</string>
     <string name="settings_remove_ads_forever">広告を永久に削除</string>
     <string name="settings_restore_purchases">購入を復元</string>
+    <string name="settings_privacy_options">プライバシー設定</string>
     <string name="settings_play_price">Google Play の価格: %1$s</string>
     <string name="settings_play_price_unavailable">Google Play の価格を取得できません。</string>
     <string name="settings_billing_loading">Google Play を確認しています…</string>

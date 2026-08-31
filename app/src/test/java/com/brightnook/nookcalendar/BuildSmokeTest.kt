@@ -8,4 +8,10 @@ class BuildSmokeTest {
     fun packageNameIsStable() {
         assertEquals("com.brightnook.nookcalendar", BuildConfig.APPLICATION_ID)
     }
+
+    @Test
+    fun diagnosticTestBuildUsesTheNextPlayVersion() {
+        assertEquals("1.0.5", BuildConfig.VERSION_NAME)
+        assertEquals(6, BuildConfig.VERSION_CODE)
+    }
 }

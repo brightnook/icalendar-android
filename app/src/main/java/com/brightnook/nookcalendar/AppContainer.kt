@@ -21,6 +21,7 @@ import com.brightnook.nookcalendar.monetization.BillingGateway
 import com.brightnook.nookcalendar.monetization.MonetizationRepository
 import com.brightnook.nookcalendar.monetization.PlayBillingGateway
 import com.brightnook.nookcalendar.sync.DefaultSyncCoordinator
+import com.brightnook.nookcalendar.sync.AndroidSyncDiagnostics
 import com.brightnook.nookcalendar.sync.SyncCoordinator
 import com.brightnook.nookcalendar.sync.SyncScheduler
 import com.brightnook.nookcalendar.sync.SyncSchedulerReadiness
@@ -65,6 +66,7 @@ class AppContainer(val application: Application) {
             parser = icsParser,
             repository = calendarRepository,
             clock = SystemClockProvider,
+            diagnostics = AndroidSyncDiagnostics,
         )
     }
     val syncScheduler: SyncScheduler by lazy {

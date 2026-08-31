@@ -1,6 +1,6 @@
 <resources>
     <string name="startup_loading">正在打开日历…</string>
-    <string name="app_name">iOS 日历</string>
+    <string name="app_name">nookcalendar</string>
     <string name="login_title">连接 iCloud 日历</string>
     <string name="login_explanation">这里不能使用您的主 Apple 账户密码。请创建并仅使用 App 专用密码。</string>
     <string name="login_create_app_password">创建 App 专用密码</string>
@@ -65,6 +65,7 @@
     <string name="settings_support">支持</string>
     <string name="settings_remove_ads_forever">永久移除广告</string>
     <string name="settings_restore_purchases">恢复购买</string>
+    <string name="settings_privacy_options">隐私选项</string>
     <string name="settings_play_price">Google Play 价格：%1$s</string>
     <string name="settings_play_price_unavailable">Google Play 价格暂不可用。</string>
     <string name="settings_billing_loading">正在检查 Google Play…</string>

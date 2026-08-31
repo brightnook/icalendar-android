@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.key
+import com.brightnook.nookcalendar.BuildConfig
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
@@ -23,6 +24,16 @@ import kotlin.math.roundToInt
 
 const val AD_BANNER_SLOT_TAG = "ad-banner-slot"
 const val ANCHORED_ADAPTIVE_TEST_AD_UNIT_ID = "ca-app-pub-3940256099942544/9214589741"
+const val RELEASE_BANNER_AD_UNIT_ID = "ca-app-pub-7357814564478740/8148143789"
+
+internal fun bannerAdUnitIdFor(
+    isDebugBuild: Boolean,
+    configuredReleaseAdUnitId: String,
+): String = if (isDebugBuild) {
+    ANCHORED_ADAPTIVE_TEST_AD_UNIT_ID
+} else {
+    configuredReleaseAdUnitId
+}
 
 internal enum class AdBannerLoadState { LOADING, FAILED }
 
@@ -32,7 +43,10 @@ internal fun anchoredAdaptiveBannerWidthDp(width: androidx.compose.ui.unit.Dp): 
 @Composable
 fun AdBannerSlot(
     state: MonetizationUiState,
-    adUnitId: String = ANCHORED_ADAPTIVE_TEST_AD_UNIT_ID,
+    adUnitId: String = bannerAdUnitIdFor(
+        isDebugBuild = BuildConfig.DEBUG,
+        configuredReleaseAdUnitId = BuildConfig.BANNER_AD_UNIT_ID,
+    ),
     modifier: Modifier = Modifier,
 ) {
     if (!state.canShowAds) return

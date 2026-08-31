@@ -3,6 +3,8 @@ package com.brightnook.nookcalendar.ui
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.LocalActivityResultRegistryOwner
+import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -67,7 +69,7 @@ fun AppRoot(
     openSettingsRequest: Int = 0,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit = {},
 ) {
-    val activity = LocalContext.current as? Activity
+    val activity = activityFromRegistryOwner(LocalActivityResultRegistryOwner.current)
     val coroutineScope = rememberCoroutineScope()
     val accountState by container.accountManager.authenticationState.collectAsState()
     AppRootContent(
@@ -103,6 +105,7 @@ fun AppRoot(
                 ),
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,
+                hostActivity = activity,
                 monetization = monetization,
                 purchaseFeedbackEvents = container.monetizationRepository.purchaseFeedbackEvents,
                 onPurchase = {
@@ -128,6 +131,8 @@ internal fun launchPurchaseIfActivity(
         coroutineScope.launch { onPurchase(purchaseActivity) }
     }
 }
+
+internal fun activityFromRegistryOwner(owner: ActivityResultRegistryOwner?): Activity? = owner as? Activity
 
 @Composable
 fun AppRoot(loginViewModelFactory: ViewModelProvider.Factory) {
@@ -216,6 +221,7 @@ private fun MainCalendarDestination(
     settingsFactory: ViewModelProvider.Factory,
     settingsStore: SettingsStore,
     themeAssetStore: ThemeAssetStore,
+    hostActivity: Activity?,
     monetization: MonetizationUiState,
     purchaseFeedbackEvents: Flow<PurchaseFeedback>,
     onPurchase: () -> Unit,
@@ -230,7 +236,7 @@ private fun MainCalendarDestination(
         theme = appSettings.theme,
         assetFile = appSettings.theme.assetKey?.let(themeAssetStore::fileFor),
     )
-    val adConsentReady = rememberAdConsentReady()
+    val adConsent = rememberAdConsentState(hostActivity)
     val consumeTarget by rememberUpdatedState(onLaunchTargetConsumed)
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(launchTarget) {
@@ -266,6 +272,12 @@ private fun MainCalendarDestination(
             monetization = monetization,
             onPurchase = onPurchase,
             onRestorePurchase = onRestorePurchase,
+            privacyOptionsRequired = adConsent.privacyOptionsRequired,
+            onOpenPrivacyOptions = {
+                hostActivity?.let { consentActivity ->
+                    AdConsentManager(consentActivity).showPrivacyOptions(consentActivity) {}
+                }
+            },
         )
     } else MainCalendarScreen(
         state = uiState,
@@ -282,22 +294,35 @@ private fun MainCalendarDestination(
         onSelectDateAndShowCombined = viewModel::selectDateAndShowCombined,
         weekStart = appSettings.weekStart,
         themePresentation = themePresentation,
-        monetization = monetization.copy(canShowAds = monetization.canShowAds && adConsentReady),
+        monetization = monetization.copy(canShowAds = monetization.canShowAds && adConsent.ready),
     )
 }
 
 @Composable
-private fun rememberAdConsentReady(): Boolean {
-    val activity = LocalContext.current as? Activity ?: return false
+private fun rememberAdConsentState(activity: Activity?): AdConsentState {
+    activity ?: return AdConsentState()
     val consentManager = remember(activity) { AdConsentManager(activity) }
     var ready by remember { mutableStateOf(false) }
+    var privacyOptionsRequired by remember { mutableStateOf(false) }
 
     LaunchedEffect(activity, consentManager) {
         ready = false
-        consentManager.initialize(activity) { ready = true }
+        privacyOptionsRequired = false
+        consentManager.initialize(activity) {
+            ready = true
+            privacyOptionsRequired = consentManager.privacyOptionsRequired()
+        }
     }
-    return ready
+    return AdConsentState(
+        ready = ready,
+        privacyOptionsRequired = privacyOptionsRequired,
+    )
 }
+
+private data class AdConsentState(
+    val ready: Boolean = false,
+    val privacyOptionsRequired: Boolean = false,
+)
 
 private fun openSafeExternalAction(context: android.content.Context, action: ExternalAction) {
     val uri = when (action) {

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">iOSCalendar</string>
+    <string name="app_name">nookcalendar</string>
     <string name="startup_loading">Opening calendar…</string>
     <string name="login_title">Connect iCloud Calendar</string>
     <string name="login_explanation">Your main Apple Account password cannot be used here. Create and use an app-specific password instead.</string>
@@ -65,6 +65,7 @@
     <string name="settings_support">Support</string>
     <string name="settings_remove_ads_forever">Remove ads forever</string>
     <string name="settings_restore_purchases">Restore purchases</string>
+    <string name="settings_privacy_options">Privacy options</string>
     <string name="settings_play_price">Google Play price: %1$s</string>
     <string name="settings_play_price_unavailable">Google Play price is unavailable.</string>
     <string name="settings_billing_loading">Checking Google Play…</string>

@@ -3,6 +3,7 @@ package com.brightnook.nookcalendar.caldav
 import com.brightnook.nookcalendar.auth.Credentials
 import com.brightnook.nookcalendar.domain.TimeRange
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.time.Instant
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
@@ -400,6 +401,31 @@ class ICloudCalDavGatewayTest {
         assertThrows(CancellationException::class.java) {
             runTest { gateway(cancellingClient).authenticate(credentials) }
         }
+    }
+
+    @Test
+    fun timeoutIoMapsToSafeTimeoutDetailWithoutRetainingTheIoCause() {
+        val timeoutClient = OkHttpClient.Builder()
+            .addInterceptor { throw SocketTimeoutException("private request detail") }
+            .build()
+
+        val failure = assertThrows(CalDavFailure.NetworkUnavailable::class.java) {
+            runTest { gateway(timeoutClient).authenticate(credentials) }
+        }
+
+        assertEquals(NetworkFailureDetail.TIMEOUT, failure.detail)
+        assertNull(failure.cause)
+    }
+
+    @Test
+    fun productionClientAllowsSlowCalDavReportsBeyondOkHttpDefaultReadTimeout() {
+        // Catches a normal iCloud REPORT being aborted at OkHttp's 10-second default.
+        val client = ICloudCalDavGateway.productionClientForTesting()
+
+        assertEquals(30, client.connectTimeoutMillis / 1_000)
+        assertEquals(30, client.readTimeoutMillis / 1_000)
+        assertEquals(30, client.writeTimeoutMillis / 1_000)
+        assertEquals(45, client.callTimeoutMillis / 1_000)
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.brightnook.nookcalendar.caldav.CalDavFailure
 import com.brightnook.nookcalendar.caldav.CalDavGateway
 import com.brightnook.nookcalendar.caldav.IcsParseException
 import com.brightnook.nookcalendar.caldav.IcsParser
+import com.brightnook.nookcalendar.caldav.NetworkFailureDetail
 import com.brightnook.nookcalendar.caldav.RemoteCalendar
 import com.brightnook.nookcalendar.caldav.RemoteResource
 import com.brightnook.nookcalendar.domain.CalendarDelta
@@ -24,18 +25,19 @@ import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
 
-class DefaultSyncCoordinator(
+internal class DefaultSyncCoordinator(
     private val credentialsStore: CredentialsStore,
     private val gateway: CalDavGateway,
     private val parser: IcsParser,
     private val repository: CalendarRepository,
     private val clock: ClockProvider,
+    private val diagnostics: SyncDiagnostics = NoOpSyncDiagnostics,
 ) : SyncCoordinator {
     override suspend fun sync(request: SyncRequest): SyncResult = SyncMutex.instance.withLock {
-        syncLocked(request)
+        syncLocked(request, newSyncDiagnosticAttemptId())
     }
 
-    private suspend fun syncLocked(request: SyncRequest): SyncResult {
+    private suspend fun syncLocked(request: SyncRequest, attemptId: String): SyncResult {
         val credentials = credentialsStore.load() ?: return SyncResult.AuthenticationRequired()
         val calendars = try {
             val principal = gateway.authenticate(credentials)
@@ -58,7 +60,7 @@ class DefaultSyncCoordinator(
             try {
                 val calendarCounts = when (request) {
                     SyncRequest.Initial -> replaceSnapshot(calendar, calendarId, initialRange)
-                    SyncRequest.Refresh -> refresh(calendar, calendarId, initialRange)
+                    SyncRequest.Refresh -> refresh(calendar, calendarId, initialRange, attemptId)
                     is SyncRequest.EnsureMonth -> ensureMonth(calendar, calendarId, request.month)
                 }
                 succeededIds += calendarId
@@ -68,7 +70,16 @@ class DefaultSyncCoordinator(
             } catch (_: CalDavFailure.AuthenticationRejected) {
                 return SyncResult.AuthenticationRequired(counts, succeededIds)
             } catch (failure: Throwable) {
-                failures[calendarId] = failure.category()
+                val category = failure.category()
+                failures[calendarId] = category
+                diagnostics.record(
+                    SyncDiagnosticsEvent.failed(
+                        attemptId,
+                        calendarId,
+                        category,
+                        (failure as? CalDavFailure.NetworkUnavailable)?.detail,
+                    ),
+                )
             }
         }
 
@@ -88,15 +99,27 @@ class DefaultSyncCoordinator(
         calendar: RemoteCalendar,
         calendarId: String,
         parseRange: TimeRange,
+        attemptId: String,
     ): SyncCounts {
         val state = repository.getSyncState(calendarId)
         val token = state.syncToken?.takeIf(String::isNotBlank)
             ?: return replaceSnapshot(calendar, calendarId, parseRange)
-        val delta = gateway.fetchDelta(calendar, token)
         val parseRanges = state.coverage.ifEmpty { listOf(parseRange) }
             .normalizeForRefresh(clock.zoneId)
             .flatMap(TimeRange::chunks)
+        diagnostics.record(SyncDiagnosticsEvent.deltaStarted(attemptId, calendarId, parseRanges.size))
+        val delta = try {
+            gateway.fetchDelta(calendar, token)
+        } catch (failure: CalDavFailure.NetworkUnavailable) {
+            if (failure.detail != NetworkFailureDetail.TIMEOUT) throw failure
+            diagnostics.record(SyncDiagnosticsEvent.rangeFallbackStarted(attemptId, calendarId, parseRange.chunks().size))
+            return replaceSnapshot(calendar, calendarId, parseRange)
+        }
+        diagnostics.record(
+            SyncDiagnosticsEvent.deltaReceived(attemptId, calendarId, delta.upserts.size, delta.tombstones.size),
+        )
         val parsed = parseResources(delta.upserts, calendarId, calendarColor(calendar.color), parseRanges)
+        diagnostics.record(SyncDiagnosticsEvent.deltaParsed(attemptId, calendarId, parsed.events.size, parsed.instances.size))
         repository.applyCalendarDelta(
             CalendarDelta(
                 calendarId = calendarId,
@@ -109,6 +132,7 @@ class DefaultSyncCoordinator(
                 replacedResourceHrefs = delta.upserts.mapTo(linkedSetOf()) { canonicalHref(it.href) },
             ),
         )
+        diagnostics.record(SyncDiagnosticsEvent.deltaApplied(attemptId, calendarId, parsed.events.size, parsed.instances.size))
         return SyncCounts(1, parsed.events.size, parsed.instances.size)
     }
 

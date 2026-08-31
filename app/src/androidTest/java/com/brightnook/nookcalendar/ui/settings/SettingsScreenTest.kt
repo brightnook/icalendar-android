@@ -35,6 +35,24 @@ class SettingsScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
+    fun requiredPrivacyOptionsExposeAnActionThatOpensTheConsentChoices() {
+        var privacyOptionsCalls = 0
+        composeRule.setContent {
+            SettingsScreen(
+                state = SettingsUiState(),
+                privacyOptionsRequired = true,
+                onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                onConfirmDestructiveAction = {},
+                onOpenPrivacyOptions = { privacyOptionsCalls++ },
+            )
+        }
+
+        composeRule.onNodeWithTag("privacy-options").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, privacyOptionsCalls)
+    }
+
+    @Test
     fun availablePurchaseShowsRemoveAdsActionPriceAndInvokesCallbacks() {
         // Catches a purchasable state that hides the Play-provided price, action, or callback.
         var purchaseCalls = 0
