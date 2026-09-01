@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,9 +19,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -41,6 +48,7 @@ import com.brightnook.nookcalendar.ui.PrimaryControlRippleScope
 import com.brightnook.nookcalendar.ui.theme.CalendarBackground
 import com.brightnook.nookcalendar.ui.theme.CalendarThemePresentation
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
+import androidx.compose.ui.window.Dialog
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -75,9 +83,14 @@ fun MainCalendarScreen(
         purchaseState = PurchaseUiState.UNAVAILABLE,
         price = null,
     ),
+    showLoginPrompt: Boolean = false,
+    canRefresh: Boolean = true,
+    onOpenLogin: () -> Unit = {},
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
+    val locale = currentLocale()
+    var datePickerOpen by rememberSaveable { mutableStateOf(false) }
     val dividerColor = if (themePresentation.resolvedMode == ThemeBackgroundMode.WHITE) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
@@ -117,14 +130,28 @@ fun MainCalendarScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    state.selectedDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(currentLocale())),
+                    state.selectedDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)),
                     modifier = Modifier.weight(1f).testTag(SELECTED_DATE_TAG),
                     color = themePresentation.contentColor,
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
-            Box(Modifier.fillMaxWidth().height(32.dp)) {
-                state.message?.let {
+            Box(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {
+                if (showLoginPrompt) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.calendar_login_hint),
+                            modifier = Modifier.weight(1f),
+                            color = themePresentation.secondaryContentColor,
+                        )
+                        TextButton(onClick = onOpenLogin, modifier = Modifier.testTag("calendar-login")) {
+                            Text(stringResource(R.string.calendar_login_action))
+                        }
+                    }
+                } else state.message?.let {
                     Text(
                         stringResource(it.stringResource),
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -144,6 +171,7 @@ fun MainCalendarScreen(
             )
             }
         }
+        AdBannerSlot(monetization)
         HorizontalDivider(color = dividerColor)
         Row(
             Modifier
@@ -155,23 +183,30 @@ fun MainCalendarScreen(
             ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, R.drawable.ic_action_today, themePresentation, onToday)
             ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, R.drawable.ic_action_view_switch, themePresentation, onToggleViewMode)
             ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, R.drawable.ic_action_search, themePresentation) {
-                android.app.DatePickerDialog(
-                    context,
-                    { _, y, m, d -> onSelectDateAndShowCombined(java.time.LocalDate.of(y, m + 1, d)) },
-                    state.selectedDate.year,
-                    state.selectedDate.monthValue - 1,
-                    state.selectedDate.dayOfMonth,
-                ).show()
+                datePickerOpen = true
             }
             ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, R.drawable.ic_action_refresh, themePresentation) {
-                onRefresh()
-                Toast.makeText(context, R.string.calendar_refresh_started, Toast.LENGTH_SHORT).show()
+                if (canRefresh) {
+                    onRefresh()
+                    Toast.makeText(context, R.string.calendar_refresh_started, Toast.LENGTH_SHORT).show()
+                } else {
+                    onOpenLogin()
+                }
             }
             ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, R.drawable.ic_action_settings, themePresentation, onOpenSettings)
         }
-        AdBannerSlot(monetization)
     }
     }
+
+    if (datePickerOpen) CompactDatePickerDialog(
+        initialDate = state.selectedDate,
+        weekStart = weekStart,
+        onDismiss = { datePickerOpen = false },
+        onConfirm = {
+            onSelectDateAndShowCombined(it)
+            datePickerOpen = false
+        },
+    )
 
     state.openEvent?.let { detail ->
         ModalBottomSheet(
@@ -189,6 +224,64 @@ fun MainCalendarScreen(
                 secondaryContentColor = themePresentation.eventDetailSecondaryContentColor,
                 surfaceColor = themePresentation.eventDetailContainerColor,
             )
+        }
+    }
+}
+
+internal fun datePickerTitle(date: java.time.LocalDate, locale: java.util.Locale): String =
+    date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale))
+
+internal fun compactDatePickerMonthTitle(month: java.time.YearMonth, locale: java.util.Locale): String =
+    month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale))
+
+@Composable
+private fun CompactDatePickerDialog(
+    initialDate: java.time.LocalDate,
+    weekStart: WeekStart,
+    onDismiss: () -> Unit,
+    onConfirm: (java.time.LocalDate) -> Unit,
+) {
+    var selectedDateValue by rememberSaveable { mutableStateOf(initialDate.toString()) }
+    var displayedMonthValue by rememberSaveable { mutableStateOf(java.time.YearMonth.from(initialDate).toString()) }
+    val selectedDate = java.time.LocalDate.parse(selectedDateValue)
+    val displayedMonth = java.time.YearMonth.parse(displayedMonthValue)
+    val locale = currentLocale()
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(16.dp).height(430.dp)) {
+                Text(
+                    datePickerTitle(selectedDate, locale),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+                MonthGrid(
+                    month = displayedMonth,
+                    selectedDate = selectedDate,
+                    dayMarkerColors = emptyMap(),
+                    onSelectDate = { date ->
+                        selectedDateValue = date.toString()
+                        displayedMonthValue = java.time.YearMonth.from(date).toString()
+                    },
+                    onShowMonth = { month -> displayedMonthValue = month.toString() },
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    weekStart = weekStart,
+                    localeOverride = locale,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
+                    TextButton(onClick = { onConfirm(selectedDate) }) {
+                        Text(stringResource(R.string.calendar_date_picker_confirm))
+                    }
+                }
+            }
         }
     }
 }

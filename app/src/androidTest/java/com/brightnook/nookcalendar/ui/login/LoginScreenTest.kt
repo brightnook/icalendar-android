@@ -164,6 +164,23 @@ class LoginScreenTest {
     }
 
     @Test
+    fun loginScreenProvidesAnAccessibleCloseAction() {
+        composeRule.setContent {
+            MaterialTheme {
+                LoginScreen(
+                    uiState = LoginUiState(),
+                    onConnect = { _, password -> password.fill('\u0000') },
+                    onViewCalendars = {},
+                    onOpenUri = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.settings_close))
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun passwordVisibilityActionKeepsEnoughWidthForEnglishLabel() {
         // Catches the fixed 48dp action area wrapping the English "Show" label.
         composeRule.setContent {

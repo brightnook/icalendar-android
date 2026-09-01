@@ -118,7 +118,13 @@ class MainCalendarViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf(monthRange(YearMonth.of(2026, 8), zone) to setOf(visible.id)),
+            listOf(
+                TimeRange(
+                    start = LocalDate.of(2026, 7, 25).atStartOfDay(zone).toInstant(),
+                    endExclusive = LocalDate.of(2026, 9, 15).atStartOfDay(zone).toInstant(),
+                    zoneId = zone,
+                ) to setOf(visible.id),
+            ),
             repository.monthAgendaRequests,
         )
     }

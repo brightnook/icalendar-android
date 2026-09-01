@@ -16,9 +16,9 @@ class AppRootRoutingTest {
     }
 
     @Test
-    fun loadingCredentialsUsesStartupScreenInsteadOfLogin() {
-        assertEquals(AppStartupDestination.LOADING, appStartupDestination(AccountAuthenticationState.Loading))
-        assertEquals(AppStartupDestination.LOGIN, appStartupDestination(AccountAuthenticationState.SignedOut))
+    fun everyAccountStateOpensTheCalendarViewFirst() {
+        assertEquals(AppStartupDestination.CALENDAR, appStartupDestination(AccountAuthenticationState.Loading))
+        assertEquals(AppStartupDestination.CALENDAR, appStartupDestination(AccountAuthenticationState.SignedOut))
         assertEquals(
             AppStartupDestination.CALENDAR,
             appStartupDestination(AccountAuthenticationState.Authenticated("p***@example.test")),

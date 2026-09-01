@@ -1,13 +1,7 @@
 package com.brightnook.nookcalendar.ui.login
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,6 +35,7 @@ fun LoginScreen(
     onConnect: (appleId: String, password: CharArray) -> Unit,
     onViewCalendars: () -> Unit,
     onOpenUri: (String) -> Unit,
+    onClose: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var appleId by remember { mutableStateOf("") }
@@ -50,6 +45,7 @@ fun LoginScreen(
     val appleIdDescription = stringResource(R.string.login_apple_id_label)
     val passwordDescription = stringResource(R.string.login_app_password_label)
     val connectDescription = stringResource(R.string.login_connect_and_sync)
+    val closeDescription = stringResource(R.string.settings_close)
     val actionPresentation = transparentLabeledActionPresentation()
 
     LaunchedEffect(uiState.passwordClearToken) {
@@ -63,7 +59,22 @@ fun LoginScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(text = stringResource(R.string.login_title))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = stringResource(R.string.login_title), modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.semantics { contentDescription = closeDescription }.testTag("login-close"),
+            ) {
+                androidx.compose.material3.Icon(
+                    painter = painterResource(R.drawable.ic_action_close),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                )
+            }
+        }
         Text(text = stringResource(R.string.login_explanation))
         Button(onClick = { onOpenUri(APPLE_ACCOUNT_URL) }) {
             Text(stringResource(R.string.login_create_app_password))

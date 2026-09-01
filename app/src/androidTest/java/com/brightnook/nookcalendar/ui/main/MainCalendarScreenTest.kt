@@ -335,6 +335,30 @@ class MainCalendarScreenTest {
     }
 
     @Test
+    fun refreshOpensLoginInsteadOfStartingSyncWhenSignedOut() {
+        var refreshCalls = 0
+        var loginCalls = 0
+        composeRule.setContent {
+            MaterialTheme {
+                MainCalendarScreen(
+                    state = state(),
+                    zoneId = ZoneId.of("Asia/Tokyo"),
+                    onSelectDate = {}, onShowMonth = {},
+                    onRefresh = { refreshCalls++ },
+                    onOpenEvent = {}, onCloseEvent = {}, onOpenExternalAction = {},
+                    showLoginPrompt = true,
+                    canRefresh = false,
+                    onOpenLogin = { loginCalls++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(BOTTOM_REFRESH_TAG).performClick()
+        assertEquals(0, refreshCalls)
+        assertEquals(1, loginCalls)
+    }
+
+    @Test
     fun suppliedPngDrawablesRenderInsideAllFiveBottomActions() {
         setScreen(state())
 

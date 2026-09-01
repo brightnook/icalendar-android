@@ -11,8 +11,22 @@ internal fun monthDayMarkerColors(
     month: YearMonth,
     zoneId: ZoneId,
 ): Map<LocalDate, List<Int>> {
-    val firstDay = month.atDay(1)
-    val lastDay = month.atEndOfMonth()
+    return dayMarkerColors(
+        events = events,
+        visibleCalendarIds = visibleCalendarIds,
+        firstDay = month.atDay(1).minusDays(7),
+        lastDay = month.plusMonths(1).atDay(1).plusDays(14),
+        zoneId = zoneId,
+    )
+}
+
+internal fun dayMarkerColors(
+    events: List<EventInstance>,
+    visibleCalendarIds: Set<String>,
+    firstDay: LocalDate,
+    lastDay: LocalDate,
+    zoneId: ZoneId,
+): Map<LocalDate, List<Int>> {
     val colorsByDay = linkedMapOf<LocalDate, MutableList<Int>>()
     events.asSequence()
         .filter { it.calendarId in visibleCalendarIds }

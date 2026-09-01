@@ -70,11 +70,16 @@ class MainCalendarViewModel(
         displayedMonth,
         calendars,
         zoneIds,
-    ) { month, calendarList, zoneId -> Triple(month, calendarList, zoneId) }
-        .flatMapLatest { (month, calendarList, zoneId) ->
+        viewMode,
+    ) { month, calendarList, zoneId, mode -> MarkerQuery(month, calendarList, zoneId, mode) }
+        .flatMapLatest { query ->
+            val (month, calendarList, zoneId, mode) = query
             val visibleCalendarIds = calendarList.filter(CalendarSummary::isVisible).mapTo(linkedSetOf()) { it.id }
-            repository.observeAgenda(monthTimeRange(month, zoneId), visibleCalendarIds).map { instances ->
-                monthDayMarkerColors(instances, visibleCalendarIds, month, zoneId)
+            val markerRange = markerTimeRange(month, mode, zoneId)
+            repository.observeAgenda(markerRange, visibleCalendarIds).map { instances ->
+                val firstDay = markerRange.start.atZone(zoneId).toLocalDate()
+                val lastDay = markerRange.endExclusive.minusNanos(1).atZone(zoneId).toLocalDate()
+                dayMarkerColors(instances, visibleCalendarIds, firstDay, lastDay, zoneId)
             }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
@@ -223,6 +228,29 @@ class MainCalendarViewModel(
         start = month.atDay(1).atStartOfDay(zoneId).toInstant(),
         endExclusive = month.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant(),
         zoneId = zoneId,
+    )
+
+    private fun markerTimeRange(month: YearMonth, mode: CalendarViewMode, zoneId: ZoneId): com.brightnook.nookcalendar.domain.TimeRange {
+        val firstDay = when (mode) {
+            CalendarViewMode.COMBINED -> month.atDay(1).minusDays(7)
+            CalendarViewMode.YEAR -> LocalDate.of(month.year, 1, 1)
+        }
+        val endExclusive = when (mode) {
+            CalendarViewMode.COMBINED -> month.plusMonths(1).atDay(1).plusDays(14)
+            CalendarViewMode.YEAR -> LocalDate.of(month.year + 1, 1, 1)
+        }
+        return com.brightnook.nookcalendar.domain.TimeRange(
+            start = firstDay.atStartOfDay(zoneId).toInstant(),
+            endExclusive = endExclusive.atStartOfDay(zoneId).toInstant(),
+            zoneId = zoneId,
+        )
+    }
+
+    private data class MarkerQuery(
+        val month: YearMonth,
+        val calendars: List<CalendarSummary>,
+        val zoneId: ZoneId,
+        val mode: CalendarViewMode,
     )
 }
 

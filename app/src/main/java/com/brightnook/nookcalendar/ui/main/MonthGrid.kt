@@ -74,6 +74,9 @@ internal fun calendarWeekdayTextColor(
     else -> weekday
 }
 
+internal fun monthGridTitle(month: YearMonth, locale: Locale): String =
+    month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale))
+
 @Composable
 fun MonthGrid(
     month: YearMonth,
@@ -87,8 +90,9 @@ fun MonthGrid(
     secondaryContentColor: Color = Color.Unspecified,
     saturdayColor: Color = Color.Unspecified,
     sundayColor: Color = Color.Unspecified,
+    localeOverride: Locale? = null,
 ) {
-    val locale = currentLocale()
+    val locale = localeOverride ?: currentLocale()
     val weekDays = calendarWeekdays(weekStart)
     val weekDayHeaders = calendarWeekdayHeaders(
         weekStart = weekStart,
@@ -112,7 +116,7 @@ fun MonthGrid(
             .fillMaxSize()
             .testTag(MONTH_GRID_TAG)
             .semantics {
-                contentDescription = month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale))
+                contentDescription = monthGridTitle(month, locale)
                 customActions = listOf(
                     CustomAccessibilityAction(previousMonthDescription) {
                         onShowMonth(month.minusMonths(1))
@@ -154,7 +158,7 @@ fun MonthGrid(
                 Text("‹", color = resolvedContentColor, style = MaterialTheme.typography.headlineSmall)
             }
             Text(
-                month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)),
+                monthGridTitle(month, locale),
                 color = resolvedContentColor,
                 style = MaterialTheme.typography.titleLarge,
             )

@@ -16,12 +16,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.graphics.toPixelMap
+import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.WeekStart
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseFeedback
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
+import com.brightnook.nookcalendar.ui.LocalizedAppContent
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -33,6 +35,43 @@ import org.junit.Test
 class SettingsScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun logoutDialogUsesTheSelectedAppLanguage() {
+        composeRule.setContent {
+            LocalizedAppContent(AppLanguage.JAPANESE) {
+                SettingsScreen(
+                    state = SettingsUiState(confirmation = SettingsConfirmation.Logout(clearCache = false)),
+                    onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                    onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                    onConfirmDestructiveAction = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("サインアウトしますか？").assertIsDisplayed()
+        composeRule.onNodeWithText("このデバイスに保存されたiCloud認証情報が削除されます。ローカルにキャッシュされたカレンダーデータは残ります。").assertIsDisplayed()
+        composeRule.onNodeWithText("サインアウト").assertIsDisplayed()
+        composeRule.onNodeWithText("キャンセル").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsSavedMessageUsesTheSelectedAppLanguage() {
+        val savedEvents = MutableSharedFlow<Unit>(replay = 1).apply { tryEmit(Unit) }
+        composeRule.setContent {
+            LocalizedAppContent(AppLanguage.JAPANESE) {
+                SettingsScreen(
+                    state = SettingsUiState(),
+                    onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                    onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                    onConfirmDestructiveAction = {},
+                    settingsSavedEvents = savedEvents,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("設定を保存しました").assertIsDisplayed()
+    }
 
     @Test
     fun requiredPrivacyOptionsExposeAnActionThatOpensTheConsentChoices() {
@@ -384,9 +423,9 @@ class SettingsScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Delete cached calendar data?").assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_clear_cache_title)).assertIsDisplayed()
         assertTrue(!confirmed)
-        composeRule.onNodeWithText("Delete").performClick()
+        composeRule.onNodeWithTag("settings-confirm").performClick()
         assertTrue(confirmed)
     }
 
@@ -428,6 +467,8 @@ class SettingsScreenTest {
         composeRule.setContent {
             SettingsScreen(
                 state = SettingsUiState(
+                    maskedAppleId = "per***@example.test",
+                    accountLoading = false,
                     calendars = (1..20).map { index ->
                         CalendarSummary("calendar-$index", "Calendar $index", Color.Red.value.toInt(), true)
                     },
@@ -441,11 +482,11 @@ class SettingsScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Sign out").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Close").assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_logout)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.settings_close)).assertIsDisplayed()
         composeRule.onNodeWithTag("settings-logout-icon", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Sign out").performClick()
-        composeRule.onNodeWithText("Your saved iCloud credentials will be removed from this device.")
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_logout)).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings_logout_message))
             .assertIsDisplayed()
     }
 }

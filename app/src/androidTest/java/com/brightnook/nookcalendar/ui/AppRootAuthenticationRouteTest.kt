@@ -29,20 +29,13 @@ class AppRootAuthenticationRouteTest {
         composeRule.onNodeWithText("iCloud Calendar connected").assertIsDisplayed()
     }
 
-    @Test fun signedOutAccountKeepsLoginAfterInitialSuccess() {
+    @Test fun signedOutAccountKeepsTheCalendarVisibleUntilLoginIsRequested() {
         setRoot(AccountAuthenticationState.SignedOut)
-        connect()
-        composeRule.onNodeWithText("Connect iCloud Calendar").assertIsDisplayed()
+        composeRule.onNodeWithText("iCloud Calendar connected").assertIsDisplayed()
     }
 
     private fun setRoot(state: AccountAuthenticationState) {
         composeRule.setContent { AppRoot(loginFactory(), MutableStateFlow(state)) }
-    }
-    private fun connect() {
-        composeRule.onNodeWithContentDescription("Apple Account email").performTextInput("person@example.test")
-        composeRule.onNodeWithContentDescription("App-specific password").performTextInput("abcd-efgh-ijkl-mnop")
-        composeRule.onNodeWithText("Connect and sync").performClick()
-        composeRule.waitForIdle()
     }
     private fun loginFactory() = LoginViewModelFactory(
         loginCoordinator = object : LoginCoordinator { override suspend fun connect(appleId: String, appPassword: CharArray) = LoginResult.Success },

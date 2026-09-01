@@ -19,6 +19,7 @@ class MonthMarkersTest {
                 allDay("same-color", "two", 0xff112233.toInt(), LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 16)),
                 allDay("third", "three", 0xff445566.toInt(), LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 16)),
                 allDay("fourth", "four", 0xff778899.toInt(), LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 16)),
+                allDay("adjacent", "one", 0xff112233.toInt(), LocalDate.of(2026, 7, 31), LocalDate.of(2026, 8, 1)),
                 allDay("hidden", "hidden", 0xffaa0000.toInt(), LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 16)),
             ),
             visibleCalendarIds = setOf("one", "two", "three", "four"),
@@ -33,6 +34,7 @@ class MonthMarkersTest {
         )
         assertEquals(listOf(0xff112233.toInt()), markers[LocalDate.of(2026, 8, 16)])
         assertEquals(null, markers[LocalDate.of(2026, 8, 13)])
+        assertEquals(listOf(0xff112233.toInt()), markers[LocalDate.of(2026, 7, 31)])
     }
 
     private fun allDay(id: String, calendarId: String, color: Int, start: LocalDate, endExclusive: LocalDate) =

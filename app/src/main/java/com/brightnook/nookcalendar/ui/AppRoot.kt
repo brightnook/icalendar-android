@@ -79,7 +79,7 @@ fun AppRoot(
             syncCoordinator = container.syncCoordinator,
             onAuthenticated = container.accountManager::markAuthenticated,
         ),
-        authenticatedContent = {
+        calendarContent = { onOpenLogin, showLoginPrompt ->
             val monetization by container.monetizationRepository.state.collectAsState()
             LaunchedEffect(container.monetizationRepository) {
                 container.monetizationRepository.refresh()
@@ -108,6 +108,8 @@ fun AppRoot(
                 hostActivity = activity,
                 monetization = monetization,
                 purchaseFeedbackEvents = container.monetizationRepository.purchaseFeedbackEvents,
+                showLoginPrompt = showLoginPrompt,
+                onOpenLogin = onOpenLogin,
                 onPurchase = {
                     launchPurchaseIfActivity(activity, coroutineScope) { purchaseActivity ->
                         container.monetizationRepository.purchase(purchaseActivity)
@@ -138,7 +140,7 @@ internal fun activityFromRegistryOwner(owner: ActivityResultRegistryOwner?): Act
 fun AppRoot(loginViewModelFactory: ViewModelProvider.Factory) {
     AppRootContent(
         loginViewModelFactory,
-        authenticatedContent = { AuthenticatedPlaceholder() },
+        calendarContent = { _, _ -> AuthenticatedPlaceholder() },
         accountState = AccountAuthenticationState.Authenticated("preview"),
     )
 }
@@ -151,7 +153,7 @@ fun AppRoot(
     val accountState by authenticationState.collectAsState()
     AppRootContent(
         loginViewModelFactory,
-        authenticatedContent = { AuthenticatedPlaceholder() },
+        calendarContent = { _, _ -> AuthenticatedPlaceholder() },
         accountState = accountState,
     )
 }
@@ -161,33 +163,39 @@ internal fun routesToAuthenticatedContent(state: AccountAuthenticationState): Bo
 
 enum class AppStartupDestination { LOADING, LOGIN, CALENDAR }
 
-internal fun appStartupDestination(state: AccountAuthenticationState): AppStartupDestination = when (state) {
-    AccountAuthenticationState.Loading -> AppStartupDestination.LOADING
-    AccountAuthenticationState.SignedOut -> AppStartupDestination.LOGIN
-    is AccountAuthenticationState.Authenticated -> AppStartupDestination.CALENDAR
-}
+internal fun appStartupDestination(@Suppress("UNUSED_PARAMETER") state: AccountAuthenticationState): AppStartupDestination =
+    AppStartupDestination.CALENDAR
+
+internal fun shouldShowLoginScreen(state: AccountAuthenticationState, loginRequested: Boolean): Boolean =
+    state is AccountAuthenticationState.SignedOut && loginRequested
 
 @Composable
 private fun AppRootContent(
     loginViewModelFactory: ViewModelProvider.Factory,
-    authenticatedContent: @Composable () -> Unit,
+    calendarContent: @Composable (onOpenLogin: () -> Unit, showLoginPrompt: Boolean) -> Unit,
     accountState: AccountAuthenticationState,
 ) {
     val context = LocalContext.current
     val loginViewModel: LoginViewModel = viewModel(factory = loginViewModelFactory)
     val uiState by loginViewModel.uiState.collectAsState()
 
-    when (appStartupDestination(accountState)) {
-        AppStartupDestination.LOADING -> StartupLoadingScreen()
-        AppStartupDestination.CALENDAR -> authenticatedContent()
-        AppStartupDestination.LOGIN -> {
+    var loginRequested by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(accountState) {
+        if (accountState is AccountAuthenticationState.Authenticated) loginRequested = false
+    }
+    if (shouldShowLoginScreen(accountState, loginRequested)) {
             LoginScreen(
                 uiState = uiState,
                 onConnect = loginViewModel::connect,
                 onViewCalendars = loginViewModel::viewCalendars,
                 onOpenUri = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+                onClose = { loginRequested = false },
             )
-        }
+    } else {
+        calendarContent(
+            { loginRequested = true },
+            accountState is AccountAuthenticationState.SignedOut,
+        )
     }
 }
 
@@ -224,6 +232,8 @@ private fun MainCalendarDestination(
     hostActivity: Activity?,
     monetization: MonetizationUiState,
     purchaseFeedbackEvents: Flow<PurchaseFeedback>,
+    showLoginPrompt: Boolean,
+    onOpenLogin: () -> Unit,
     onPurchase: () -> Unit,
     onRestorePurchase: () -> Unit,
 ) {
@@ -263,6 +273,7 @@ private fun MainCalendarDestination(
             onSetApplyThemeToWidget = settingsViewModel::setApplyThemeToWidget,
             settingsSavedEvents = settingsViewModel.settingsSavedEvents,
             purchaseFeedbackEvents = purchaseFeedbackEvents,
+            onLogin = onOpenLogin,
             onSetCalendarVisible = settingsViewModel::setCalendarVisible,
             onClearHistory = settingsViewModel::requestClearHistory,
             onClearCache = settingsViewModel::requestClearCache,
@@ -295,6 +306,9 @@ private fun MainCalendarDestination(
         weekStart = appSettings.weekStart,
         themePresentation = themePresentation,
         monetization = monetization.copy(canShowAds = monetization.canShowAds && adConsent.ready),
+        showLoginPrompt = showLoginPrompt,
+        canRefresh = !showLoginPrompt,
+        onOpenLogin = onOpenLogin,
     )
 }
 

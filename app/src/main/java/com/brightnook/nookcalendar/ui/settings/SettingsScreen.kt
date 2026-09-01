@@ -68,6 +68,7 @@ fun SettingsScreen(
     ),
     onPurchase: () -> Unit = {},
     onRestorePurchase: () -> Unit = {},
+    onLogin: () -> Unit = {},
     privacyOptionsRequired: Boolean = false,
     onOpenPrivacyOptions: () -> Unit = {},
 ) {
@@ -132,20 +133,26 @@ fun SettingsScreen(
                         state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out),
                         Modifier.weight(1f).testTag("masked-account"),
                     )
-                    TextButton(
-                        onClick = onLogout,
-                        modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).testTag("account-logout").semantics {
-                            contentDescription = logoutDescription
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_action_logout_transparent),
-                            contentDescription = null,
-                            modifier = Modifier.testTag("settings-logout-icon"),
-                            tint = Color.Unspecified,
-                        )
-                        Spacer(Modifier.width(actionPresentation.iconTextSpacing))
-                        Text(logoutDescription)
+                    if (state.maskedAppleId != null) {
+                        TextButton(
+                            onClick = onLogout,
+                            modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).testTag("account-logout").semantics {
+                                contentDescription = logoutDescription
+                            },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_action_logout_transparent),
+                                contentDescription = null,
+                                modifier = Modifier.testTag("settings-logout-icon"),
+                                tint = Color.Unspecified,
+                            )
+                            Spacer(Modifier.width(actionPresentation.iconTextSpacing))
+                            Text(logoutDescription)
+                        }
+                    } else if (!state.accountLoading) {
+                        TextButton(onClick = onLogin, modifier = Modifier.testTag("account-login")) {
+                            Text(stringResource(R.string.calendar_login_action))
+                        }
                     }
                 }
             }
@@ -204,7 +211,7 @@ fun SettingsScreen(
         modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
     )
     }
-    state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_delete)) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
+    state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress, modifier = Modifier.testTag("settings-confirm")) { Text(action.confirmLabel()) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
 }
 
 @Composable
@@ -386,3 +393,10 @@ private fun SettingsSection(
 internal fun syncModePickerOptions(): List<SyncMode> = SyncMode.entries
 @Composable private fun SettingsConfirmation.title() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_title; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_title; is SettingsConfirmation.Logout -> R.string.settings_logout_title })
 @Composable private fun SettingsConfirmation.message() = stringResource(when (this) { SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_message; SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_message; is SettingsConfirmation.Logout -> R.string.settings_logout_message })
+@Composable private fun SettingsConfirmation.confirmLabel() = stringResource(
+    when (this) {
+        SettingsConfirmation.ClearHistory -> R.string.settings_clear_history_confirm
+        SettingsConfirmation.ClearCache -> R.string.settings_clear_cache_confirm
+        is SettingsConfirmation.Logout -> R.string.settings_logout_confirm
+    },
+)
