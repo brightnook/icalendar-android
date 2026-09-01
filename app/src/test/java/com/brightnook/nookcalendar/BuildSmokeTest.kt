@@ -11,7 +11,7 @@ class BuildSmokeTest {
 
     @Test
     fun diagnosticTestBuildUsesTheNextPlayVersion() {
-        assertEquals("1.0.6", BuildConfig.VERSION_NAME)
-        assertEquals(7, BuildConfig.VERSION_CODE)
+        assertEquals("1.0.7", BuildConfig.VERSION_NAME)
+        assertEquals(8, BuildConfig.VERSION_CODE)
     }
 }
