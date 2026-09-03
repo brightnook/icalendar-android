@@ -1,6 +1,8 @@
 package com.brightnook.nookcalendar.ui.main
 
 import androidx.compose.ui.unit.dp
+import com.brightnook.nookcalendar.monetization.MonetizationUiState
+import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -31,5 +33,14 @@ class AdBannerSlotTest {
     fun adaptiveWidthChangesWhenTheAvailableSlotWidthChanges() {
         assertEquals(320, anchoredAdaptiveBannerWidthDp(320.dp))
         assertEquals(600, anchoredAdaptiveBannerWidthDp(600.dp))
+    }
+
+    @Test
+    fun freeUsersReserveTheFullBannerHeightBeforeTheAdLoads() {
+        val free = MonetizationUiState(true, PurchaseUiState.AVAILABLE, "$2.49")
+        val premium = MonetizationUiState(false, PurchaseUiState.OWNED, null)
+
+        assertEquals(90.dp, reservedBannerSlotHeight(free))
+        assertEquals(null, reservedBannerSlotHeight(premium))
     }
 }

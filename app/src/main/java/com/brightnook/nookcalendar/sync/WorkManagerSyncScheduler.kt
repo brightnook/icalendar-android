@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
+import androidx.lifecycle.asFlow
 import com.brightnook.nookcalendar.data.SettingsStore
 import com.brightnook.nookcalendar.domain.SyncMode
 import java.util.UUID
@@ -75,8 +76,19 @@ class WorkManagerSyncScheduler internal constructor(
     )
     private val _readiness = MutableStateFlow(SyncSchedulerReadiness.INITIALIZING)
     override val readiness: StateFlow<SyncSchedulerReadiness> = _readiness.asStateFlow()
+    private val _manualSyncInProgress = MutableStateFlow(false)
+    override val manualSyncInProgress: StateFlow<Boolean> = _manualSyncInProgress.asStateFlow()
 
     init {
+        scope.launch {
+            workManager.getWorkInfosForUniqueWorkLiveData(MANUAL_SYNC_WORK_NAME).asFlow().collect { work ->
+                _manualSyncInProgress.value = work.any {
+                    it.state == androidx.work.WorkInfo.State.ENQUEUED ||
+                        it.state == androidx.work.WorkInfo.State.RUNNING ||
+                        it.state == androidx.work.WorkInfo.State.BLOCKED
+                }
+            }
+        }
         scope.launch {
             settingsStore.settings.collect { settings ->
                 workTransitions.withLock {

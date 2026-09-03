@@ -1,4 +1,7 @@
 <resources>
+    <string name="reminder_notification_channel_name">iCloud カレンダーのリマインダー</string>
+    <string name="reminder_notification_channel_description">同期済みの iCloud カレンダーからのリマインダー</string>
+    <string name="reminder_notification_default_text">予定のリマインダー</string>
     <string name="app_name">nookcalendar</string>
     <string name="startup_loading">カレンダーを開いています…</string>
     <string name="login_title">iCloudカレンダーに接続</string>
@@ -43,6 +46,9 @@
     <string name="calendar_detail_location">場所</string>
     <string name="calendar_detail_notes">メモ</string>
     <string name="calendar_detail_recurrence">繰り返し</string>
+    <string name="calendar_detail_reminders">リマインダー</string>
+    <string name="calendar_detail_no_reminder">リマインダーはありません</string>
+    <string name="calendar_detail_reminder_upgrade_hint">プレミアムにアップグレードすると、すべてのリマインダーを同期できます。</string>
     <string name="calendar_yes">はい</string>
     <string name="calendar_no">いいえ</string>
     <string name="calendar_open_external">開く</string>
@@ -66,14 +72,14 @@
     <string name="settings_account">アカウント</string>
     <string name="settings_account_signed_out">未接続</string>
     <string name="settings_support">サポート</string>
-    <string name="settings_remove_ads_forever">広告を永久に削除</string>
+    <string name="settings_remove_ads_forever">プレミアムにアップグレード</string>
     <string name="settings_restore_purchases">購入を復元</string>
     <string name="settings_privacy_options">プライバシー設定</string>
     <string name="settings_play_price">Google Play の価格: %1$s</string>
     <string name="settings_play_price_unavailable">Google Play の価格を取得できません。</string>
     <string name="settings_billing_loading">Google Play を確認しています…</string>
     <string name="settings_payment_pending">お支払いを処理しています。購入が確認されるまで広告は表示されます。</string>
-    <string name="settings_ads_removed">広告を削除しました。</string>
+    <string name="settings_ads_removed">プレミアムを有効にしました。広告が削除され、すべての iCloud リマインダーが同期されます。</string>
     <string name="settings_billing_unavailable">Google Play の課金を利用できません。以前の購入は復元できます。</string>
     <string name="settings_purchase_cancelled">購入をキャンセルしました。</string>
     <string name="settings_purchase_failed">購入を完了できませんでした。もう一度お試しください。</string>
@@ -101,6 +107,8 @@
     <string name="settings_theme_error_io">画像を読み込めませんでした。もう一度お試しください。</string>
     <string name="settings_calendars">カレンダー</string>
     <string name="settings_data_and_sign_out">データとサインアウト</string>
+    <string name="settings_about">このアプリについて</string>
+    <string name="settings_version">バージョン %1$s（%2$d）</string>
     <string name="settings_clear_history">履歴を消去</string>
     <string name="settings_clear_cache">キャッシュを削除</string>
     <string name="settings_logout">サインアウト</string>

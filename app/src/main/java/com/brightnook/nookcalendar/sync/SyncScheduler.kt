@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface SyncScheduler {
     val readiness: StateFlow<SyncSchedulerReadiness>
+    val manualSyncInProgress: StateFlow<Boolean>
 
     suspend fun applyMode(mode: SyncMode)
     fun enqueueManual(): UUID

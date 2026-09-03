@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.EventDetail
+import com.brightnook.nookcalendar.domain.EventReminder
 import java.net.URI
 import java.time.DayOfWeek
 import java.time.ZoneId
@@ -125,6 +126,7 @@ fun EventDetailContent(
     contentColor: Color,
     secondaryContentColor: Color,
     surfaceColor: Color,
+    premium: Boolean,
 ) {
     Column(
         modifier = Modifier
@@ -151,6 +153,28 @@ fun EventDetailContent(
             contentColor,
             secondaryContentColor,
         )
+        val allReminderTimes = reminderTimes(detail, zoneId)
+        val displayedReminderTimes = if (premium) allReminderTimes else allReminderTimes.take(1)
+        val reminderFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(currentLocale())
+        DetailRow(
+            stringResource(R.string.calendar_detail_reminders),
+            if (displayedReminderTimes.isEmpty()) {
+                stringResource(R.string.calendar_detail_no_reminder)
+            } else {
+                displayedReminderTimes.joinToString("\n") { reminderTime ->
+                    reminderTime.format(reminderFormatter)
+                }
+            },
+            contentColor,
+            secondaryContentColor,
+        )
+        if (!premium && allReminderTimes.size > displayedReminderTimes.size) {
+            Text(
+                stringResource(R.string.calendar_detail_reminder_upgrade_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = secondaryContentColor,
+            )
+        }
         detail.location?.takeIf(String::isNotBlank)?.let { location ->
             DetailRow(stringResource(R.string.calendar_detail_location), location, contentColor, secondaryContentColor)
             parseExternalAction(location)?.let { action ->
@@ -192,6 +216,26 @@ fun EventDetailContent(
             Text(stringResource(R.string.calendar_close_detail))
         }
     }
+}
+
+internal fun reminderTimes(detail: EventDetail, zoneId: ZoneId): List<java.time.ZonedDateTime> {
+    val start = if (detail.isAllDay) {
+        detail.startDate?.atStartOfDay(zoneId)
+    } else {
+        detail.startInstant?.atZone(zoneId)
+    } ?: return emptyList()
+    val end = if (detail.isAllDay) {
+        detail.endDateExclusive?.atStartOfDay(zoneId)
+    } else {
+        detail.endInstant?.atZone(zoneId)
+    } ?: return emptyList()
+    return detail.reminders.mapNotNull { reminder ->
+        when (reminder) {
+            is EventReminder.Absolute -> reminder.instant.atZone(zoneId)
+            is EventReminder.RelativeToStart -> start.plus(reminder.offset)
+            is EventReminder.RelativeToEnd -> end.plus(reminder.offset)
+        }
+    }.sorted()
 }
 
 @Composable

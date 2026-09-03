@@ -1,3 +1,3 @@
 <resources>
-    <style name="Theme.IOSCalendar" parent="android:style/Theme.Material.Light.NoActionBar" />
+    <style name="Theme.IOSCalendar" parent="Theme.AppCompat.Light.NoActionBar" />
 </resources>

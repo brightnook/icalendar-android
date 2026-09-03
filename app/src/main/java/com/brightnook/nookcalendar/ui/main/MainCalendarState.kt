@@ -9,6 +9,7 @@ import java.time.YearMonth
 data class MainCalendarState(
     val selectedDate: LocalDate,
     val displayedMonth: YearMonth,
+    val isManualSyncInProgress: Boolean = false,
     val calendars: List<CalendarSummary> = emptyList(),
     val agenda: List<EventInstance> = emptyList(),
     val dayMarkerColors: Map<LocalDate, List<Int>> = emptyMap(),

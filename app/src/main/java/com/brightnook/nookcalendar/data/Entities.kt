@@ -43,6 +43,7 @@ data class EventEntity(
     val recurrenceRule: String?,
     val status: String,
     val remoteResourceHref: String?,
+    val reminders: String,
 )
 
 @Entity(
@@ -113,6 +114,7 @@ data class CoverageEntity(
 data class WidgetConfigEntity(
     @PrimaryKey val appWidgetId: Int,
     val rangeDays: Int = 7,
+    val followVisibleCalendars: Boolean = false,
 ) {
     init {
         rangeDays.requireSupportedWidgetRangeDays()
@@ -167,4 +169,17 @@ data class EventDetailRow(
     val endDateExclusive: String?,
     val originalTimeZoneId: String?,
     val recurrenceRule: String?,
+    val reminders: String,
+)
+
+data class ReminderSourceRow(
+    val instanceId: String,
+    val title: String,
+    val location: String?,
+    val isAllDay: Boolean,
+    val startEpochMillis: Long?,
+    val endEpochMillis: Long?,
+    val startDate: String?,
+    val endDateExclusive: String?,
+    val reminders: String,
 )

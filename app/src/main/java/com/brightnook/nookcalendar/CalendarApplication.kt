@@ -10,6 +10,9 @@ import androidx.work.Configuration
 import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class CalendarApplication : Application(), Configuration.Provider {
     val container: AppContainer by lazy { AppContainer(this) }
@@ -32,6 +35,8 @@ class CalendarApplication : Application(), Configuration.Provider {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         container.syncSchedulerReadiness
+        container.reminderScheduler.initialize()
+        CoroutineScope(Dispatchers.IO).launch { container.reminderScheduler.reconcile() }
     }
 
     fun refreshTimeZone() {

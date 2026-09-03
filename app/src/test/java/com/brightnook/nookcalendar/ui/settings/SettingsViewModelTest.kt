@@ -249,6 +249,7 @@ private class PersistingScheduler(
 ) : SyncScheduler {
     override val readiness: StateFlow<SyncSchedulerReadiness> =
         MutableStateFlow(SyncSchedulerReadiness.READY)
+    override val manualSyncInProgress: StateFlow<Boolean> = MutableStateFlow(false)
     val appliedModes = mutableListOf<SyncMode>()
 
     override suspend fun applyMode(mode: SyncMode) {

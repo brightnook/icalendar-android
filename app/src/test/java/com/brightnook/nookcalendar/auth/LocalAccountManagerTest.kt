@@ -42,6 +42,7 @@ class LocalAccountManagerTest {
             repository = emptyRepository { operations += "cache" },
             syncScheduler = object : SyncScheduler {
                 override val readiness = MutableStateFlow(SyncSchedulerReadiness.READY)
+                override val manualSyncInProgress = MutableStateFlow(false)
                 override suspend fun applyMode(mode: SyncMode) = Unit
                 override fun enqueueManual(): UUID = UUID.randomUUID()
                 override suspend fun cancelAll() { operations += "cancel"; cancellationStarted.complete(Unit); cancellationReleased.await() }
@@ -81,6 +82,7 @@ class LocalAccountManagerTest {
             },
             syncScheduler = object : SyncScheduler {
                 override val readiness: StateFlow<SyncSchedulerReadiness> = MutableStateFlow(SyncSchedulerReadiness.READY)
+                override val manualSyncInProgress: StateFlow<Boolean> = MutableStateFlow(false)
                 override suspend fun applyMode(mode: SyncMode) = Unit
                 override fun enqueueManual(): UUID = UUID.randomUUID()
                 override suspend fun cancelAll() { operations += "cancel" }

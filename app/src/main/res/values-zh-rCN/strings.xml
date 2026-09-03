@@ -1,4 +1,7 @@
 <resources>
+    <string name="reminder_notification_channel_name">iCloud 日历提醒</string>
+    <string name="reminder_notification_channel_description">来自已同步 iCloud 日历的提醒</string>
+    <string name="reminder_notification_default_text">日程提醒</string>
     <string name="startup_loading">正在打开日历…</string>
     <string name="app_name">nookcalendar</string>
     <string name="login_title">连接 iCloud 日历</string>
@@ -43,6 +46,9 @@
     <string name="calendar_detail_location">地点</string>
     <string name="calendar_detail_notes">备注</string>
     <string name="calendar_detail_recurrence">重复</string>
+    <string name="calendar_detail_reminders">提醒</string>
+    <string name="calendar_detail_no_reminder">未设置提醒</string>
+    <string name="calendar_detail_reminder_upgrade_hint">升级到高级版即可同步全部提醒。</string>
     <string name="calendar_yes">是</string>
     <string name="calendar_no">否</string>
     <string name="calendar_open_external">打开</string>
@@ -66,14 +72,14 @@
     <string name="settings_account">账户</string>
     <string name="settings_account_signed_out">未连接</string>
     <string name="settings_support">支持</string>
-    <string name="settings_remove_ads_forever">永久移除广告</string>
+    <string name="settings_remove_ads_forever">升级至高级版</string>
     <string name="settings_restore_purchases">恢复购买</string>
     <string name="settings_privacy_options">隐私选项</string>
     <string name="settings_play_price">Google Play 价格：%1$s</string>
     <string name="settings_play_price_unavailable">Google Play 价格暂不可用。</string>
     <string name="settings_billing_loading">正在检查 Google Play…</string>
     <string name="settings_payment_pending">您的付款正在处理中。购买确认前仍会显示广告。</string>
-    <string name="settings_ads_removed">广告已移除。</string>
+    <string name="settings_ads_removed">已升级至高级版：广告已移除，所有 iCloud 提醒将同步。</string>
     <string name="settings_billing_unavailable">Google Play 结算服务不可用。您仍可恢复以前的购买。</string>
     <string name="settings_purchase_cancelled">购买已取消。</string>
     <string name="settings_purchase_failed">无法完成购买，请重试。</string>
@@ -101,6 +107,8 @@
     <string name="settings_theme_error_io">无法导入图片，请重试。</string>
     <string name="settings_calendars">日历</string>
     <string name="settings_data_and_sign_out">数据与退出登录</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_version">版本 %1$s（%2$d）</string>
     <string name="settings_clear_history">清除历史记录</string>
     <string name="settings_clear_cache">删除缓存</string>
     <string name="settings_logout">退出登录</string>

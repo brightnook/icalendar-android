@@ -114,6 +114,17 @@ class WorkManagerSyncSchedulerTest {
     }
 
     @Test
+    fun manualRefreshReportsInProgressWhileItsWorkIsQueued() = runTest {
+        // Catches a refresh control becoming tappable again before WorkManager has finished the manual sync.
+        val scheduler = scheduler()
+        scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
+
+        scheduler.enqueueManual()
+
+        assertTrue(scheduler.manualSyncInProgress.first { it })
+    }
+
+    @Test
     fun recreatedDisabledSchedulerRejectsManualWorkAfterReadinessOpens() = runTest {
         // Catches treating a persisted DISABLED setting as MANUAL after process recreation.
         val scheduler = scheduler(InMemorySettingsStore(SyncMode.DISABLED))

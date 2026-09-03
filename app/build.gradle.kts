@@ -23,8 +23,8 @@ android {
         applicationId = "com.brightnook.nookcalendar"
         minSdk = 28
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.0.7"
+        versionCode = 13
+        versionName = "1.0.12"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -43,6 +43,7 @@ android {
     }
 
     sourceSets["debug"].assets.directories.add("$projectDir/schemas")
+    sourceSets["test"].assets.directories.add("$projectDir/schemas")
 
     val releaseAdMobAppId = providers.gradleProperty("adMobAppId")
         .orElse(localProperties.getProperty("adMobAppId") ?: "")
@@ -103,8 +104,10 @@ tasks.withType<Test>().configureEach {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.9.4")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)

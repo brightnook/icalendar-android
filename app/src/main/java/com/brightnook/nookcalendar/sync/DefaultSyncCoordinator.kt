@@ -24,6 +24,8 @@ import java.time.YearMonth
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
+import com.brightnook.nookcalendar.reminder.ReminderScheduler
+import com.brightnook.nookcalendar.reminder.NoOpReminderScheduler
 
 internal class DefaultSyncCoordinator(
     private val credentialsStore: CredentialsStore,
@@ -32,6 +34,7 @@ internal class DefaultSyncCoordinator(
     private val repository: CalendarRepository,
     private val clock: ClockProvider,
     private val diagnostics: SyncDiagnostics = NoOpSyncDiagnostics,
+    private val reminderScheduler: ReminderScheduler = NoOpReminderScheduler,
 ) : SyncCoordinator {
     override suspend fun sync(request: SyncRequest): SyncResult = SyncMutex.instance.withLock {
         syncLocked(request, newSyncDiagnosticAttemptId())
@@ -132,6 +135,7 @@ internal class DefaultSyncCoordinator(
                 replacedResourceHrefs = delta.upserts.mapTo(linkedSetOf()) { canonicalHref(it.href) },
             ),
         )
+        runCatching { reminderScheduler.reconcile() }
         diagnostics.record(SyncDiagnosticsEvent.deltaApplied(attemptId, calendarId, parsed.events.size, parsed.instances.size))
         return SyncCounts(1, parsed.events.size, parsed.instances.size)
     }
@@ -184,6 +188,7 @@ internal class DefaultSyncCoordinator(
                 coverage = range,
             ),
         )
+        runCatching { reminderScheduler.reconcile() }
         return SyncCounts(1, parsed.events.size, parsed.instances.size)
     }
 

@@ -166,6 +166,7 @@ private class FailingThemeAssetStore(private val failure: ThemeAssetFailure) : T
 private object NoOpSyncScheduler : SyncScheduler {
     override val readiness: StateFlow<SyncSchedulerReadiness> =
         MutableStateFlow(SyncSchedulerReadiness.READY)
+    override val manualSyncInProgress: StateFlow<Boolean> = MutableStateFlow(false)
 
     override suspend fun applyMode(mode: SyncMode) = Unit
     override fun enqueueManual(): UUID = UUID.randomUUID()

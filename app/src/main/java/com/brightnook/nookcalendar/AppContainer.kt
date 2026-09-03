@@ -31,6 +31,9 @@ import com.brightnook.nookcalendar.theme.ThemeAssetStore
 import com.brightnook.nookcalendar.widget.RoomWidgetPreferences
 import com.brightnook.nookcalendar.widget.WidgetPreferences
 import com.brightnook.nookcalendar.widget.WidgetUpdater
+import com.brightnook.nookcalendar.reminder.AndroidReminderScheduler
+import com.brightnook.nookcalendar.reminder.ReminderScheduler
+import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,10 +46,19 @@ class AppContainer(val application: Application) {
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .addMigrations(CalendarDatabase.MIGRATION_2_3)
             .addMigrations(CalendarDatabase.MIGRATION_3_4)
+            .addMigrations(CalendarDatabase.MIGRATION_4_5)
+            .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .build()
     }
 
     val calendarRepository: CalendarRepository by lazy { RoomCalendarRepository(database) }
+    val reminderScheduler: ReminderScheduler by lazy {
+        AndroidReminderScheduler(
+            context = application,
+            repository = calendarRepository,
+            isPremium = { monetizationRepository.state.value.purchaseState == PurchaseUiState.OWNED },
+        )
+    }
     val widgetPreferences: WidgetPreferences by lazy { RoomWidgetPreferences(database) }
     val widgetUpdater: WidgetUpdater by lazy { WidgetUpdater(application) }
     val settingsStore: SettingsStore by lazy { DataStoreSettingsStore(application) }
@@ -67,6 +79,7 @@ class AppContainer(val application: Application) {
             repository = calendarRepository,
             clock = SystemClockProvider,
             diagnostics = AndroidSyncDiagnostics,
+            reminderScheduler = reminderScheduler,
         )
     }
     val syncScheduler: SyncScheduler by lazy {

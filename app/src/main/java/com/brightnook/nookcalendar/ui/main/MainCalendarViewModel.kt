@@ -107,8 +107,12 @@ class MainCalendarViewModel(
     }.combine(viewMode) { content, mode -> content.copy(viewMode = mode) }
         .combine(openEvent) { content, detail -> content.copy(openEvent = detail) }
 
-    val uiState: StateFlow<MainCalendarState> = combine(contentState, message) { content, currentMessage ->
-        content.copy(message = currentMessage)
+    val uiState: StateFlow<MainCalendarState> = combine(
+        contentState,
+        message,
+        syncScheduler.manualSyncInProgress,
+    ) { content, currentMessage, manualSyncInProgress ->
+        content.copy(message = currentMessage, isManualSyncInProgress = manualSyncInProgress)
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,

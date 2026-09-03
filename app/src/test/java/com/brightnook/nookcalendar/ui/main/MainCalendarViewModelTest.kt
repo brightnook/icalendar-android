@@ -497,6 +497,7 @@ private class RecordingScheduler(ready: Boolean = false) : SyncScheduler {
     override val readiness = MutableStateFlow(
         if (ready) SyncSchedulerReadiness.READY else SyncSchedulerReadiness.INITIALIZING,
     )
+    override val manualSyncInProgress = MutableStateFlow(false)
     var enqueueCount = 0
     var failure: RuntimeException? = null
 

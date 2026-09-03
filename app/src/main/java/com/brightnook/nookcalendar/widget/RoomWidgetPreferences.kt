@@ -12,12 +12,13 @@ class RoomWidgetPreferences(database: CalendarDatabase) : WidgetPreferences {
             appWidgetId = config.appWidgetId,
             calendarIds = dao.calendarIds(appWidgetId).toSet(),
             range = WidgetRange.entries.single { it.days == config.rangeDays },
+            followVisibleCalendars = config.followVisibleCalendars,
         )
     }
 
     override suspend fun save(config: WidgetConfig) {
         dao.replaceConfig(
-            WidgetConfigEntity(config.appWidgetId, config.range.days),
+            WidgetConfigEntity(config.appWidgetId, config.range.days, config.followVisibleCalendars),
             config.calendarIds,
         )
     }

@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
+import com.brightnook.nookcalendar.BuildConfig
 import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.SyncMode
@@ -68,6 +69,7 @@ fun SettingsScreen(
     ),
     onPurchase: () -> Unit = {},
     onRestorePurchase: () -> Unit = {},
+    onRefreshPurchaseSupport: suspend () -> Unit = {},
     onLogin: () -> Unit = {},
     privacyOptionsRequired: Boolean = false,
     onOpenPrivacyOptions: () -> Unit = {},
@@ -82,6 +84,9 @@ fun SettingsScreen(
     val purchaseCancelledMessage = stringResource(R.string.settings_purchase_cancelled)
     val purchaseFailedMessage = stringResource(R.string.settings_purchase_failed)
     val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        refreshPurchaseSupportWhenSettingsOpened(monetization.purchaseState, onRefreshPurchaseSupport)
+    }
     LaunchedEffect(settingsSavedEvents) {
         settingsSavedEvents.collect {
             snackbarHostState.showSnackbar(settingsSavedMessage)
@@ -203,6 +208,16 @@ fun SettingsScreen(
                 if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
                 if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
             }
+            SettingsSection(R.string.settings_about, "about") {
+                Text(
+                    stringResource(
+                        R.string.settings_version,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.VERSION_CODE,
+                    ),
+                    modifier = Modifier.testTag("app-version"),
+                )
+            }
         }
     }
     }
@@ -212,6 +227,13 @@ fun SettingsScreen(
     )
     }
     state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress, modifier = Modifier.testTag("settings-confirm")) { Text(action.confirmLabel()) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
+}
+
+internal suspend fun refreshPurchaseSupportWhenSettingsOpened(
+    purchaseState: PurchaseUiState,
+    refresh: suspend () -> Unit,
+) {
+    if (purchaseState != PurchaseUiState.OWNED) refresh()
 }
 
 @Composable

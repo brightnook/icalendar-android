@@ -16,7 +16,7 @@ import androidx.sqlite.execSQL
         WidgetConfigEntity::class,
         WidgetCalendarCrossRef::class,
     ],
-    version = 4,
+    version = 6,
     exportSchema = true,
 )
 abstract class CalendarDatabase : RoomDatabase() {
@@ -69,5 +69,40 @@ abstract class CalendarDatabase : RoomDatabase() {
                 connection.execSQL("CREATE INDEX IF NOT EXISTS index_widget_calendar_calendarId ON widget_calendar(calendarId)")
             }
         }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
+                    "ALTER TABLE widget_configuration ADD COLUMN followVisibleCalendars INTEGER NOT NULL DEFAULT 0",
+                )
+                connection.execSQL(
+                    "UPDATE widget_configuration SET followVisibleCalendars = 1 " +
+                        "WHERE NOT EXISTS (SELECT 1 FROM widget_calendar " +
+                        "WHERE widget_calendar.appWidgetId = widget_configuration.appWidgetId)",
+                )
+            }
+        }
+
+        /**
+         * Adds reminder definitions to the released version-5 schema.
+         *
+         * Version 5 is already installed on user devices without this column, so this must be
+         * a new schema version rather than reusing migration 4 to 5.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(connection: SQLiteConnection) {
+                if (!connection.hasColumn("event_masters", "reminders")) {
+                    connection.execSQL("ALTER TABLE event_masters ADD COLUMN reminders TEXT NOT NULL DEFAULT ''")
+                }
+            }
+        }
+
+        private fun SQLiteConnection.hasColumn(table: String, column: String): Boolean =
+            prepare("PRAGMA table_info($table)").use { statement ->
+                while (statement.step()) {
+                    if (statement.getText(1) == column) return true
+                }
+                false
+            }
     }
 }

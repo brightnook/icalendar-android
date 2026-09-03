@@ -22,6 +22,8 @@ import com.brightnook.nookcalendar.theme.ThemeAssetFailure
 import com.brightnook.nookcalendar.theme.ThemeAssetImport
 import com.brightnook.nookcalendar.theme.ThemeAssetStore
 import com.brightnook.nookcalendar.widget.WidgetRefreshNotifier
+import com.brightnook.nookcalendar.reminder.ReminderScheduler
+import com.brightnook.nookcalendar.reminder.NoOpReminderScheduler
 import java.io.File
 import java.time.YearMonth
 import kotlinx.coroutines.CancellationException
@@ -44,6 +46,7 @@ class SettingsViewModel(
     private val clock: ClockProvider = SystemClockProvider,
     private val widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
     private val themeAssetStore: ThemeAssetStore = UnavailableThemeAssetStore,
+    private val reminderScheduler: ReminderScheduler = NoOpReminderScheduler,
 ) : ViewModel() {
     private val confirmation = MutableStateFlow<SettingsConfirmation?>(null)
     private val destructiveActionInProgress = MutableStateFlow(false)
@@ -177,6 +180,7 @@ class SettingsViewModel(
         launchSettingsSave {
             repository.setCalendarVisible(calendarId, visible)
             widgetUpdater.refreshAll()
+            reminderScheduler.reconcile()
             true
         }
     }
@@ -200,6 +204,7 @@ class SettingsViewModel(
                     SettingsConfirmation.ClearCache -> {
                         repository.clearCalendarCache()
                         widgetUpdater.refreshAll()
+                        reminderScheduler.reconcile()
                     }
                     is SettingsConfirmation.Logout -> showCleanupWarning.value = !accountManager.logout(action.clearCache)
                 }
@@ -293,6 +298,7 @@ class SettingsViewModelFactory(
     private val accountManager: AccountManager,
     private val widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
     private val themeAssetStore: ThemeAssetStore = UnavailableThemeAssetStore,
+    private val reminderScheduler: ReminderScheduler = NoOpReminderScheduler,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -304,6 +310,7 @@ class SettingsViewModelFactory(
             accountManager = accountManager,
             widgetUpdater = widgetUpdater,
             themeAssetStore = themeAssetStore,
+            reminderScheduler = reminderScheduler,
         ) as T
     }
 }

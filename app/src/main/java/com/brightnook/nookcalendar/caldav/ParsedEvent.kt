@@ -3,6 +3,7 @@ package com.brightnook.nookcalendar.caldav
 import com.brightnook.nookcalendar.domain.CalendarEvent
 import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.EventStatus
+import com.brightnook.nookcalendar.domain.EventReminder
 import java.time.Instant
 import java.time.LocalDate
 import java.nio.charset.StandardCharsets
@@ -19,6 +20,7 @@ data class ParsedEvent(
     val isAllDay: Boolean,
     val recurrenceRule: String?,
     val status: EventStatus,
+    val reminders: List<EventReminder> = emptyList(),
 ) {
     fun toDomain(calendarId: String, remoteResourceHref: String? = null): CalendarEvent = CalendarEvent(
         id = stableId("domain-event", calendarId, id),
@@ -33,6 +35,7 @@ data class ParsedEvent(
         recurrenceRule = recurrenceRule,
         status = status,
         remoteResourceHref = remoteResourceHref,
+        reminders = reminders,
     )
 }
 

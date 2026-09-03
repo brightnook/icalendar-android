@@ -1,4 +1,7 @@
 <resources>
+    <string name="reminder_notification_channel_name">iCloud calendar reminders</string>
+    <string name="reminder_notification_channel_description">Reminders from your synced iCloud calendars</string>
+    <string name="reminder_notification_default_text">Event reminder</string>
     <string name="app_name">nookcalendar</string>
     <string name="startup_loading">Opening calendar…</string>
     <string name="login_title">Connect iCloud Calendar</string>
@@ -43,6 +46,9 @@
     <string name="calendar_detail_location">Location</string>
     <string name="calendar_detail_notes">Notes</string>
     <string name="calendar_detail_recurrence">Repeats</string>
+    <string name="calendar_detail_reminders">Reminders</string>
+    <string name="calendar_detail_no_reminder">No reminders</string>
+    <string name="calendar_detail_reminder_upgrade_hint">Upgrade to Premium to sync all reminders.</string>
     <string name="calendar_yes">Yes</string>
     <string name="calendar_no">No</string>
     <string name="calendar_open_external">Open</string>
@@ -66,14 +72,14 @@
     <string name="settings_account">Account</string>
     <string name="settings_account_signed_out">Not connected</string>
     <string name="settings_support">Support</string>
-    <string name="settings_remove_ads_forever">Remove ads forever</string>
+    <string name="settings_remove_ads_forever">Upgrade to Premium</string>
     <string name="settings_restore_purchases">Restore purchases</string>
     <string name="settings_privacy_options">Privacy options</string>
     <string name="settings_play_price">Google Play price: %1$s</string>
     <string name="settings_play_price_unavailable">Google Play price is unavailable.</string>
     <string name="settings_billing_loading">Checking Google Play…</string>
     <string name="settings_payment_pending">Your payment is pending. Ads will remain until the purchase is confirmed.</string>
-    <string name="settings_ads_removed">Ads have been removed.</string>
+    <string name="settings_ads_removed">Premium activated. Ads removed and all iCloud reminders will sync.</string>
     <string name="settings_billing_unavailable">Google Play billing is unavailable. You can still restore past purchases.</string>
     <string name="settings_purchase_cancelled">Purchase cancelled.</string>
     <string name="settings_purchase_failed">Could not complete the purchase. Try again.</string>
@@ -101,6 +107,8 @@
     <string name="settings_theme_error_io">The image could not be imported. Try again.</string>
     <string name="settings_calendars">Calendars</string>
     <string name="settings_data_and_sign_out">Data and sign out</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version %1$s (%2$d)</string>
     <string name="settings_clear_history">Clear history</string>
     <string name="settings_clear_cache">Delete cache</string>
     <string name="settings_logout">Sign out</string>

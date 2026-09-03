@@ -182,17 +182,28 @@ fun MainCalendarScreen(
         ) {
             ActionIcon(BOTTOM_TODAY_TAG, R.string.calendar_today, R.drawable.ic_action_today, themePresentation, onToday)
             ActionIcon(BOTTOM_VIEW_TAG, if (state.viewMode == CalendarViewMode.COMBINED) R.string.calendar_show_year else R.string.calendar_show_combined, R.drawable.ic_action_view_switch, themePresentation, onToggleViewMode)
-            ActionIcon(BOTTOM_PICK_DATE_TAG, R.string.calendar_pick_date, R.drawable.ic_action_search, themePresentation) {
-                datePickerOpen = true
-            }
-            ActionIcon(BOTTOM_REFRESH_TAG, R.string.calendar_refresh, R.drawable.ic_action_refresh, themePresentation) {
-                if (canRefresh) {
-                    onRefresh()
-                    Toast.makeText(context, R.string.calendar_refresh_started, Toast.LENGTH_SHORT).show()
-                } else {
-                    onOpenLogin()
-                }
-            }
+            ActionIcon(
+                BOTTOM_PICK_DATE_TAG,
+                R.string.calendar_pick_date,
+                R.drawable.ic_action_search,
+                themePresentation,
+                onClick = { datePickerOpen = true },
+            )
+            ActionIcon(
+                BOTTOM_REFRESH_TAG,
+                R.string.calendar_refresh,
+                R.drawable.ic_action_refresh,
+                themePresentation,
+                onClick = {
+                    if (canRefresh) {
+                        onRefresh()
+                        Toast.makeText(context, R.string.calendar_refresh_started, Toast.LENGTH_SHORT).show()
+                    } else {
+                        onOpenLogin()
+                    }
+                },
+                enabled = !state.isManualSyncInProgress,
+            )
             ActionIcon(BOTTOM_SETTINGS_TAG, R.string.settings_title, R.drawable.ic_action_settings, themePresentation, onOpenSettings)
         }
     }
@@ -223,6 +234,7 @@ fun MainCalendarScreen(
                 contentColor = themePresentation.eventDetailContentColor,
                 secondaryContentColor = themePresentation.eventDetailSecondaryContentColor,
                 surfaceColor = themePresentation.eventDetailContainerColor,
+                premium = monetization.purchaseState == PurchaseUiState.OWNED,
             )
         }
     }
@@ -305,6 +317,7 @@ private fun ActionIcon(
     icon: Int,
     presentation: CalendarThemePresentation,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     val name = stringResource(description)
     val themedIcon = if (presentation.useOriginalActionArtwork) icon else transparentActionArtwork(icon)
@@ -315,8 +328,9 @@ private fun ActionIcon(
     }
     PrimaryControlRippleScope {
     IconButton(
-        onClick,
-        containerModifier.testTag(tag).semantics { contentDescription = name },
+        onClick = onClick,
+        modifier = containerModifier.testTag(tag).semantics { contentDescription = name },
+        enabled = enabled,
     ) {
         Icon(
             painter = painterResource(themedIcon),

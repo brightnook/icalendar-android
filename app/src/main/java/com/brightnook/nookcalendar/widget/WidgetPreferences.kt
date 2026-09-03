@@ -11,6 +11,7 @@ data class WidgetConfig(
     val appWidgetId: Int,
     val calendarIds: Set<String>,
     val range: WidgetRange,
+    val followVisibleCalendars: Boolean = false,
 )
 
 interface WidgetPreferences {

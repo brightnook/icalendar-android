@@ -5,6 +5,7 @@ import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.EventStatus
+import com.brightnook.nookcalendar.domain.EventReminder
 import com.brightnook.nookcalendar.domain.TimeRange
 import java.time.Instant
 import java.time.LocalDate
@@ -26,6 +27,7 @@ internal fun CalendarEvent.toEntity() = EventEntity(
     recurrenceRule = recurrenceRule,
     status = status.name,
     remoteResourceHref = remoteResourceHref,
+    reminders = reminders.encode(),
 )
 
 internal fun EventEntity.toDomain() = CalendarEvent(
@@ -41,7 +43,29 @@ internal fun EventEntity.toDomain() = CalendarEvent(
     recurrenceRule = recurrenceRule,
     status = EventStatus.valueOf(status),
     remoteResourceHref = remoteResourceHref,
+    reminders = reminders.decodeReminders(),
 )
+
+internal fun List<EventReminder>.encode(): String = joinToString(";") { reminder ->
+    when (reminder) {
+        is EventReminder.Absolute -> "A:${reminder.instant.toEpochMilli()}"
+        is EventReminder.RelativeToStart -> "S:${reminder.offset.toMillis()}"
+        is EventReminder.RelativeToEnd -> "E:${reminder.offset.toMillis()}"
+    }
+}
+
+internal fun String.decodeReminders(): List<EventReminder> = split(';').mapNotNull { token ->
+    val (kind, value) = token.split(':', limit = 2).let { it.getOrNull(0) to it.getOrNull(1)?.toLongOrNull() }
+    when (kind to value) {
+        "A" to null -> null
+        "S" to null -> null
+        "E" to null -> null
+        "A" to value -> EventReminder.Absolute(Instant.ofEpochMilli(requireNotNull(value)))
+        "S" to value -> EventReminder.RelativeToStart(java.time.Duration.ofMillis(requireNotNull(value)))
+        "E" to value -> EventReminder.RelativeToEnd(java.time.Duration.ofMillis(requireNotNull(value)))
+        else -> null
+    }
+}
 
 internal fun EventInstance.toEntity() = EventInstanceEntity(
     instanceId = instanceId,
@@ -84,6 +108,7 @@ internal fun EventDetailRow.toDomain() = EventDetail(
     endDateExclusive = endDateExclusive?.let(LocalDate::parse),
     originalTimeZoneId = originalTimeZoneId,
     recurrenceRule = recurrenceRule,
+    reminders = reminders.decodeReminders(),
 )
 
 internal fun TimeRange.toCoverageEntity(calendarId: String) = CoverageEntity(

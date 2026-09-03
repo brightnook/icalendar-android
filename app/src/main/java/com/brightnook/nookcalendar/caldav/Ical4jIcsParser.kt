@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.caldav
 
 import com.brightnook.nookcalendar.domain.EventStatus
+import com.brightnook.nookcalendar.domain.EventReminder
 import com.brightnook.nookcalendar.domain.TimeRange
 import java.io.StringReader
 import java.time.Duration
@@ -19,6 +20,7 @@ import net.fortuna.ical4j.model.Parameter
 import net.fortuna.ical4j.model.Property
 import net.fortuna.ical4j.model.TimeZoneRegistry
 import net.fortuna.ical4j.model.component.VEvent
+import net.fortuna.ical4j.model.component.VAlarm
 import net.fortuna.ical4j.model.property.DtStart
 import net.fortuna.ical4j.model.property.DtEnd
 import net.fortuna.ical4j.model.property.RecurrenceId
@@ -123,6 +125,8 @@ class Ical4jIcsParser : IcsParser {
             isAllDay = startProperty.date is LocalDate,
             recurrenceRule = component.getProperty<Property>(Property.RRULE).map { it.value }.orElse(null),
             status = status,
+            reminders = component.getComponents<VAlarm>(Component.VALARM)
+                .mapNotNull(::displayReminder),
         )
         return SourceEvent(
             component = component,
@@ -130,6 +134,21 @@ class Ical4jIcsParser : IcsParser {
             recurrenceIdentity = recurrenceIdentity,
             sourceSpan = sourceSpan,
         )
+    }
+
+    private fun displayReminder(alarm: VAlarm): EventReminder? {
+        if (alarm.action.map { it.value.equals("DISPLAY", ignoreCase = true) }.orElse(false).not()) {
+            return null
+        }
+        val trigger = alarm.trigger.orElse(null) ?: return null
+        if (trigger.isAbsolute) {
+            return (trigger.date as? Instant)?.let(EventReminder::Absolute)
+        }
+        val offset = runCatching { Duration.from(trigger.duration) }.getOrNull() ?: return null
+        val relatedToEnd = trigger.getParameter<Parameter>(Parameter.RELATED)
+            .map { it.value.equals("END", ignoreCase = true) }
+            .orElse(false)
+        return if (relatedToEnd) EventReminder.RelativeToEnd(offset) else EventReminder.RelativeToStart(offset)
     }
 
     private fun SourceEvent.singleOccurrence(): ExpandedOccurrence {

@@ -11,9 +11,13 @@ import com.brightnook.nookcalendar.domain.CalendarSyncState
 import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.TimeRange
+import com.brightnook.nookcalendar.domain.ScheduledReminder
+import com.brightnook.nookcalendar.domain.EventReminder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.Instant
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -54,6 +58,36 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
 
     override fun observeEvent(instanceId: String): Flow<EventDetail?> =
         eventDao.observeEvent(instanceId).map { it?.toDomain() }
+
+    override suspend fun upcomingReminders(after: Instant): List<ScheduledReminder> =
+        eventDao.reminderSources().flatMap { source ->
+            val start = if (source.isAllDay) {
+                LocalDate.parse(requireNotNull(source.startDate)).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            } else {
+                Instant.ofEpochMilli(requireNotNull(source.startEpochMillis))
+            }
+            val end = if (source.isAllDay) {
+                LocalDate.parse(requireNotNull(source.endDateExclusive)).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            } else {
+                Instant.ofEpochMilli(requireNotNull(source.endEpochMillis))
+            }
+            source.reminders.decodeReminders().mapIndexedNotNull { index, reminder ->
+                val triggerAt = when (reminder) {
+                    is EventReminder.Absolute -> reminder.instant
+                    is EventReminder.RelativeToStart -> start.plus(reminder.offset)
+                    is EventReminder.RelativeToEnd -> end.plus(reminder.offset)
+                }
+                if (!triggerAt.isAfter(after)) return@mapIndexedNotNull null
+                ScheduledReminder(
+                    reminderId = stableReminderId(source.instanceId, index),
+                    instanceId = source.instanceId,
+                    date = start.atZone(ZoneId.systemDefault()).toLocalDate(),
+                    triggerAt = triggerAt,
+                    title = source.title,
+                    location = source.location,
+                )
+            }
+        }
 
     override suspend fun getSyncState(calendarId: String): CalendarSyncState = CalendarSyncState(
         syncToken = syncStateDao.find(calendarId)?.syncToken,
@@ -196,6 +230,11 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
         syncStateDao.upsertCoverage(merged)
     }
 }
+
+private fun stableReminderId(instanceId: String, index: Int): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest("reminder:$instanceId:$index".toByteArray(StandardCharsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
 
 private fun TimeRange.localDateBounds(): Pair<LocalDate, LocalDate> {
     val startDate = start.atZone(zoneId).toLocalDate()

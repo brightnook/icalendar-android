@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.domain
 
 import java.time.Instant
+import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -13,6 +14,12 @@ data class CalendarSummary(
 )
 
 enum class EventStatus { CONFIRMED, TENTATIVE, CANCELLED }
+
+sealed interface EventReminder {
+    data class RelativeToStart(val offset: Duration) : EventReminder
+    data class RelativeToEnd(val offset: Duration) : EventReminder
+    data class Absolute(val instant: Instant) : EventReminder
+}
 
 data class CalendarEvent(
     val id: String,
@@ -27,6 +34,7 @@ data class CalendarEvent(
     val recurrenceRule: String?,
     val status: EventStatus,
     val remoteResourceHref: String? = null,
+    val reminders: List<EventReminder> = emptyList(),
 ) {
     init {
         require(remoteResourceHref == null || remoteResourceHref.isNotBlank()) {
@@ -75,6 +83,7 @@ data class EventDetail(
     val endDateExclusive: LocalDate?,
     val originalTimeZoneId: String?,
     val recurrenceRule: String?,
+    val reminders: List<EventReminder> = emptyList(),
 ) {
     init {
         requireValidEventTimes(
@@ -121,6 +130,15 @@ data class CalendarDelta(
 data class CalendarSyncState(
     val syncToken: String? = null,
     val coverage: List<TimeRange> = emptyList(),
+)
+
+data class ScheduledReminder(
+    val reminderId: String,
+    val instanceId: String,
+    val date: LocalDate,
+    val triggerAt: Instant,
+    val title: String,
+    val location: String?,
 )
 
 private fun requireValidEventTimes(

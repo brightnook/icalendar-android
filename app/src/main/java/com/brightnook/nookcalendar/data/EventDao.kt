@@ -114,7 +114,7 @@ interface EventDao {
                c.name AS calendarName, c.colorArgb AS calendarColorArgb,
                e.title, e.location, e.notes, i.isAllDay,
                i.startEpochMillis, i.endEpochMillis, i.startDate, i.endDateExclusive,
-               e.originalTimeZoneId, e.recurrenceRule
+               e.originalTimeZoneId, e.recurrenceRule, e.reminders
         FROM event_instances i
         JOIN event_masters e ON e.id = i.eventId AND e.calendarId = i.calendarId
         JOIN calendars c ON c.id = i.calendarId
@@ -122,4 +122,16 @@ interface EventDao {
         """,
     )
     fun observeEvent(instanceId: String): Flow<EventDetailRow?>
+
+    @Query(
+        """
+        SELECT i.instanceId, e.title, e.location, i.isAllDay, i.startEpochMillis, i.endEpochMillis,
+               i.startDate, i.endDateExclusive, e.reminders
+        FROM event_instances i
+        JOIN event_masters e ON e.id = i.eventId AND e.calendarId = i.calendarId
+        JOIN calendars c ON c.id = i.calendarId
+        WHERE c.isVisible = 1
+        """,
+    )
+    suspend fun reminderSources(): List<ReminderSourceRow>
 }

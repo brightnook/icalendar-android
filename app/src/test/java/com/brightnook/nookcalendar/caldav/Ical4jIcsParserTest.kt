@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.caldav
 
 import com.brightnook.nookcalendar.domain.EventStatus
+import com.brightnook.nookcalendar.domain.EventReminder
 import com.brightnook.nookcalendar.domain.TimeRange
 import java.time.Duration
 import java.time.Instant
@@ -17,6 +18,24 @@ import org.junit.jupiter.api.Test
 
 class Ical4jIcsParserTest {
     private val parser: IcsParser = Ical4jIcsParser()
+
+    @Test
+    fun displayAlarmsPreserveRelativeAndAbsoluteTriggers() {
+        val parsed = parser.parse(
+            eventWithAlarms(),
+            utcRange("2026-08-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+            ZoneId.of("UTC"),
+        )
+
+        assertEquals(
+            listOf(
+                EventReminder.RelativeToStart(Duration.ofMinutes(-15)),
+                EventReminder.Absolute(Instant.parse("2026-08-10T08:30:00Z")),
+                EventReminder.RelativeToEnd(Duration.ofMinutes(5)),
+            ),
+            parsed.events.single().reminders,
+        )
+    }
 
     @Test
     fun allDayDtendIsExclusiveAndMissingDtendMeansOneDay() {
@@ -608,6 +627,40 @@ class Ical4jIcsParserTest {
 
     private fun fixture(name: String): String =
         requireNotNull(javaClass.getResource("/ics/$name")) { "Missing fixture $name" }.readText()
+
+    private fun eventWithAlarms(): String = """
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Synthetic Test//Calendar Parser//EN
+        BEGIN:VEVENT
+        UID:alarms@example.test
+        DTSTAMP:20260801T000000Z
+        DTSTART:20260810T090000Z
+        DTEND:20260810T100000Z
+        SUMMARY:Reminder test
+        BEGIN:VALARM
+        ACTION:DISPLAY
+        TRIGGER:-PT15M
+        DESCRIPTION:Before start
+        END:VALARM
+        BEGIN:VALARM
+        ACTION:DISPLAY
+        TRIGGER;VALUE=DATE-TIME:20260810T083000Z
+        DESCRIPTION:Absolute
+        END:VALARM
+        BEGIN:VALARM
+        ACTION:DISPLAY
+        TRIGGER;RELATED=END:PT5M
+        DESCRIPTION:After end
+        END:VALARM
+        BEGIN:VALARM
+        ACTION:EMAIL
+        TRIGGER:-PT10M
+        DESCRIPTION:Ignored
+        END:VALARM
+        END:VEVENT
+        END:VCALENDAR
+    """.trimIndent().replace("\n", "\r\n") + "\r\n"
 
     private fun singleTimedEvent(rule: String): String = """
         BEGIN:VCALENDAR

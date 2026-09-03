@@ -1,6 +1,9 @@
 package com.brightnook.nookcalendar.ui
 
 import androidx.activity.ComponentActivity
+import com.brightnook.nookcalendar.monetization.PurchaseUiState
+import com.brightnook.nookcalendar.reminder.ReminderScheduler
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -29,5 +32,25 @@ class AppRootPurchaseActionTest {
         advanceUntilIdle()
 
         assertEquals(0, calls)
+    }
+
+    @Test
+    fun ownedPurchaseStateRequestsReminderReconciliation() = runTest {
+        val scheduler = RecordingReminderScheduler()
+
+        reconcileRemindersForPurchaseState(PurchaseUiState.OWNED, scheduler)
+
+        assertEquals(1, scheduler.reconcileCalls)
+    }
+
+    private class RecordingReminderScheduler : ReminderScheduler {
+        override val hasUpcomingReminders = MutableStateFlow(false)
+        var reconcileCalls = 0
+
+        override suspend fun reconcile() {
+            reconcileCalls++
+        }
+
+        override fun initialize() = Unit
     }
 }

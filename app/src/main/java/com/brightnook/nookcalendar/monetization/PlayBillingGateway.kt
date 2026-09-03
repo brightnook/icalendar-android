@@ -72,6 +72,24 @@ class PlayBillingGateway private constructor(
 
     private suspend fun loadSnapshot(): BillingSnapshot {
         ensureConnected()
+        val purchasesResult = billingClient.queryPurchasesAsync(purchasesQuery())
+        purchasesResult.billingResult.requireSuccess()
+        val purchase = purchasesResult.purchasesList
+            .firstOrNull { REMOVE_ADS_FOREVER in it.products }
+
+        if (purchase != null) {
+            var acknowledgementRequired = false
+            val snapshot = purchaseSnapshot(purchase.toPlayPurchase(), productPrice = null) {
+                acknowledgementRequired = true
+            }
+            if (acknowledgementRequired) {
+                purchaseAcknowledgements.acknowledgeOnce(purchase.purchaseToken) {
+                    acknowledge(purchase)
+                }
+            }
+            return snapshot
+        }
+
         val productDetailsResult = billingClient.queryProductDetails(productDetailsQuery())
         productDetailsResult.billingResult.requireSuccess()
         val price = productDetailsResult.productDetailsList.orEmpty()
@@ -79,22 +97,7 @@ class PlayBillingGateway private constructor(
             ?.oneTimePurchaseOfferDetails
             ?.formattedPrice
 
-        val purchasesResult = billingClient.queryPurchasesAsync(purchasesQuery())
-        purchasesResult.billingResult.requireSuccess()
-        val purchase = purchasesResult.purchasesList
-            .firstOrNull { REMOVE_ADS_FOREVER in it.products }
-            ?: return BillingSnapshot(entitled = false, productPrice = price)
-
-        var acknowledgementRequired = false
-        val snapshot = purchaseSnapshot(purchase.toPlayPurchase(), price) {
-            acknowledgementRequired = true
-        }
-        if (acknowledgementRequired) {
-            purchaseAcknowledgements.acknowledgeOnce(purchase.purchaseToken) {
-                acknowledge(purchase)
-            }
-        }
-        return snapshot
+        return BillingSnapshot(entitled = false, productPrice = price)
     }
 
     private suspend fun ensureConnected() {

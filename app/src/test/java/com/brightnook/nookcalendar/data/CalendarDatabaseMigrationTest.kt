@@ -9,8 +9,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.json.JSONObject
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class CalendarDatabaseMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
@@ -57,6 +59,8 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .addMigrations(CalendarDatabase.MIGRATION_2_3)
             .addMigrations(CalendarDatabase.MIGRATION_3_4)
+            .addMigrations(CalendarDatabase.MIGRATION_4_5)
+            .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -118,6 +122,8 @@ class CalendarDatabaseMigrationTest {
 
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_3_4)
+            .addMigrations(CalendarDatabase.MIGRATION_4_5)
+            .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -125,6 +131,84 @@ class CalendarDatabaseMigrationTest {
         migrated.query("SELECT calendarId FROM widget_calendar WHERE appWidgetId = 42").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals("work", cursor.getString(0))
+        }
+        database.close()
+        context.deleteDatabase(DATABASE_NAME)
+    }
+
+    @Test
+    fun migrationFiveToSixAddsEmptyReminderDefinitionsWithoutDeletingExistingEvents() {
+        context.deleteDatabase(DATABASE_NAME)
+        val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).apply {
+            val schema = JSONObject(
+                context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/5.json")
+                    .bufferedReader().use { it.readText() },
+            ).getJSONObject("database")
+            schema.getJSONArray("entities").let { entities ->
+                repeat(entities.length()) { index ->
+                    val entity = entities.getJSONObject(index)
+                    execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                    entity.optJSONArray("indices")?.let { indices ->
+                        repeat(indices.length()) { position ->
+                            execSQL(indices.getJSONObject(position).getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                        }
+                    }
+                }
+            }
+            schema.getJSONArray("setupQueries").let { queries -> repeat(queries.length()) { execSQL(queries.getString(it)) } }
+            execSQL("INSERT INTO calendars VALUES ('work', 'Work', -1, 1)")
+            execSQL("INSERT INTO event_masters VALUES ('event', 'work', 'uid', '', 'Title', NULL, NULL, NULL, 0, NULL, 'CONFIRMED', NULL)")
+            version = 5
+            close()
+        }
+
+        val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
+            .addMigrations(CalendarDatabase.MIGRATION_5_6)
+            .allowMainThreadQueries()
+            .build()
+        database.openHelper.writableDatabase.query("SELECT reminders FROM event_masters WHERE id = 'event'").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("", cursor.getString(0))
+        }
+        database.close()
+        context.deleteDatabase(DATABASE_NAME)
+    }
+
+    @Test
+    fun migrationFiveToSixKeepsTheReminderColumnFromAnEarlierTestBuild() {
+        // Catches a test build that added reminders before its schema version was incremented.
+        context.deleteDatabase(DATABASE_NAME)
+        val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).apply {
+            val schema = JSONObject(
+                context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/5.json")
+                    .bufferedReader().use { it.readText() },
+            ).getJSONObject("database")
+            schema.getJSONArray("entities").let { entities ->
+                repeat(entities.length()) { index ->
+                    val entity = entities.getJSONObject(index)
+                    execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                    entity.optJSONArray("indices")?.let { indices ->
+                        repeat(indices.length()) { position ->
+                            execSQL(indices.getJSONObject(position).getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                        }
+                    }
+                }
+            }
+            schema.getJSONArray("setupQueries").let { queries -> repeat(queries.length()) { execSQL(queries.getString(it)) } }
+            execSQL("ALTER TABLE event_masters ADD COLUMN reminders TEXT NOT NULL DEFAULT ''")
+            version = 5
+            close()
+        }
+
+        val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
+            .addMigrations(CalendarDatabase.MIGRATION_5_6)
+            .allowMainThreadQueries()
+            .build()
+
+        database.openHelper.writableDatabase.query("SELECT reminders FROM event_masters").use { cursor ->
+            assertEquals("reminders", cursor.columnNames.single())
         }
         database.close()
         context.deleteDatabase(DATABASE_NAME)

@@ -34,9 +34,12 @@ class WidgetConfigViewModel(
     ) { calendarList, saved, selection, range ->
         val visible = calendarList.filter(CalendarSummary::isVisible)
         val visibleIds = visible.mapTo(linkedSetOf(), CalendarSummary::id)
+        val followsVisibleCalendars = selection == null && (saved?.followVisibleCalendars ?: true)
         WidgetConfigUiState(
             calendars = visible,
-            selectedCalendarIds = (selection ?: saved?.calendarIds ?: visibleIds).intersect(visibleIds),
+            selectedCalendarIds = (
+                if (followsVisibleCalendars) visibleIds else selection ?: saved?.calendarIds.orEmpty()
+            ).intersect(visibleIds),
             range = range ?: saved?.range ?: WidgetRange.SEVEN_DAYS,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, WidgetConfigUiState())
@@ -59,11 +62,14 @@ class WidgetConfigViewModel(
 
     fun save(onSaved: () -> Unit = {}) {
         viewModelScope.launch {
+            val saved = configured.value
+            val followsVisibleCalendars = selectedOverride.value == null && (saved?.followVisibleCalendars ?: true)
             preferences.save(
                 WidgetConfig(
                     appWidgetId = appWidgetId,
-                    calendarIds = selectedOverride.value ?: uiState.value.selectedCalendarIds,
+                    calendarIds = if (followsVisibleCalendars) emptySet() else selectedOverride.value ?: uiState.value.selectedCalendarIds,
                     range = rangeOverride.value ?: uiState.value.range,
+                    followVisibleCalendars = followsVisibleCalendars,
                 ),
             )
             configured.value = preferences.configFor(appWidgetId)

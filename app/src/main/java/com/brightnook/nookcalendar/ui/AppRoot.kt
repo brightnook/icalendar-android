@@ -1,10 +1,14 @@
 package com.brightnook.nookcalendar.ui
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -23,6 +27,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,6 +47,8 @@ import com.brightnook.nookcalendar.domain.AccountAuthenticationState
 import com.brightnook.nookcalendar.monetization.AdConsentManager
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseFeedback
+import com.brightnook.nookcalendar.monetization.PurchaseUiState
+import com.brightnook.nookcalendar.reminder.ReminderScheduler
 import com.brightnook.nookcalendar.ui.settings.SettingsScreen
 import com.brightnook.nookcalendar.ui.settings.SettingsViewModel
 import com.brightnook.nookcalendar.ui.settings.SettingsViewModelFactory
@@ -68,6 +76,8 @@ fun AppRoot(
     launchTarget: CalendarLaunchTarget? = null,
     openSettingsRequest: Int = 0,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit = {},
+    settingsOpen: Boolean = false,
+    onSettingsOpenChanged: (Boolean) -> Unit = {},
 ) {
     val activity = activityFromRegistryOwner(LocalActivityResultRegistryOwner.current)
     val coroutineScope = rememberCoroutineScope()
@@ -95,6 +105,8 @@ fun AppRoot(
                 launchTarget = launchTarget,
                 openSettingsRequest = openSettingsRequest,
                 onLaunchTargetConsumed = onLaunchTargetConsumed,
+                settingsOpen = settingsOpen,
+                onSettingsOpenChanged = onSettingsOpenChanged,
                 settingsFactory = SettingsViewModelFactory(
                     repository = container.calendarRepository,
                     settingsStore = container.settingsStore,
@@ -102,12 +114,15 @@ fun AppRoot(
                     accountManager = container.accountManager,
                     widgetUpdater = container.widgetUpdater,
                     themeAssetStore = container.themeAssetStore,
+                    reminderScheduler = container.reminderScheduler,
                 ),
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,
                 hostActivity = activity,
                 monetization = monetization,
                 purchaseFeedbackEvents = container.monetizationRepository.purchaseFeedbackEvents,
+                reminderAvailability = container.reminderScheduler.hasUpcomingReminders,
+                reminderScheduler = container.reminderScheduler,
                 showLoginPrompt = showLoginPrompt,
                 onOpenLogin = onOpenLogin,
                 onPurchase = {
@@ -118,6 +133,7 @@ fun AppRoot(
                 onRestorePurchase = {
                     coroutineScope.launch { container.monetizationRepository.restore() }
                 },
+                onRefreshPurchaseSupport = container.monetizationRepository::refresh,
             )
         },
         accountState = accountState,
@@ -226,29 +242,47 @@ private fun MainCalendarDestination(
     launchTarget: CalendarLaunchTarget?,
     openSettingsRequest: Int,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit,
+    settingsOpen: Boolean,
+    onSettingsOpenChanged: (Boolean) -> Unit,
     settingsFactory: ViewModelProvider.Factory,
     settingsStore: SettingsStore,
     themeAssetStore: ThemeAssetStore,
     hostActivity: Activity?,
     monetization: MonetizationUiState,
     purchaseFeedbackEvents: Flow<PurchaseFeedback>,
+    reminderAvailability: StateFlow<Boolean>,
+    reminderScheduler: ReminderScheduler,
     showLoginPrompt: Boolean,
     onOpenLogin: () -> Unit,
     onPurchase: () -> Unit,
     onRestorePurchase: () -> Unit,
+    onRefreshPurchaseSupport: suspend () -> Unit,
 ) {
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
     val uiState by viewModel.uiState.collectAsState()
     val zoneId by zoneIds.collectAsState()
     val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
+    val hasUpcomingReminders by reminderAvailability.collectAsState()
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+    LaunchedEffect(hasUpcomingReminders) {
+        if (hasUpcomingReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     val themePresentation = calendarThemePresentation(
         theme = appSettings.theme,
         assetFile = appSettings.theme.assetKey?.let(themeAssetStore::fileFor),
     )
     val adConsent = rememberAdConsentState(hostActivity)
+    LaunchedEffect(monetization.purchaseState) {
+        reconcileRemindersForPurchaseState(monetization.purchaseState, reminderScheduler)
+    }
     val consumeTarget by rememberUpdatedState(onLaunchTargetConsumed)
-    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(launchTarget) {
         launchTarget?.let {
             viewModel.handleLaunchTarget(it)
@@ -256,14 +290,14 @@ private fun MainCalendarDestination(
         }
     }
     LaunchedEffect(openSettingsRequest) {
-        if (openSettingsRequest != 0) settingsOpen = true
+        if (openSettingsRequest != 0) onSettingsOpenChanged(true)
     }
     if (settingsOpen) {
         val settingsViewModel: SettingsViewModel = viewModel(key = "settings", factory = settingsFactory)
         val settingsState by settingsViewModel.uiState.collectAsState()
         SettingsScreen(
             state = settingsState,
-            onClose = { settingsOpen = false },
+            onClose = { onSettingsOpenChanged(false) },
             onSelectSyncMode = settingsViewModel::selectSyncMode,
             onSelectWeekStart = settingsViewModel::selectWeekStart,
             onSelectLanguage = settingsViewModel::selectLanguage,
@@ -283,6 +317,7 @@ private fun MainCalendarDestination(
             monetization = monetization,
             onPurchase = onPurchase,
             onRestorePurchase = onRestorePurchase,
+            onRefreshPurchaseSupport = onRefreshPurchaseSupport,
             privacyOptionsRequired = adConsent.privacyOptionsRequired,
             onOpenPrivacyOptions = {
                 hostActivity?.let { consentActivity ->
@@ -296,7 +331,7 @@ private fun MainCalendarDestination(
         onSelectDate = viewModel::selectDate,
         onShowMonth = viewModel::showMonth,
         onRefresh = viewModel::refresh,
-        onOpenSettings = { settingsOpen = true },
+        onOpenSettings = { onSettingsOpenChanged(true) },
         onOpenEvent = viewModel::openEvent,
         onCloseEvent = viewModel::closeEvent,
         onOpenExternalAction = { action -> openSafeExternalAction(context, action) },
@@ -337,6 +372,13 @@ private data class AdConsentState(
     val ready: Boolean = false,
     val privacyOptionsRequired: Boolean = false,
 )
+
+internal suspend fun reconcileRemindersForPurchaseState(
+    state: PurchaseUiState,
+    reminderScheduler: ReminderScheduler,
+) {
+    if (state == PurchaseUiState.OWNED) reminderScheduler.reconcile()
+}
 
 private fun openSafeExternalAction(context: android.content.Context, action: ExternalAction) {
     val uri = when (action) {
