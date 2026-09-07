@@ -33,26 +33,50 @@ class ModalPresentationPolicyTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun whiteThemeDatePickerPreservesTheInheritedCalendarAccent() {
+        val presentation = calendarThemePresentation(
+            theme = ThemeSettings(mode = ThemeBackgroundMode.WHITE),
+            assetFile = null,
+        )
+        val inheritedPrimary = Color(0xFF6750A4)
+        val inheritedOnPrimary = Color.White
+
+        val modal = calendarModalPresentation(
+            presentation = presentation,
+            inheritedPrimary = inheritedPrimary,
+            inheritedOnPrimary = inheritedOnPrimary,
+        )
+
+        assertEquals(inheritedPrimary, modal.calendarHighlightColor)
+        assertEquals(inheritedOnPrimary, modal.calendarHighlightContentColor)
+    }
+
+    @Test
     fun blackThemeDatePickerRendersTheResolvedModalPalette() {
         val presentation = calendarThemePresentation(
             theme = ThemeSettings(mode = ThemeBackgroundMode.BLACK),
             assetFile = null,
         )
+        val modal = calendarModalPresentation(
+            presentation = presentation,
+            inheritedPrimary = Color(0xFF6750A4),
+            inheritedOnPrimary = Color.White,
+        )
         renderCalendar(state(), presentation)
 
         composeRule.onNodeWithTag(BOTTOM_PICK_DATE_TAG).performClick()
 
-        val colors = composeRule.onNodeWithTag(DATE_PICKER_SURFACE_TAG)
-            .assertIsDisplayed()
-            .fetchSemanticsNode().config
-        assertEquals(presentation.modalContainerColor, colors[ModalContainerColorSemantics])
-        assertEquals(presentation.modalScrimColor, colors[ModalScrimColorSemantics])
-        assertEquals(presentation.outlineColor, colors[ModalOutlineColorSemantics])
-        assertEquals(presentation.contentColor, colors[ModalPrimaryContentColorSemantics])
-        assertEquals(presentation.secondaryContentColor, colors[ModalSecondaryContentColorSemantics])
-        assertEquals(presentation.actionContentColor, colors[ModalActionContentColorSemantics])
-        assertTrue(contrastRatio(colors[ModalPrimaryContentColorSemantics], colors[ModalContainerColorSemantics]) >= 4.5f)
-        assertTrue(contrastRatio(colors[ModalActionContentColorSemantics], colors[ModalContainerColorSemantics]) >= 4.5f)
+        composeRule.onNodeWithTag(DATE_PICKER_SURFACE_TAG).assertIsDisplayed()
+        assertEquals(presentation.modalContainerColor, modal.containerColor)
+        assertEquals(presentation.modalScrimColor, modal.scrimColor)
+        assertEquals(presentation.outlineColor, modal.outlineColor)
+        assertEquals(presentation.contentColor, modal.primaryContentColor)
+        assertEquals(presentation.secondaryContentColor, modal.secondaryContentColor)
+        assertEquals(presentation.actionContentColor, modal.actionContentColor)
+        assertEquals(presentation.actionContentColor, modal.calendarHighlightColor)
+        assertEquals(presentation.modalContainerColor, modal.calendarHighlightContentColor)
+        assertTrue(contrastRatio(modal.primaryContentColor, modal.containerColor) >= 4.5f)
+        assertTrue(contrastRatio(modal.actionContentColor, modal.containerColor) >= 4.5f)
     }
 
     @Test
@@ -63,21 +87,24 @@ class ModalPresentationPolicyTest {
                 theme = ThemeSettings(mode = ThemeBackgroundMode.IMAGE, asset.name),
                 assetFile = asset,
             )
+            val modal = calendarModalPresentation(
+                presentation = presentation,
+                inheritedPrimary = Color(0xFF6750A4),
+                inheritedOnPrimary = Color.White,
+            )
             renderCalendar(state(openEvent = detail()), presentation)
 
-            val colors = composeRule.onNodeWithTag(EVENT_DETAIL_SHEET_TAG)
-                .assertIsDisplayed()
-                .fetchSemanticsNode().config
-            assertEquals(presentation.modalContainerColor, colors[ModalContainerColorSemantics])
-            assertEquals(presentation.modalScrimColor, colors[ModalScrimColorSemantics])
-            assertEquals(presentation.outlineColor, colors[ModalOutlineColorSemantics])
-            assertEquals(presentation.contentColor, colors[ModalPrimaryContentColorSemantics])
-            assertEquals(presentation.secondaryContentColor, colors[ModalSecondaryContentColorSemantics])
-            assertEquals(presentation.actionContentColor, colors[ModalActionContentColorSemantics])
-            assertEquals(1f, colors[ModalContainerColorSemantics].alpha)
-            assertTrue(colors[ModalContainerColorSemantics].luminance() < 0.1f)
-            assertTrue(contrastRatio(colors[ModalPrimaryContentColorSemantics], colors[ModalContainerColorSemantics]) >= 4.5f)
-            assertTrue(contrastRatio(colors[ModalActionContentColorSemantics], colors[ModalContainerColorSemantics]) >= 4.5f)
+            composeRule.onNodeWithTag(EVENT_DETAIL_SHEET_TAG).assertIsDisplayed()
+            assertEquals(presentation.modalContainerColor, modal.containerColor)
+            assertEquals(presentation.modalScrimColor, modal.scrimColor)
+            assertEquals(presentation.outlineColor, modal.outlineColor)
+            assertEquals(presentation.contentColor, modal.primaryContentColor)
+            assertEquals(presentation.secondaryContentColor, modal.secondaryContentColor)
+            assertEquals(presentation.actionContentColor, modal.actionContentColor)
+            assertEquals(1f, modal.containerColor.alpha)
+            assertTrue(modal.containerColor.luminance() < 0.1f)
+            assertTrue(contrastRatio(modal.primaryContentColor, modal.containerColor) >= 4.5f)
+            assertTrue(contrastRatio(modal.actionContentColor, modal.containerColor) >= 4.5f)
         } finally {
             asset.delete()
         }

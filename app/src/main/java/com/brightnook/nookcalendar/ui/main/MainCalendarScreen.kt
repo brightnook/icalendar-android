@@ -38,8 +38,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.SemanticsPropertyKey
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
@@ -67,19 +65,38 @@ const val BOTTOM_PICK_DATE_TAG = "bottom-pick-date"
 const val BOTTOM_REFRESH_TAG = "bottom-refresh"
 const val BOTTOM_SETTINGS_TAG = "bottom-settings"
 
-internal val ModalContainerColorSemantics = SemanticsPropertyKey<Color>("ModalContainerColor")
-internal val ModalScrimColorSemantics = SemanticsPropertyKey<Color>("ModalScrimColor")
-internal val ModalOutlineColorSemantics = SemanticsPropertyKey<Color>("ModalOutlineColor")
-internal val ModalPrimaryContentColorSemantics = SemanticsPropertyKey<Color>("ModalPrimaryContentColor")
-internal val ModalSecondaryContentColorSemantics = SemanticsPropertyKey<Color>("ModalSecondaryContentColor")
-internal val ModalActionContentColorSemantics = SemanticsPropertyKey<Color>("ModalActionContentColor")
+internal data class CalendarModalPresentation(
+    val containerColor: Color,
+    val scrimColor: Color,
+    val outlineColor: Color,
+    val primaryContentColor: Color,
+    val secondaryContentColor: Color,
+    val actionContentColor: Color,
+    val calendarHighlightColor: Color,
+    val calendarHighlightContentColor: Color,
+    val saturdayColor: Color,
+    val sundayColor: Color,
+)
 
-private var SemanticsPropertyReceiver.modalContainerColor by ModalContainerColorSemantics
-private var SemanticsPropertyReceiver.modalScrimColor by ModalScrimColorSemantics
-private var SemanticsPropertyReceiver.modalOutlineColor by ModalOutlineColorSemantics
-private var SemanticsPropertyReceiver.modalPrimaryContentColor by ModalPrimaryContentColorSemantics
-private var SemanticsPropertyReceiver.modalSecondaryContentColor by ModalSecondaryContentColorSemantics
-private var SemanticsPropertyReceiver.modalActionContentColor by ModalActionContentColorSemantics
+internal fun calendarModalPresentation(
+    presentation: CalendarThemePresentation,
+    inheritedPrimary: Color,
+    inheritedOnPrimary: Color,
+): CalendarModalPresentation {
+    val preserveCalendarAccent = presentation.resolvedMode == ThemeBackgroundMode.WHITE
+    return CalendarModalPresentation(
+        containerColor = presentation.modalContainerColor,
+        scrimColor = presentation.modalScrimColor,
+        outlineColor = presentation.outlineColor,
+        primaryContentColor = presentation.contentColor,
+        secondaryContentColor = presentation.secondaryContentColor,
+        actionContentColor = presentation.actionContentColor,
+        calendarHighlightColor = if (preserveCalendarAccent) inheritedPrimary else presentation.actionContentColor,
+        calendarHighlightContentColor = if (preserveCalendarAccent) inheritedOnPrimary else presentation.modalContainerColor,
+        saturdayColor = presentation.saturdayColor,
+        sundayColor = presentation.sundayColor,
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +128,11 @@ fun MainCalendarScreen(
     val context = LocalContext.current
     val locale = currentLocale()
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
+    val modalPresentation = calendarModalPresentation(
+        presentation = themePresentation,
+        inheritedPrimary = MaterialTheme.colorScheme.primary,
+        inheritedOnPrimary = MaterialTheme.colorScheme.onPrimary,
+    )
     val dividerColor = if (themePresentation.resolvedMode == ThemeBackgroundMode.WHITE) {
         MaterialTheme.colorScheme.outlineVariant
     } else {
@@ -232,7 +254,7 @@ fun MainCalendarScreen(
     if (datePickerOpen) CompactDatePickerDialog(
         initialDate = state.selectedDate,
         weekStart = weekStart,
-        themePresentation = themePresentation,
+        modalPresentation = modalPresentation,
         onDismiss = { datePickerOpen = false },
         onConfirm = {
             onSelectDateAndShowCombined(it)
@@ -243,23 +265,21 @@ fun MainCalendarScreen(
     state.openEvent?.let { detail ->
         ModalBottomSheet(
             onDismissRequest = onCloseEvent,
-            modifier = Modifier
-                .testTag(EVENT_DETAIL_SHEET_TAG)
-                .modalPresentationSemantics(themePresentation),
-            containerColor = themePresentation.modalContainerColor,
-            contentColor = themePresentation.contentColor,
-            scrimColor = themePresentation.modalScrimColor,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = themePresentation.outlineColor) },
+            modifier = Modifier.testTag(EVENT_DETAIL_SHEET_TAG),
+            containerColor = modalPresentation.containerColor,
+            contentColor = modalPresentation.primaryContentColor,
+            scrimColor = modalPresentation.scrimColor,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = modalPresentation.outlineColor) },
         ) {
             EventDetailContent(
                 detail = detail,
                 zoneId = zoneId,
                 onClose = onCloseEvent,
                 onOpenExternalAction = onOpenExternalAction,
-                contentColor = themePresentation.contentColor,
-                secondaryContentColor = themePresentation.secondaryContentColor,
-                surfaceColor = themePresentation.modalContainerColor,
-                actionContentColor = themePresentation.actionContentColor,
+                contentColor = modalPresentation.primaryContentColor,
+                secondaryContentColor = modalPresentation.secondaryContentColor,
+                surfaceColor = modalPresentation.containerColor,
+                actionContentColor = modalPresentation.actionContentColor,
                 premium = monetization.purchaseState == PurchaseUiState.OWNED,
             )
         }
@@ -276,7 +296,7 @@ internal fun compactDatePickerMonthTitle(month: java.time.YearMonth, locale: jav
 private fun CompactDatePickerDialog(
     initialDate: java.time.LocalDate,
     weekStart: WeekStart,
-    themePresentation: CalendarThemePresentation,
+    modalPresentation: CalendarModalPresentation,
     onDismiss: () -> Unit,
     onConfirm: (java.time.LocalDate) -> Unit,
 ) {
@@ -293,29 +313,28 @@ private fun CompactDatePickerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(themePresentation.modalScrimColor)
+                .background(modalPresentation.scrimColor)
                 .padding(horizontal = 32.dp),
             contentAlignment = Alignment.Center,
         ) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 tonalElevation = 6.dp,
-                color = themePresentation.modalContainerColor,
-                contentColor = themePresentation.contentColor,
-                border = BorderStroke(1.dp, themePresentation.outlineColor),
+                color = modalPresentation.containerColor,
+                contentColor = modalPresentation.primaryContentColor,
+                border = BorderStroke(1.dp, modalPresentation.outlineColor),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag(DATE_PICKER_SURFACE_TAG)
-                    .modalPresentationSemantics(themePresentation),
+                    .testTag(DATE_PICKER_SURFACE_TAG),
             ) {
                 MaterialTheme(
                     colorScheme = MaterialTheme.colorScheme.copy(
-                        primary = themePresentation.actionContentColor,
-                        onPrimary = themePresentation.modalContainerColor,
-                        surface = themePresentation.modalContainerColor,
-                        onSurface = themePresentation.contentColor,
-                        onSurfaceVariant = themePresentation.secondaryContentColor,
-                        outline = themePresentation.outlineColor,
+                        primary = modalPresentation.calendarHighlightColor,
+                        onPrimary = modalPresentation.calendarHighlightContentColor,
+                        surface = modalPresentation.containerColor,
+                        onSurface = modalPresentation.primaryContentColor,
+                        onSurfaceVariant = modalPresentation.secondaryContentColor,
+                        outline = modalPresentation.outlineColor,
                     ),
                     typography = MaterialTheme.typography,
                 ) {
@@ -323,7 +342,7 @@ private fun CompactDatePickerDialog(
                         Text(
                             datePickerTitle(selectedDate, locale),
                             style = MaterialTheme.typography.titleMedium,
-                            color = themePresentation.contentColor,
+                            color = modalPresentation.primaryContentColor,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                         MonthGrid(
@@ -338,10 +357,10 @@ private fun CompactDatePickerDialog(
                             modifier = Modifier.fillMaxWidth().weight(1f),
                             weekStart = weekStart,
                             localeOverride = locale,
-                            contentColor = themePresentation.contentColor,
-                            secondaryContentColor = themePresentation.secondaryContentColor,
-                            saturdayColor = themePresentation.saturdayColor,
-                            sundayColor = themePresentation.sundayColor,
+                            contentColor = modalPresentation.primaryContentColor,
+                            secondaryContentColor = modalPresentation.secondaryContentColor,
+                            saturdayColor = modalPresentation.saturdayColor,
+                            sundayColor = modalPresentation.sundayColor,
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -350,13 +369,13 @@ private fun CompactDatePickerDialog(
                             TextButton(onClick = onDismiss) {
                                 Text(
                                     stringResource(R.string.settings_cancel),
-                                    color = themePresentation.actionContentColor,
+                                    color = modalPresentation.actionContentColor,
                                 )
                             }
                             TextButton(onClick = { onConfirm(selectedDate) }) {
                                 Text(
                                     stringResource(R.string.calendar_date_picker_confirm),
-                                    color = themePresentation.actionContentColor,
+                                    color = modalPresentation.actionContentColor,
                                 )
                             }
                         }
@@ -365,17 +384,6 @@ private fun CompactDatePickerDialog(
             }
         }
     }
-}
-
-private fun Modifier.modalPresentationSemantics(
-    presentation: CalendarThemePresentation,
-): Modifier = semantics {
-    modalContainerColor = presentation.modalContainerColor
-    modalScrimColor = presentation.modalScrimColor
-    modalOutlineColor = presentation.outlineColor
-    modalPrimaryContentColor = presentation.contentColor
-    modalSecondaryContentColor = presentation.secondaryContentColor
-    modalActionContentColor = presentation.actionContentColor
 }
 
 private fun Modifier.calendarPanel(
