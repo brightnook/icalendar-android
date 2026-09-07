@@ -52,6 +52,23 @@ class AgendaWidgetFactoryTest {
         assertFalse(template.isImmutable)
     }
 
+    @Test
+    fun followingVisibleCalendarsUsesCurrentVisibleCalendarIdsAfterSync() {
+        // A newly added widget stores no explicit calendar IDs while it follows the main calendar.
+        // It must show events from calendars that arrive in a later sync.
+        val selected = selectedWidgetCalendarIds(
+            config = WidgetConfig(
+                appWidgetId = 44,
+                calendarIds = emptySet(),
+                range = WidgetRange.THIRTY_DAYS,
+                followVisibleCalendars = true,
+            ),
+            visibleIds = linkedSetOf("personal", "work"),
+        )
+
+        assertEquals(linkedSetOf("personal", "work"), selected)
+    }
+
     private fun allDay(title: String) = EventInstance(
         instanceId = "$title-id", eventId = "$title-event", calendarId = "work", title = title,
         calendarColorArgb = 0xff336699.toInt(), isAllDay = true, startInstant = null, endInstant = null,

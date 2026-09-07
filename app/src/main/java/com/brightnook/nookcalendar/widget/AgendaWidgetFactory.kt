@@ -23,6 +23,14 @@ data class AgendaWidgetRow(
     val startsDateGroup: Boolean,
 )
 
+internal fun selectedWidgetCalendarIds(
+    config: WidgetConfig?,
+    visibleIds: Set<String>,
+): Set<String> = when {
+    config == null || config.followVisibleCalendars -> visibleIds
+    else -> config.calendarIds.intersect(visibleIds)
+}
+
 internal class AgendaWidgetFactory(
     private val context: Context,
     private val appWidgetId: Int,
@@ -45,7 +53,7 @@ internal class AgendaWidgetFactory(
         val config = runBlocking { preferences.configFor(appWidgetId) }
         val calendars = runBlocking { app.container.calendarRepository.observeCalendars().first() }
         val visibleIds = calendars.filter { it.isVisible }.mapTo(linkedSetOf()) { it.id }
-        val selectedIds = (config?.calendarIds ?: visibleIds).intersect(visibleIds)
+        val selectedIds = selectedWidgetCalendarIds(config, visibleIds)
         val range = config?.range ?: WidgetRange.SEVEN_DAYS
         val timeRange = TimeRange(
             today.atStartOfDay(zone).toInstant(),
