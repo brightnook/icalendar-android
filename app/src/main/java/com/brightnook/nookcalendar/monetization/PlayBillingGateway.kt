@@ -29,6 +29,7 @@ class PlayBillingGateway private constructor(
     private val purchaseMutex = Mutex()
     private val purchaseAcknowledgements = PurchaseAcknowledgements()
     private val purchaseSessions = PurchaseCallbackSessions()
+    private val lastFormattedPrice = AtomicReference<String?>(null)
 
     override suspend fun refresh(): BillingSnapshot = loadSnapshot()
 
@@ -59,7 +60,7 @@ class PlayBillingGateway private constructor(
             .setProductDetailsParamsList(listOf(productDetailsParams))
             .build()
         purchaseSessions.runPurchaseSession(
-            price = offerDetails.formattedPrice,
+            price = rememberFormattedPrice(offerDetails.formattedPrice),
             launch = { session ->
                 val launchResult = billingClient.launchBillingFlow(activity, billingFlowParams)
                 if (launchResult.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -79,7 +80,7 @@ class PlayBillingGateway private constructor(
 
         if (purchase != null) {
             var acknowledgementRequired = false
-            val snapshot = purchaseSnapshot(purchase.toPlayPurchase(), productPrice = null) {
+            val snapshot = purchaseSnapshot(purchase.toPlayPurchase(), productPrice = lastFormattedPrice.get()) {
                 acknowledgementRequired = true
             }
             if (acknowledgementRequired) {
@@ -96,6 +97,7 @@ class PlayBillingGateway private constructor(
             .firstOrNull { it.productId == REMOVE_ADS_FOREVER }
             ?.oneTimePurchaseOfferDetails
             ?.formattedPrice
+            ?.also(::rememberFormattedPrice)
 
         return BillingSnapshot(entitled = false, productPrice = price)
     }
@@ -108,6 +110,8 @@ class PlayBillingGateway private constructor(
             billingClient.awaitConnection().requireSuccess()
         }
     }
+
+    private fun rememberFormattedPrice(price: String): String = price.also { lastFormattedPrice.set(it) }
 
     private suspend fun BillingClient.awaitConnection(): BillingResult = suspendCancellableCoroutine { continuation ->
         startConnection(

@@ -25,16 +25,19 @@ class MonetizationRepository(
     val purchaseFeedbackEvents: SharedFlow<PurchaseFeedback> = _purchaseFeedbackEvents.asSharedFlow()
 
     suspend fun refresh() {
-        load { billingGateway.refresh() }
+        load(action = null) { billingGateway.refresh() }
     }
 
     suspend fun restore() {
-        load { billingGateway.restore() }
+        load(action = PurchaseAction.RESTORE) { billingGateway.restore() }
     }
 
     suspend fun purchase(activity: Activity) {
         val previousState = _state.value
-        _state.value = previousState.copy(purchaseState = PurchaseUiState.LOADING)
+        _state.value = previousState.copy(
+            purchaseState = PurchaseUiState.LOADING,
+            activePurchaseAction = PurchaseAction.PURCHASE,
+        )
         try {
             when (val outcome = billingGateway.purchase(activity)) {
                 is PurchaseOutcome.Cancelled -> {
@@ -56,9 +59,15 @@ class MonetizationRepository(
         }
     }
 
-    private suspend fun load(operation: suspend () -> BillingSnapshot) {
+    private suspend fun load(
+        action: PurchaseAction?,
+        operation: suspend () -> BillingSnapshot,
+    ) {
         val previousState = _state.value
-        _state.value = previousState.copy(purchaseState = PurchaseUiState.LOADING)
+        _state.value = previousState.copy(
+            purchaseState = PurchaseUiState.LOADING,
+            activePurchaseAction = action,
+        )
         try {
             _state.value = operation().toUiState()
         } catch (cancelled: CancellationException) {

@@ -8,6 +8,11 @@ enum class PurchaseUiState {
     UNAVAILABLE,
 }
 
+enum class PurchaseAction {
+    PURCHASE,
+    RESTORE,
+}
+
 data class BillingSnapshot(
     val entitled: Boolean,
     val productPrice: String?,
@@ -35,4 +40,5 @@ data class MonetizationUiState(
     val canShowAds: Boolean,
     val purchaseState: PurchaseUiState,
     val price: String?,
+    val activePurchaseAction: PurchaseAction? = null,
 )

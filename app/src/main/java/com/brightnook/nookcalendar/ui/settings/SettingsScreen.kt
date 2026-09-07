@@ -36,6 +36,7 @@ import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
 import com.brightnook.nookcalendar.domain.WeekStart
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
+import com.brightnook.nookcalendar.monetization.PurchaseAction
 import com.brightnook.nookcalendar.monetization.PurchaseFeedback
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.ui.PrimaryControlRippleScope
@@ -286,15 +287,25 @@ private fun PurchaseSupportContent(
             }
         }
         PurchaseUiState.LOADING -> {
-            Text(stringResource(R.string.settings_billing_loading))
+            if (monetization.price.isNullOrBlank()) {
+                Text(stringResource(R.string.settings_billing_loading))
+            } else {
+                Text(stringResource(R.string.settings_play_price, monetization.price))
+            }
             TextButton(
                 onClick = onPurchase,
-                enabled = false,
+                enabled = monetization.activePurchaseAction != PurchaseAction.PURCHASE,
                 modifier = Modifier.testTag("remove-ads"),
             ) { Text(stringResource(R.string.settings_remove_ads_forever)) }
-            RestorePurchasesAction(onRestorePurchase, enabled = false)
+            RestorePurchasesAction(
+                onRestorePurchase,
+                enabled = monetization.activePurchaseAction != PurchaseAction.RESTORE,
+            )
         }
         PurchaseUiState.PENDING -> {
+            monetization.price?.takeIf { it.isNotBlank() }?.let { price ->
+                Text(stringResource(R.string.settings_play_price, price))
+            }
             Text(stringResource(R.string.settings_payment_pending))
             RestorePurchasesAction(onRestorePurchase)
         }
