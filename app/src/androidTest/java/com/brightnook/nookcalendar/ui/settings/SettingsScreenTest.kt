@@ -19,17 +19,21 @@ import androidx.compose.ui.graphics.toPixelMap
 import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.CalendarSummary
+import com.brightnook.nookcalendar.domain.ThemeSettings
 import com.brightnook.nookcalendar.domain.WeekStart
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseFeedback
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.ui.LocalizedAppContent
+import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
+
+private val testThemePresentation = calendarThemePresentation(ThemeSettings(), null)
 
 @Suppress("DEPRECATION")
 class SettingsScreenTest {
@@ -41,6 +45,7 @@ class SettingsScreenTest {
         composeRule.setContent {
             LocalizedAppContent(AppLanguage.JAPANESE) {
                 SettingsScreen(
+                    themePresentation = testThemePresentation,
                     state = SettingsUiState(confirmation = SettingsConfirmation.Logout(clearCache = false)),
                     onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                     onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -61,6 +66,7 @@ class SettingsScreenTest {
         composeRule.setContent {
             LocalizedAppContent(AppLanguage.JAPANESE) {
                 SettingsScreen(
+                    themePresentation = testThemePresentation,
                     state = SettingsUiState(),
                     onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                     onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -78,6 +84,7 @@ class SettingsScreenTest {
         var privacyOptionsCalls = 0
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 privacyOptionsRequired = true,
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -98,6 +105,7 @@ class SettingsScreenTest {
         var restoreCalls = 0
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 monetization = MonetizationUiState(
                     canShowAds = true,
@@ -127,6 +135,7 @@ class SettingsScreenTest {
         // Catches an absent or non-purchasable Play offer opening an invalid billing flow.
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 monetization = MonetizationUiState(true, PurchaseUiState.AVAILABLE, null),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -145,6 +154,7 @@ class SettingsScreenTest {
         // Catches showing a redundant purchase action after confirmed ownership.
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 monetization = MonetizationUiState(
                     canShowAds = false,
@@ -166,6 +176,7 @@ class SettingsScreenTest {
         // Catches loading state enabling purchase or restore while billing work is in progress.
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 monetization = MonetizationUiState(true, PurchaseUiState.LOADING, null),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -185,6 +196,7 @@ class SettingsScreenTest {
         var restoreCalls = 0
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 monetization = MonetizationUiState(true, PurchaseUiState.PENDING, "¥250"),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -207,6 +219,7 @@ class SettingsScreenTest {
         val feedback = MutableSharedFlow<PurchaseFeedback>(extraBufferCapacity = 1)
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 purchaseFeedbackEvents = feedback,
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -225,6 +238,7 @@ class SettingsScreenTest {
         val feedback = MutableSharedFlow<PurchaseFeedback>(extraBufferCapacity = 1)
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 purchaseFeedbackEvents = feedback,
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -243,6 +257,7 @@ class SettingsScreenTest {
         var restoreCalls = 0
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 monetization = MonetizationUiState(true, PurchaseUiState.UNAVAILABLE, null),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
@@ -265,6 +280,7 @@ class SettingsScreenTest {
         // Catches leaking the raw Apple ID, omitting approximate periodic wording, or rendering no usable visibility switch.
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(
                     maskedAppleId = "p***@example.test",
                     accountLoading = false,
@@ -294,6 +310,7 @@ class SettingsScreenTest {
         var selected: com.brightnook.nookcalendar.domain.SyncMode? = null
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(syncMode = com.brightnook.nookcalendar.domain.SyncMode.HOURLY),
                 onClose = {},
                 onSelectSyncMode = { selected = it },
@@ -316,6 +333,7 @@ class SettingsScreenTest {
         var selected: WeekStart? = null
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -339,6 +357,7 @@ class SettingsScreenTest {
         var selected: AppLanguage? = null
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -360,6 +379,7 @@ class SettingsScreenTest {
     fun logoutSharesTheAccountRowAndRemainsAccessible() {
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(maskedAppleId = "abc***@example.test"),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -377,6 +397,7 @@ class SettingsScreenTest {
     fun calendarColorIndicatorIsClippedToACircle() {
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(calendars = listOf(CalendarSummary("work", "Work", Color.Red.value.toInt(), true))),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -392,6 +413,7 @@ class SettingsScreenTest {
     fun settingsGroupsAccountSyncCalendarsAndDataInSeparateAccessibleSections() {
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(calendars = listOf(CalendarSummary("work", "Work", Color.Red.value.toInt(), true))),
                 onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
                 onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -411,6 +433,7 @@ class SettingsScreenTest {
         var confirmed = false
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(confirmation = confirmation.value),
                 onClose = {},
                 onSelectSyncMode = {},
@@ -435,6 +458,7 @@ class SettingsScreenTest {
         var closed = false
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(), onClose = { closed = true },
                 onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> }, onClearHistory = {},
                 onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -449,6 +473,7 @@ class SettingsScreenTest {
     fun settingsCloseUsesAnAccessibleIconButtonBelowTheStatusArea() {
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(), onClose = {},
                 onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> }, onClearHistory = {},
                 onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
@@ -466,6 +491,7 @@ class SettingsScreenTest {
         val confirmation = mutableStateOf<SettingsConfirmation?>(null)
         composeRule.setContent {
             SettingsScreen(
+                themePresentation = testThemePresentation,
                 state = SettingsUiState(
                     maskedAppleId = "per***@example.test",
                     accountLoading = false,

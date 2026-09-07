@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -34,7 +35,6 @@ import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
-import com.brightnook.nookcalendar.domain.ThemeSettings
 import com.brightnook.nookcalendar.domain.WeekStart
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseAction
@@ -44,11 +44,16 @@ import com.brightnook.nookcalendar.ui.PrimaryControlRippleScope
 import com.brightnook.nookcalendar.ui.transparentLabeledActionPresentation
 import com.brightnook.nookcalendar.ui.theme.CalendarBackground
 import com.brightnook.nookcalendar.ui.theme.CalendarThemePresentation
-import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import com.brightnook.nookcalendar.widget.WidgetManagementItem
 import com.brightnook.nookcalendar.widget.WidgetRange
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+
+internal const val SETTINGS_ROOT_SURFACE_TAG = "settings-root-surface"
+internal val SettingsContainerColorSemantics = SemanticsPropertyKey<Color>("SettingsContainerColor")
+internal val SettingsSectionColorSemantics = SemanticsPropertyKey<Color>("SettingsSectionColor")
+internal val SettingsContentColorSemantics = SemanticsPropertyKey<Color>("SettingsContentColor")
+internal val SettingsActionColorSemantics = SemanticsPropertyKey<Color>("SettingsActionColor")
 
 internal data class SettingsSurfacePresentation(
     val containerColor: Color,
@@ -60,7 +65,6 @@ internal data class SettingsSurfacePresentation(
     val outlineColor: Color,
     val actionContentColor: Color,
     val errorColor: Color,
-    val backgroundWallpaperPath: String?,
 )
 
 internal fun settingsSurfacePresentation(
@@ -75,13 +79,12 @@ internal fun settingsSurfacePresentation(
     outlineColor = themePresentation.outlineColor,
     actionContentColor = themePresentation.actionContentColor,
     errorColor = themePresentation.errorColor,
-    backgroundWallpaperPath = themePresentation.wallpaperPath,
 )
 
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
-    themePresentation: CalendarThemePresentation = calendarThemePresentation(ThemeSettings(), null),
+    themePresentation: CalendarThemePresentation,
     onClose: () -> Unit,
     onSelectSyncMode: (SyncMode) -> Unit,
     onSetCalendarVisible: (String, Boolean) -> Unit,
@@ -159,7 +162,13 @@ fun SettingsScreen(
     MaterialTheme(colorScheme = settingsColorScheme) {
     CalendarBackground(presentation = themePresentation) {
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(SETTINGS_ROOT_SURFACE_TAG)
+            .semantics {
+                this[SettingsContainerColorSemantics] = settingsPresentation.containerColor
+                this[SettingsContentColorSemantics] = settingsPresentation.contentColor
+            },
         color = settingsPresentation.containerColor,
         contentColor = settingsPresentation.contentColor,
     ) {
@@ -554,7 +563,13 @@ private fun SettingsSection(
     settingsPresentation: SettingsSurfacePresentation,
     content: @Composable ColumnScope.() -> Unit,
 ) = Surface(
-    modifier = Modifier.fillMaxWidth().testTag("settings-section-$tag"),
+    modifier = Modifier
+        .fillMaxWidth()
+        .testTag("settings-section-$tag")
+        .semantics {
+            this[SettingsSectionColorSemantics] = settingsPresentation.sectionColor
+            this[SettingsContentColorSemantics] = settingsPresentation.contentColor
+        },
     shape = RoundedCornerShape(20.dp),
     color = settingsPresentation.sectionColor,
     contentColor = settingsPresentation.contentColor,

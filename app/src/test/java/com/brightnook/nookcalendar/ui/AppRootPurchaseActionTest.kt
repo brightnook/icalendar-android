@@ -8,11 +8,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.brightnook.nookcalendar.domain.AppLanguage
+import com.brightnook.nookcalendar.domain.ThemeSettings
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.reminder.ReminderScheduler
 import com.brightnook.nookcalendar.ui.settings.SettingsScreen
 import com.brightnook.nookcalendar.ui.settings.SettingsUiState
+import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -23,6 +25,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+
+private val testThemePresentation = calendarThemePresentation(ThemeSettings(), null)
 
 @RunWith(RobolectricTestRunner::class)
 class AppRootPurchaseActionTest {
@@ -66,6 +70,7 @@ class AppRootPurchaseActionTest {
                 MaterialTheme {
                     SettingsScreen(
                         state = SettingsUiState(accountLoading = false),
+                        themePresentation = testThemePresentation,
                         onClose = {},
                         onSelectSyncMode = {},
                         onSetCalendarVisible = { _, _ -> },

@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
@@ -106,7 +107,13 @@ private fun ThemeChoice(
 ) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .testTag(tag)
+            .semantics {
+                this[SettingsActionColorSemantics] = settingsPresentation.actionContentColor
+            },
     ) {
         RadioButton(
             selected = selected,
