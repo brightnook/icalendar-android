@@ -27,6 +27,23 @@ class CalendarThemePresentationTest {
     }
 
     @Test
+    fun blackThemeUsesOpaqueDarkSettingsAndModalSurfaces() {
+        val presentation = calendarThemePresentation(
+            theme = ThemeSettings(mode = ThemeBackgroundMode.BLACK),
+            assetFile = null,
+        )
+
+        assertTrue(presentation.settingsContainerColor.alpha == 1f)
+        assertTrue(presentation.settingsContainerColor.luminance() < 0.1f)
+        assertTrue(presentation.settingsSectionColor.alpha == 1f)
+        assertTrue(presentation.settingsSectionColor.luminance() < 0.1f)
+        assertTrue(presentation.modalContainerColor.alpha == 1f)
+        assertTrue(presentation.modalContainerColor.luminance() < 0.1f)
+        assertTrue(presentation.modalScrimColor.alpha > 0f)
+        assertTrue(contrastRatio(presentation.actionContentColor, presentation.modalContainerColor) >= 4.5f)
+    }
+
+    @Test
     fun existingImageUsesItsAbsolutePathAndImageContrastColors() {
         val asset = Files.createTempFile("calendar-theme", ".gif").toFile()
         try {
@@ -39,6 +56,26 @@ class CalendarThemePresentationTest {
             assertEquals(asset.absolutePath, presentation.wallpaperPath)
             assertEquals(Color.White, presentation.contentColor)
             assertTrue(presentation.panelColor.alpha in 0f..0.99f)
+        } finally {
+            asset.delete()
+        }
+    }
+
+    @Test
+    fun imageThemeUsesTranslucentSettingsCardsAndAnOpaqueReadableModal() {
+        val asset = Files.createTempFile("calendar-theme", ".png").toFile()
+        try {
+            val presentation = calendarThemePresentation(
+                theme = ThemeSettings(ThemeBackgroundMode.IMAGE, asset.name),
+                assetFile = asset,
+            )
+
+            assertTrue(presentation.settingsSectionColor.alpha in 0.55f..0.85f)
+            assertTrue(presentation.settingsSectionColor.luminance() < 0.1f)
+            assertTrue(presentation.modalContainerColor.alpha == 1f)
+            assertTrue(presentation.modalContainerColor.luminance() < 0.1f)
+            assertTrue(presentation.modalScrimColor.alpha > 0f)
+            assertTrue(contrastRatio(presentation.actionContentColor, presentation.modalContainerColor) >= 4.5f)
         } finally {
             asset.delete()
         }
