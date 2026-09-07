@@ -8,9 +8,10 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import com.brightnook.nookcalendar.theme.ThemeAssetFailure
 @Composable
 internal fun ColumnScope.ThemeSettingsSection(
     theme: ThemeSettings,
+    settingsPresentation: SettingsSurfacePresentation,
     importError: ThemeAssetFailure?,
     photoPicker: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>,
     onSelectTheme: (ThemeBackgroundMode) -> Unit,
@@ -37,18 +39,21 @@ internal fun ColumnScope.ThemeSettingsSection(
         label = stringResource(R.string.settings_theme_white),
         selected = theme.mode == ThemeBackgroundMode.WHITE,
         tag = "theme-white",
+        settingsPresentation = settingsPresentation,
         onClick = { onSelectTheme(ThemeBackgroundMode.WHITE) },
     )
     ThemeChoice(
         label = stringResource(R.string.settings_theme_black),
         selected = theme.mode == ThemeBackgroundMode.BLACK,
         tag = "theme-black",
+        settingsPresentation = settingsPresentation,
         onClick = { onSelectTheme(ThemeBackgroundMode.BLACK) },
     )
     ThemeChoice(
         label = stringResource(R.string.settings_theme_image),
         selected = theme.mode == ThemeBackgroundMode.IMAGE,
         tag = "theme-image",
+        settingsPresentation = settingsPresentation,
         onClick = {
             photoPicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -72,12 +77,20 @@ internal fun ColumnScope.ThemeSettingsSection(
             checked = theme.applyToWidget,
             onCheckedChange = onSetApplyThemeToWidget,
             modifier = Modifier.testTag("theme-apply-to-widget"),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = settingsPresentation.modalContainerColor,
+                checkedTrackColor = settingsPresentation.actionContentColor,
+                checkedBorderColor = settingsPresentation.actionContentColor,
+                uncheckedThumbColor = settingsPresentation.secondaryContentColor,
+                uncheckedTrackColor = androidx.compose.ui.graphics.Color.Transparent,
+                uncheckedBorderColor = settingsPresentation.outlineColor,
+            ),
         )
     }
     importError?.let { failure ->
         Text(
             text = stringResource(failure.messageResource()),
-            color = MaterialTheme.colorScheme.error,
+            color = settingsPresentation.errorColor,
             modifier = Modifier.testTag("theme-import-error"),
         )
     }
@@ -88,13 +101,21 @@ private fun ThemeChoice(
     label: String,
     selected: Boolean,
     tag: String,
+    settingsPresentation: SettingsSurfacePresentation,
     onClick: () -> Unit,
 ) {
     TextButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag),
     ) {
-        RadioButton(selected = selected, onClick = null)
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = settingsPresentation.actionContentColor,
+                unselectedColor = settingsPresentation.outlineColor,
+            ),
+        )
         Text(label, Modifier.weight(1f))
     }
 }

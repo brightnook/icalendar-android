@@ -322,6 +322,7 @@ private fun MainCalendarDestination(
         val settingsState by settingsViewModel.uiState.collectAsState()
         SettingsScreen(
             state = settingsState,
+            themePresentation = themePresentation,
             onClose = { onSettingsOpenChanged(false) },
             onSelectSyncMode = settingsViewModel::selectSyncMode,
             onSelectWeekStart = settingsViewModel::selectWeekStart,

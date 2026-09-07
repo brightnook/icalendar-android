@@ -34,6 +34,7 @@ import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
+import com.brightnook.nookcalendar.domain.ThemeSettings
 import com.brightnook.nookcalendar.domain.WeekStart
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseAction
@@ -41,14 +42,46 @@ import com.brightnook.nookcalendar.monetization.PurchaseFeedback
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.ui.PrimaryControlRippleScope
 import com.brightnook.nookcalendar.ui.transparentLabeledActionPresentation
+import com.brightnook.nookcalendar.ui.theme.CalendarBackground
+import com.brightnook.nookcalendar.ui.theme.CalendarThemePresentation
+import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import com.brightnook.nookcalendar.widget.WidgetManagementItem
 import com.brightnook.nookcalendar.widget.WidgetRange
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
+internal data class SettingsSurfacePresentation(
+    val containerColor: Color,
+    val sectionColor: Color,
+    val modalContainerColor: Color,
+    val modalScrimColor: Color,
+    val contentColor: Color,
+    val secondaryContentColor: Color,
+    val outlineColor: Color,
+    val actionContentColor: Color,
+    val errorColor: Color,
+    val backgroundWallpaperPath: String?,
+)
+
+internal fun settingsSurfacePresentation(
+    themePresentation: CalendarThemePresentation,
+) = SettingsSurfacePresentation(
+    containerColor = themePresentation.settingsContainerColor,
+    sectionColor = themePresentation.settingsSectionColor,
+    modalContainerColor = themePresentation.modalContainerColor,
+    modalScrimColor = themePresentation.modalScrimColor,
+    contentColor = themePresentation.contentColor,
+    secondaryContentColor = themePresentation.secondaryContentColor,
+    outlineColor = themePresentation.outlineColor,
+    actionContentColor = themePresentation.actionContentColor,
+    errorColor = themePresentation.errorColor,
+    backgroundWallpaperPath = themePresentation.wallpaperPath,
+)
+
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
+    themePresentation: CalendarThemePresentation = calendarThemePresentation(ThemeSettings(), null),
     onClose: () -> Unit,
     onSelectSyncMode: (SyncMode) -> Unit,
     onSetCalendarVisible: (String, Boolean) -> Unit,
@@ -108,6 +141,28 @@ fun SettingsScreen(
         }
     }
     val actionPresentation = transparentLabeledActionPresentation()
+    val settingsPresentation = settingsSurfacePresentation(themePresentation)
+    val settingsColorScheme = MaterialTheme.colorScheme.copy(
+        primary = settingsPresentation.actionContentColor,
+        background = settingsPresentation.containerColor,
+        surface = settingsPresentation.sectionColor,
+        surfaceVariant = settingsPresentation.sectionColor,
+        surfaceContainer = settingsPresentation.modalContainerColor,
+        surfaceContainerHigh = settingsPresentation.modalContainerColor,
+        onBackground = settingsPresentation.contentColor,
+        onSurface = settingsPresentation.contentColor,
+        onSurfaceVariant = settingsPresentation.secondaryContentColor,
+        outline = settingsPresentation.outlineColor,
+        error = settingsPresentation.errorColor,
+        scrim = settingsPresentation.modalScrimColor,
+    )
+    MaterialTheme(colorScheme = settingsColorScheme) {
+    CalendarBackground(presentation = themePresentation) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = settingsPresentation.containerColor,
+        contentColor = settingsPresentation.contentColor,
+    ) {
     Box(Modifier.fillMaxSize()) {
     PrimaryControlRippleScope {
     Column(
@@ -129,7 +184,7 @@ fun SettingsScreen(
                     painter = painterResource(R.drawable.ic_action_close),
                     contentDescription = null,
                     modifier = Modifier.testTag("settings-close-icon"),
-                    tint = Color.Unspecified,
+                    tint = themePresentation.actionIconTint(),
                 )
             }
         }
@@ -137,7 +192,7 @@ fun SettingsScreen(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SettingsSection(R.string.settings_account, "account") {
+            SettingsSection(R.string.settings_account, "account", settingsPresentation) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out),
@@ -154,7 +209,7 @@ fun SettingsScreen(
                                 painter = painterResource(R.drawable.ic_action_logout_transparent),
                                 contentDescription = null,
                                 modifier = Modifier.testTag("settings-logout-icon"),
-                                tint = Color.Unspecified,
+                                tint = themePresentation.actionIconTint(),
                             )
                             Spacer(Modifier.width(actionPresentation.iconTextSpacing))
                             Text(logoutDescription)
@@ -166,7 +221,7 @@ fun SettingsScreen(
                     }
                 }
             }
-            SettingsSection(R.string.settings_support, "support") {
+            SettingsSection(R.string.settings_support, "support", settingsPresentation) {
                 PurchaseSupportContent(
                     monetization = monetization,
                     onPurchase = onPurchase,
@@ -179,18 +234,19 @@ fun SettingsScreen(
                     ) { Text(stringResource(R.string.settings_privacy_options)) }
                 }
             }
-            SettingsSection(R.string.settings_sync_mode, "sync") {
-                SyncModePicker(state.syncMode, onSelectSyncMode)
+            SettingsSection(R.string.settings_sync_mode, "sync", settingsPresentation) {
+                SyncModePicker(state.syncMode, settingsPresentation, onSelectSyncMode)
             }
-            SettingsSection(R.string.settings_week_start, "week-start") {
-                WeekStartPicker(state.weekStart, onSelectWeekStart)
+            SettingsSection(R.string.settings_week_start, "week-start", settingsPresentation) {
+                WeekStartPicker(state.weekStart, settingsPresentation, onSelectWeekStart)
             }
-            SettingsSection(R.string.settings_language, "language") {
-                LanguagePicker(state.language, onSelectLanguage)
+            SettingsSection(R.string.settings_language, "language", settingsPresentation) {
+                LanguagePicker(state.language, settingsPresentation, onSelectLanguage)
             }
-            SettingsSection(R.string.settings_theme, "theme") {
+            SettingsSection(R.string.settings_theme, "theme", settingsPresentation) {
                 ThemeSettingsSection(
                     theme = state.theme,
+                    settingsPresentation = settingsPresentation,
                     importError = state.themeImportError,
                     photoPicker = photoPicker,
                     onSelectTheme = onSelectTheme,
@@ -198,7 +254,7 @@ fun SettingsScreen(
                     onSetApplyThemeToWidget = onSetApplyThemeToWidget,
                 )
             }
-            SettingsSection(R.string.settings_widgets, "widgets") {
+            SettingsSection(R.string.settings_widgets, "widgets", settingsPresentation) {
                 if (managedWidgets.isEmpty()) {
                     Text(
                         stringResource(R.string.settings_widgets_empty),
@@ -223,10 +279,12 @@ fun SettingsScreen(
                     }
                 }
             }
-            SettingsSection(R.string.settings_calendars, "calendars") {
-                state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
+            SettingsSection(R.string.settings_calendars, "calendars", settingsPresentation) {
+                state.calendars.forEach { calendar ->
+                    CalendarRow(calendar, settingsPresentation, onSetCalendarVisible)
+                }
             }
-            SettingsSection(R.string.settings_data_and_sign_out, "data") {
+            SettingsSection(R.string.settings_data_and_sign_out, "data", settingsPresentation) {
                 TextButton(
                     onClick = onClearHistory,
                     modifier = Modifier.heightIn(min = actionPresentation.minimumTouchTarget).testTag("clear-history"),
@@ -238,7 +296,7 @@ fun SettingsScreen(
                 if (state.showCleanupWarning) Text(stringResource(R.string.settings_cleanup_warning))
                 if (state.showOperationError) Text(stringResource(R.string.settings_operation_failed))
             }
-            SettingsSection(R.string.settings_about, "about") {
+            SettingsSection(R.string.settings_about, "about", settingsPresentation) {
                 Text(
                     stringResource(
                         R.string.settings_version,
@@ -254,9 +312,49 @@ fun SettingsScreen(
     SnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+        snackbar = { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = settingsPresentation.modalContainerColor,
+                contentColor = settingsPresentation.contentColor,
+                actionColor = settingsPresentation.actionContentColor,
+                dismissActionContentColor = settingsPresentation.actionContentColor,
+            )
+        },
     )
     }
-    state.confirmation?.let { action -> AlertDialog(onDismissRequest = onDismissConfirmation, title = { Text(action.title()) }, text = { Text(action.message()) }, confirmButton = { TextButton(onClick = onConfirmDestructiveAction, enabled = !state.destructiveActionInProgress, modifier = Modifier.testTag("settings-confirm")) { Text(action.confirmLabel()) } }, dismissButton = { TextButton(onClick = onDismissConfirmation, enabled = !state.destructiveActionInProgress) { Text(stringResource(R.string.settings_cancel)) } }) }
+    }
+    }
+    state.confirmation?.let { action ->
+        AlertDialog(
+            onDismissRequest = onDismissConfirmation,
+            containerColor = settingsPresentation.modalContainerColor,
+            titleContentColor = settingsPresentation.contentColor,
+            textContentColor = settingsPresentation.secondaryContentColor,
+            title = { Text(action.title()) },
+            text = { Text(action.message()) },
+            confirmButton = {
+                TextButton(
+                    onClick = onConfirmDestructiveAction,
+                    enabled = !state.destructiveActionInProgress,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = settingsPresentation.actionContentColor,
+                    ),
+                    modifier = Modifier.testTag("settings-confirm"),
+                ) { Text(action.confirmLabel()) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismissConfirmation,
+                    enabled = !state.destructiveActionInProgress,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = settingsPresentation.actionContentColor,
+                    ),
+                ) { Text(stringResource(R.string.settings_cancel)) }
+            },
+        )
+    }
+    }
 }
 
 internal suspend fun refreshPurchaseSupportWhenSettingsOpened(
@@ -327,7 +425,11 @@ private fun RestorePurchasesAction(onRestorePurchase: () -> Unit, enabled: Boole
 }
 
 @Composable
-private fun SyncModePicker(selectedMode: SyncMode, onSelectMode: (SyncMode) -> Unit) {
+private fun SyncModePicker(
+    selectedMode: SyncMode,
+    settingsPresentation: SettingsSurfacePresentation,
+    onSelectMode: (SyncMode) -> Unit,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.settings_sync_mode)
     val selectedLabel = selectedMode.label()
@@ -341,7 +443,11 @@ private fun SyncModePicker(selectedMode: SyncMode, onSelectMode: (SyncMode) -> U
             Text(selectedLabel, modifier = Modifier.weight(1f))
             Text("⌄")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = settingsPresentation.modalContainerColor,
+        ) {
             syncModePickerOptions().forEach { mode ->
                 DropdownMenuItem(
                     text = { Text(mode.label()) },
@@ -349,6 +455,9 @@ private fun SyncModePicker(selectedMode: SyncMode, onSelectMode: (SyncMode) -> U
                         expanded = false
                         onSelectMode(mode)
                     },
+                    colors = MenuDefaults.itemColors(
+                        textColor = settingsPresentation.contentColor,
+                    ),
                     modifier = Modifier.testTag("sync-mode-option-$mode"),
                 )
             }
@@ -357,7 +466,11 @@ private fun SyncModePicker(selectedMode: SyncMode, onSelectMode: (SyncMode) -> U
 }
 
 @Composable
-private fun WeekStartPicker(selectedWeekStart: WeekStart, onSelectWeekStart: (WeekStart) -> Unit) {
+private fun WeekStartPicker(
+    selectedWeekStart: WeekStart,
+    settingsPresentation: SettingsSurfacePresentation,
+    onSelectWeekStart: (WeekStart) -> Unit,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.settings_week_start)
     val selectedLabel = selectedWeekStart.label()
@@ -371,7 +484,11 @@ private fun WeekStartPicker(selectedWeekStart: WeekStart, onSelectWeekStart: (We
             Text(selectedLabel, modifier = Modifier.weight(1f))
             Text("⌄")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = settingsPresentation.modalContainerColor,
+        ) {
             WeekStart.entries.forEach { weekStart ->
                 DropdownMenuItem(
                     text = { Text(weekStart.label()) },
@@ -379,6 +496,9 @@ private fun WeekStartPicker(selectedWeekStart: WeekStart, onSelectWeekStart: (We
                         expanded = false
                         onSelectWeekStart(weekStart)
                     },
+                    colors = MenuDefaults.itemColors(
+                        textColor = settingsPresentation.contentColor,
+                    ),
                     modifier = Modifier.testTag("week-start-option-$weekStart"),
                 )
             }
@@ -387,7 +507,11 @@ private fun WeekStartPicker(selectedWeekStart: WeekStart, onSelectWeekStart: (We
 }
 
 @Composable
-private fun LanguagePicker(selectedLanguage: AppLanguage, onSelectLanguage: (AppLanguage) -> Unit) {
+private fun LanguagePicker(
+    selectedLanguage: AppLanguage,
+    settingsPresentation: SettingsSurfacePresentation,
+    onSelectLanguage: (AppLanguage) -> Unit,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.settings_language)
     val selectedLabel = selectedLanguage.label()
@@ -401,7 +525,11 @@ private fun LanguagePicker(selectedLanguage: AppLanguage, onSelectLanguage: (App
             Text(selectedLabel, modifier = Modifier.weight(1f))
             Text("⌄")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = settingsPresentation.modalContainerColor,
+        ) {
             AppLanguage.entries.forEach { language ->
                 DropdownMenuItem(
                     text = { Text(language.label()) },
@@ -409,6 +537,9 @@ private fun LanguagePicker(selectedLanguage: AppLanguage, onSelectLanguage: (App
                         expanded = false
                         onSelectLanguage(language)
                     },
+                    colors = MenuDefaults.itemColors(
+                        textColor = settingsPresentation.contentColor,
+                    ),
                     modifier = Modifier.testTag("language-option-$language"),
                 )
             }
@@ -420,11 +551,13 @@ private fun LanguagePicker(selectedLanguage: AppLanguage, onSelectLanguage: (App
 private fun SettingsSection(
     title: Int,
     tag: String,
+    settingsPresentation: SettingsSurfacePresentation,
     content: @Composable ColumnScope.() -> Unit,
 ) = Surface(
     modifier = Modifier.fillMaxWidth().testTag("settings-section-$tag"),
     shape = RoundedCornerShape(20.dp),
-    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+    color = settingsPresentation.sectionColor,
+    contentColor = settingsPresentation.contentColor,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -436,11 +569,33 @@ private fun SettingsSection(
     )
 }
 
-@Composable private fun CalendarRow(calendar: CalendarSummary, update: (String, Boolean) -> Unit) = Row(Modifier.fillMaxWidth()) {
+@Composable private fun CalendarRow(
+    calendar: CalendarSummary,
+    settingsPresentation: SettingsSurfacePresentation,
+    update: (String, Boolean) -> Unit,
+) = Row(Modifier.fillMaxWidth()) {
     Box(Modifier.padding(top = 14.dp).size(14.dp).clip(CircleShape).background(Color(calendar.colorArgb)).testTag("calendar-color-${calendar.id}"))
     Text(calendar.name, Modifier.weight(1f).padding(start = 12.dp, top = 10.dp))
-    Switch(calendar.isVisible, { update(calendar.id, it) }, Modifier.testTag("calendar-visibility-${calendar.id}"))
+    Switch(
+        checked = calendar.isVisible,
+        onCheckedChange = { update(calendar.id, it) },
+        modifier = Modifier.testTag("calendar-visibility-${calendar.id}"),
+        colors = settingsSwitchColors(settingsPresentation),
+    )
 }
+
+@Composable
+private fun settingsSwitchColors(settingsPresentation: SettingsSurfacePresentation) = SwitchDefaults.colors(
+    checkedThumbColor = settingsPresentation.modalContainerColor,
+    checkedTrackColor = settingsPresentation.actionContentColor,
+    checkedBorderColor = settingsPresentation.actionContentColor,
+    uncheckedThumbColor = settingsPresentation.secondaryContentColor,
+    uncheckedTrackColor = Color.Transparent,
+    uncheckedBorderColor = settingsPresentation.outlineColor,
+)
+
+private fun CalendarThemePresentation.actionIconTint(): Color =
+    if (useOriginalActionArtwork) Color.Unspecified else actionContentColor
 
 @Composable private fun SyncMode.label() = stringResource(when (this) { SyncMode.MANUAL -> R.string.settings_mode_manual; SyncMode.HOURLY -> R.string.settings_mode_hourly; SyncMode.DAILY -> R.string.settings_mode_daily; SyncMode.DISABLED -> R.string.settings_mode_disabled })
 @Composable private fun WeekStart.label() = stringResource(if (this == WeekStart.SUNDAY) R.string.settings_week_start_sunday else R.string.settings_week_start_monday)
