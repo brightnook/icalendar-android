@@ -753,7 +753,7 @@ class RoomCalendarRepositoryTest {
         repository.clearCalendarCache()
 
         assertEquals(
-            WidgetConfig(appWidgetId = 42, calendarIds = setOf("work"), range = WidgetRange.THIRTY_DAYS),
+            WidgetConfig(appWidgetId = 42, calendarIds = setOf("work"), range = WidgetRange.THIRTY_DAYS, displayOrdinal = 1),
             preferences.configFor(42),
         )
     }

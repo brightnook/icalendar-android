@@ -48,6 +48,7 @@ class AppContainer(val application: Application) {
             .addMigrations(CalendarDatabase.MIGRATION_3_4)
             .addMigrations(CalendarDatabase.MIGRATION_4_5)
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
+            .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .build()
     }
 

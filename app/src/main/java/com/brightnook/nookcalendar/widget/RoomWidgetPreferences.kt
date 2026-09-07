@@ -13,6 +13,7 @@ class RoomWidgetPreferences(database: CalendarDatabase) : WidgetPreferences {
             calendarIds = dao.calendarIds(appWidgetId).toSet(),
             range = WidgetRange.entries.single { it.days == config.rangeDays },
             followVisibleCalendars = config.followVisibleCalendars,
+            displayOrdinal = config.displayOrdinal,
         )
     }
 

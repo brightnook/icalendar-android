@@ -280,7 +280,7 @@ fun SettingsScreen(
                             Text(
                                 stringResource(
                                     R.string.settings_widget_configure,
-                                    widget.appWidgetId,
+                                    widget.displayOrdinal,
                                     widget.range.label(),
                                 ),
                             )

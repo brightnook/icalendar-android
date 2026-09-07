@@ -26,6 +26,8 @@ import com.brightnook.nookcalendar.monetization.PurchaseFeedback
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.ui.LocalizedAppContent
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
+import com.brightnook.nookcalendar.widget.WidgetManagementItem
+import com.brightnook.nookcalendar.widget.WidgetRange
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,6 +41,27 @@ private val testThemePresentation = calendarThemePresentation(ThemeSettings(), n
 class SettingsScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun widgetLabelUsesFriendlyOrdinalWhileClickConfiguresTheInternalId() {
+        var configuredId: Int? = null
+        composeRule.setContent {
+            LocalizedAppContent(AppLanguage.ENGLISH) {
+                SettingsScreen(
+                    themePresentation = testThemePresentation,
+                    state = SettingsUiState(),
+                    onClose = {}, onSelectSyncMode = {}, onSetCalendarVisible = { _, _ -> },
+                    onClearHistory = {}, onClearCache = {}, onLogout = {}, onDismissConfirmation = {},
+                    onConfirmDestructiveAction = {},
+                    managedWidgets = listOf(WidgetManagementItem(44, WidgetRange.THIRTY_DAYS, displayOrdinal = 1)),
+                    onConfigureWidget = { configuredId = it },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("widget-management-44").performScrollTo()
+        composeRule.onNodeWithText("Agenda widget 1", substring = true).assertIsDisplayed().performClick()
+        assertEquals(44, configuredId)
+    }
 
     @Test
     fun logoutDialogUsesTheSelectedAppLanguage() {

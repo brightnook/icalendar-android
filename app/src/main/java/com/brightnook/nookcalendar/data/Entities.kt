@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.data
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -115,6 +116,7 @@ data class WidgetConfigEntity(
     @PrimaryKey val appWidgetId: Int,
     val rangeDays: Int = 7,
     val followVisibleCalendars: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val displayOrdinal: Int = 0,
 ) {
     init {
         rangeDays.requireSupportedWidgetRangeDays()

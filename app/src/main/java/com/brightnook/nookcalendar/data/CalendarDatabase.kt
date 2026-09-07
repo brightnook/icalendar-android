@@ -16,7 +16,7 @@ import androidx.sqlite.execSQL
         WidgetConfigEntity::class,
         WidgetCalendarCrossRef::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class CalendarDatabase : RoomDatabase() {
@@ -94,6 +94,19 @@ abstract class CalendarDatabase : RoomDatabase() {
                 if (!connection.hasColumn("event_masters", "reminders")) {
                     connection.execSQL("ALTER TABLE event_masters ADD COLUMN reminders TEXT NOT NULL DEFAULT ''")
                 }
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL("ALTER TABLE widget_configuration ADD COLUMN displayOrdinal INTEGER NOT NULL DEFAULT 0")
+                // Rank the existing internal IDs without ever exposing them as display names.
+                // The correlated count works on the SQLite versions supported by Android 9.
+                connection.execSQL(
+                    "UPDATE widget_configuration SET displayOrdinal = " +
+                        "(SELECT COUNT(*) FROM widget_configuration AS previous " +
+                        "WHERE previous.appWidgetId <= widget_configuration.appWidgetId)",
+                )
             }
         }
 

@@ -63,11 +63,11 @@ class WidgetConfigViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            WidgetConfig(101, setOf("family"), WidgetRange.THIRTY_DAYS),
+            WidgetConfig(101, setOf("family"), WidgetRange.THIRTY_DAYS, displayOrdinal = 1),
             preferences.configFor(101),
         )
         assertEquals(
-            WidgetConfig(202, setOf("work"), WidgetRange.TODAY),
+            WidgetConfig(202, setOf("work"), WidgetRange.TODAY, displayOrdinal = 2),
             preferences.configFor(202),
         )
     }
@@ -92,13 +92,14 @@ class WidgetConfigViewModelTest {
     @Test
     fun widgetManagementUsesActiveIdsAndTheirSavedRanges() {
         val configs = mapOf(
-            101 to WidgetConfig(101, emptySet(), WidgetRange.THIRTY_DAYS),
+            101 to WidgetConfig(101, emptySet(), WidgetRange.THIRTY_DAYS, displayOrdinal = 1),
+            202 to WidgetConfig(202, emptySet(), WidgetRange.SEVEN_DAYS, displayOrdinal = 3),
         )
 
         assertEquals(
             listOf(
-                WidgetManagementItem(101, WidgetRange.THIRTY_DAYS),
-                WidgetManagementItem(202, WidgetRange.SEVEN_DAYS),
+                WidgetManagementItem(101, WidgetRange.THIRTY_DAYS, displayOrdinal = 1),
+                WidgetManagementItem(202, WidgetRange.SEVEN_DAYS, displayOrdinal = 3),
             ),
             widgetManagementItems(intArrayOf(101, 202), configs),
         )
@@ -110,14 +111,14 @@ class WidgetConfigViewModelTest {
         preferences.save(WidgetConfig(101, emptySet(), WidgetRange.SEVEN_DAYS))
 
         assertEquals(
-            listOf(WidgetManagementItem(101, WidgetRange.SEVEN_DAYS)),
+            listOf(WidgetManagementItem(101, WidgetRange.SEVEN_DAYS, displayOrdinal = 1)),
             loadWidgetManagementItems(intArrayOf(101), preferences),
         )
 
         preferences.save(WidgetConfig(101, emptySet(), WidgetRange.THIRTY_DAYS))
 
         assertEquals(
-            listOf(WidgetManagementItem(101, WidgetRange.THIRTY_DAYS)),
+            listOf(WidgetManagementItem(101, WidgetRange.THIRTY_DAYS, displayOrdinal = 1)),
             loadWidgetManagementItems(intArrayOf(101), preferences),
         )
     }
@@ -131,7 +132,9 @@ private class InMemoryWidgetPreferences : WidgetPreferences {
     override suspend fun configFor(appWidgetId: Int): WidgetConfig? = configs[appWidgetId]
 
     override suspend fun save(config: WidgetConfig) {
-        configs[config.appWidgetId] = config
+        val ordinal = configs[config.appWidgetId]?.displayOrdinal
+            ?: ((configs.values.maxOfOrNull { it.displayOrdinal } ?: 0) + 1)
+        configs[config.appWidgetId] = config.copy(displayOrdinal = ordinal)
     }
 
     override suspend fun delete(appWidgetId: Int) {

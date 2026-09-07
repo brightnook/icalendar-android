@@ -20,15 +20,18 @@ data class WidgetConfigUiState(
 data class WidgetManagementItem(
     val appWidgetId: Int,
     val range: WidgetRange,
+    val displayOrdinal: Int,
 )
 
 internal fun widgetManagementItems(
     activeWidgetIds: IntArray,
     configs: Map<Int, WidgetConfig>,
-): List<WidgetManagementItem> = activeWidgetIds.map { appWidgetId ->
+): List<WidgetManagementItem> = activeWidgetIds.distinct().mapNotNull { appWidgetId ->
+    val config = configs[appWidgetId]?.takeIf { it.displayOrdinal > 0 } ?: return@mapNotNull null
     WidgetManagementItem(
         appWidgetId = appWidgetId,
-        range = configs[appWidgetId]?.range ?: WidgetRange.SEVEN_DAYS,
+        range = config.range,
+        displayOrdinal = config.displayOrdinal,
     )
 }
 
@@ -36,8 +39,14 @@ internal suspend fun loadWidgetManagementItems(
     activeWidgetIds: IntArray,
     preferences: WidgetPreferences,
 ): List<WidgetManagementItem> {
-    val configs = activeWidgetIds.associateWith { appWidgetId ->
-        preferences.configFor(appWidgetId)
+    val configs = activeWidgetIds.distinct().associateWith { appWidgetId ->
+        val saved = preferences.configFor(appWidgetId)
+        if (saved == null || saved.displayOrdinal <= 0) {
+            preferences.save(saved ?: WidgetConfig(
+                appWidgetId, emptySet(), WidgetRange.SEVEN_DAYS, followVisibleCalendars = true,
+            ))
+            preferences.configFor(appWidgetId)
+        } else saved
     }.mapNotNull { (appWidgetId, config) ->
         config?.let { appWidgetId to it }
     }.toMap()
