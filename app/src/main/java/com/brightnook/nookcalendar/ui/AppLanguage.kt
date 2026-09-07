@@ -2,7 +2,7 @@ package com.brightnook.nookcalendar.ui
 
 import android.content.Context
 import android.content.res.Configuration
-import android.view.ContextThemeWrapper
+import android.os.LocaleList
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -44,10 +44,10 @@ fun LocalizedAppContent(language: AppLanguage, content: @Composable () -> Unit) 
 }
 
 private fun Context.localizedFor(locale: Locale): Context {
-    val localizedConfiguration = Configuration(resources.configuration).apply { setLocale(locale) }
-    return ContextThemeWrapper(this, 0).apply {
-        applyOverrideConfiguration(localizedConfiguration)
+    val localizedConfiguration = Configuration(resources.configuration).apply {
+        setLocales(LocaleList(locale))
     }
+    return createConfigurationContext(localizedConfiguration)
 }
 
 internal fun <T : Context> Context.findContext(type: Class<T>): T? {
