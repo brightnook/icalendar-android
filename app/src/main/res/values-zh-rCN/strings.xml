@@ -105,6 +105,9 @@
     <string name="settings_theme_error_unsupported">此文件不是支持的图片格式。</string>
     <string name="settings_theme_error_too_large">图片大小超过 20 MB。</string>
     <string name="settings_theme_error_io">无法导入图片，请重试。</string>
+    <string name="settings_widgets">小组件</string>
+    <string name="settings_widgets_empty">请先从主屏幕添加小组件，然后在这里管理。</string>
+    <string name="settings_widget_configure">小组件 %1$d · %2$s</string>
     <string name="settings_calendars">日历</string>
     <string name="settings_data_and_sign_out">数据与退出登录</string>
     <string name="settings_about">关于</string>

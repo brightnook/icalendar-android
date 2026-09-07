@@ -22,27 +22,54 @@ fun interface WidgetRefreshNotifier {
     fun refreshAll()
 }
 
-class WidgetUpdater(private val context: Context) : WidgetRefreshNotifier {
+internal interface WidgetUpdateGateway {
+    fun activeWidgetIds(): IntArray
+    fun updateAppWidgets(appWidgetIds: IntArray)
+    fun notifyEventsChanged(appWidgetIds: IntArray)
+}
+
+class WidgetUpdater internal constructor(
+    private val gateway: WidgetUpdateGateway,
+) : WidgetRefreshNotifier {
+    constructor(context: Context) : this(AndroidWidgetUpdateGateway(context))
+
     override fun refreshAll() {
-        val manager = AppWidgetManager.getInstance(context)
-        val provider = ComponentName(context, AgendaWidgetProvider::class.java)
-        val ids = manager.getAppWidgetIds(provider)
-        if (ids.isEmpty()) return
-        val theme = renderedTheme()
-        ids.forEach { appWidgetId -> manager.updateAppWidget(appWidgetId, views(manager, appWidgetId, theme)) }
-        manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_events)
+        refresh(gateway.activeWidgetIds())
     }
 
     fun refresh(appWidgetIds: IntArray) {
         if (appWidgetIds.isEmpty()) return
-        val manager = AppWidgetManager.getInstance(context)
+        gateway.updateAppWidgets(appWidgetIds)
+        gateway.notifyEventsChanged(appWidgetIds)
+    }
+
+    companion object {
+        const val EXTRA_WIDGET_WIDTH_DP = "com.brightnook.nookcalendar.widget.WIDTH_DP"
+        const val EXTRA_WIDGET_THEME_MODE = "com.brightnook.nookcalendar.widget.THEME_MODE"
+    }
+}
+
+private class AndroidWidgetUpdateGateway(
+    private val context: Context,
+) : WidgetUpdateGateway {
+    private val manager = AppWidgetManager.getInstance(context)
+
+    override fun activeWidgetIds(): IntArray = manager.getAppWidgetIds(
+        ComponentName(context, AgendaWidgetProvider::class.java),
+    )
+
+    override fun updateAppWidgets(appWidgetIds: IntArray) {
         val theme = renderedTheme()
-        appWidgetIds.forEach { appWidgetId -> manager.updateAppWidget(appWidgetId, views(manager, appWidgetId, theme)) }
+        appWidgetIds.forEach { appWidgetId ->
+            manager.updateAppWidget(appWidgetId, views(appWidgetId, theme))
+        }
+    }
+
+    override fun notifyEventsChanged(appWidgetIds: IntArray) {
         manager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_events)
     }
 
     private fun views(
-        manager: AppWidgetManager,
         appWidgetId: Int,
         renderedTheme: RenderedWidgetTheme,
     ): RemoteViews = RemoteViews(context.packageName, R.layout.agenda_widget).apply {
@@ -79,8 +106,8 @@ class WidgetUpdater(private val context: Context) : WidgetRefreshNotifier {
         setTextViewTextSize(R.id.widget_header_date, TypedValue.COMPLEX_UNIT_SP, if (presentation.isCompact) 10f else 12f)
         val serviceIntent = Intent(context, AgendaWidgetService::class.java)
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            .putExtra(EXTRA_WIDGET_WIDTH_DP, widthDp)
-            .putExtra(EXTRA_WIDGET_THEME_MODE, theme.mode.name)
+            .putExtra(WidgetUpdater.EXTRA_WIDGET_WIDTH_DP, widthDp)
+            .putExtra(WidgetUpdater.EXTRA_WIDGET_THEME_MODE, theme.mode.name)
             .setData(Uri.parse("ioscalendar-widget://agenda/$appWidgetId/$widthDp/${theme.mode.name}/${theme.imageSource?.name?.hashCode() ?: 0}"))
         setRemoteAdapter(R.id.widget_events, serviceIntent)
         setEmptyView(R.id.widget_events, R.id.widget_empty)
@@ -118,8 +145,6 @@ class WidgetUpdater(private val context: Context) : WidgetRefreshNotifier {
     }
 
     companion object {
-        const val EXTRA_WIDGET_WIDTH_DP = "com.brightnook.nookcalendar.widget.WIDTH_DP"
-        const val EXTRA_WIDGET_THEME_MODE = "com.brightnook.nookcalendar.widget.THEME_MODE"
         private const val PREVIEW_DIRECTORY = "widget-theme-previews"
         private const val PREVIEW_MAX_WIDTH_PX = 384
         private const val PREVIEW_MAX_HEIGHT_PX = 576

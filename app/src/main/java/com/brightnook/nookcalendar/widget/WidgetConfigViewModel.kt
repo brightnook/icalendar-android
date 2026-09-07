@@ -17,6 +17,21 @@ data class WidgetConfigUiState(
     val range: WidgetRange = WidgetRange.SEVEN_DAYS,
 )
 
+data class WidgetManagementItem(
+    val appWidgetId: Int,
+    val range: WidgetRange,
+)
+
+internal fun widgetManagementItems(
+    activeWidgetIds: IntArray,
+    configs: Map<Int, WidgetConfig>,
+): List<WidgetManagementItem> = activeWidgetIds.map { appWidgetId ->
+    WidgetManagementItem(
+        appWidgetId = appWidgetId,
+        range = configs[appWidgetId]?.range ?: WidgetRange.SEVEN_DAYS,
+    )
+}
+
 class WidgetConfigViewModel(
     private val appWidgetId: Int,
     private val preferences: WidgetPreferences,

@@ -105,6 +105,9 @@
     <string name="settings_theme_error_unsupported">このファイルは対応している画像ではありません。</string>
     <string name="settings_theme_error_too_large">この画像は20 MBを超えています。</string>
     <string name="settings_theme_error_io">画像を読み込めませんでした。もう一度お試しください。</string>
+    <string name="settings_widgets">ウィジェット</string>
+    <string name="settings_widgets_empty">ホーム画面からウィジェットを追加すると、ここで管理できます。</string>
+    <string name="settings_widget_configure">ウィジェット %1$d・%2$s</string>
     <string name="settings_calendars">カレンダー</string>
     <string name="settings_data_and_sign_out">データとサインアウト</string>
     <string name="settings_about">このアプリについて</string>

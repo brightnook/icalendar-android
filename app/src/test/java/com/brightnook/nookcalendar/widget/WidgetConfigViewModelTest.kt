@@ -89,6 +89,21 @@ class WidgetConfigViewModelTest {
         assertTrue(viewModel.uiState.value.calendars.none { it.id == "private" })
     }
 
+    @Test
+    fun widgetManagementUsesActiveIdsAndTheirSavedRanges() {
+        val configs = mapOf(
+            101 to WidgetConfig(101, emptySet(), WidgetRange.THIRTY_DAYS),
+        )
+
+        assertEquals(
+            listOf(
+                WidgetManagementItem(101, WidgetRange.THIRTY_DAYS),
+                WidgetManagementItem(202, WidgetRange.SEVEN_DAYS),
+            ),
+            widgetManagementItems(intArrayOf(101, 202), configs),
+        )
+    }
+
     private fun calendar(id: String, visible: Boolean) = CalendarSummary(id, id, 0xff335577.toInt(), visible)
 }
 

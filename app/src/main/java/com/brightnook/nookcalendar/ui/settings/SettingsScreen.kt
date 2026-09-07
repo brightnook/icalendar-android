@@ -40,6 +40,8 @@ import com.brightnook.nookcalendar.monetization.PurchaseFeedback
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.ui.PrimaryControlRippleScope
 import com.brightnook.nookcalendar.ui.transparentLabeledActionPresentation
+import com.brightnook.nookcalendar.widget.WidgetManagementItem
+import com.brightnook.nookcalendar.widget.WidgetRange
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -60,6 +62,8 @@ fun SettingsScreen(
     onImportTheme: (Uri) -> Unit = {},
     onRemoveThemeImage: () -> Unit = {},
     onSetApplyThemeToWidget: (Boolean) -> Unit = {},
+    managedWidgets: List<WidgetManagementItem> = emptyList(),
+    onConfigureWidget: (Int) -> Unit = {},
     settingsSavedEvents: Flow<Unit> = emptyFlow(),
     purchaseFeedbackEvents: Flow<PurchaseFeedback> = emptyFlow(),
     monetization: MonetizationUiState = MonetizationUiState(
@@ -192,6 +196,31 @@ fun SettingsScreen(
                     onRemoveThemeImage = onRemoveThemeImage,
                     onSetApplyThemeToWidget = onSetApplyThemeToWidget,
                 )
+            }
+            SettingsSection(R.string.settings_widgets, "widgets") {
+                if (managedWidgets.isEmpty()) {
+                    Text(
+                        stringResource(R.string.settings_widgets_empty),
+                        modifier = Modifier.testTag("widget-management-empty"),
+                    )
+                } else {
+                    managedWidgets.forEach { widget ->
+                        TextButton(
+                            onClick = { onConfigureWidget(widget.appWidgetId) },
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(min = actionPresentation.minimumTouchTarget)
+                                .testTag("widget-management-${widget.appWidgetId}"),
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.settings_widget_configure,
+                                    widget.appWidgetId,
+                                    widget.range.label(),
+                                ),
+                            )
+                        }
+                    }
+                }
             }
             SettingsSection(R.string.settings_calendars, "calendars") {
                 state.calendars.forEach { calendar -> CalendarRow(calendar, onSetCalendarVisible) }
@@ -410,6 +439,14 @@ private fun SettingsSection(
         AppLanguage.CHINESE -> R.string.settings_language_chinese
         AppLanguage.ENGLISH -> R.string.settings_language_english
         AppLanguage.JAPANESE -> R.string.settings_language_japanese
+    },
+)
+@Composable private fun WidgetRange.label() = stringResource(
+    when (this) {
+        WidgetRange.TODAY -> R.string.widget_range_today
+        WidgetRange.THREE_DAYS -> R.string.widget_range_three_days
+        WidgetRange.SEVEN_DAYS -> R.string.widget_range_seven_days
+        WidgetRange.THIRTY_DAYS -> R.string.widget_range_thirty_days
     },
 )
 internal fun syncModePickerOptions(): List<SyncMode> = SyncMode.entries

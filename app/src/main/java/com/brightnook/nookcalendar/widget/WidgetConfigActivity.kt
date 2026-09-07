@@ -55,8 +55,24 @@ class WidgetConfigActivity : ComponentActivity() {
         calendars = LinearLayout(localizedContext).apply { orientation = LinearLayout.VERTICAL }
         root.addView(calendars)
         ranges = RadioGroup(localizedContext).apply { orientation = RadioGroup.VERTICAL }
+        val thirtyDayRangeMarginPx = (THIRTY_DAY_RANGE_MARGIN_DP * localizedContext.resources.displayMetrics.density).toInt()
         WidgetRange.entries.forEach { range ->
-            ranges.addView(RadioButton(localizedContext).apply { id = range.ordinal + 1; setText(rangeLabel(range)); setOnClickListener { viewModel.setRange(range) } })
+            ranges.addView(
+                RadioButton(localizedContext).apply {
+                    id = range.ordinal + 1
+                    setText(rangeLabel(range))
+                    setOnClickListener { viewModel.setRange(range) }
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    if (range == WidgetRange.THIRTY_DAYS) {
+                        topMargin = thirtyDayRangeMarginPx
+                        bottomMargin = thirtyDayRangeMarginPx
+                    }
+                },
+            )
         }
         root.addView(ranges)
         root.addView(Button(localizedContext).apply {
@@ -104,6 +120,10 @@ class WidgetConfigActivity : ComponentActivity() {
         WidgetRange.THREE_DAYS -> R.string.widget_range_three_days
         WidgetRange.SEVEN_DAYS -> R.string.widget_range_seven_days
         WidgetRange.THIRTY_DAYS -> R.string.widget_range_thirty_days
+    }
+
+    private companion object {
+        const val THIRTY_DAY_RANGE_MARGIN_DP = 16
     }
 }
 

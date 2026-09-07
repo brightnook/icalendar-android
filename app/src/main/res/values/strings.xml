@@ -105,6 +105,9 @@
     <string name="settings_theme_error_unsupported">This file is not a supported image.</string>
     <string name="settings_theme_error_too_large">This image is larger than 20 MB.</string>
     <string name="settings_theme_error_io">The image could not be imported. Try again.</string>
+    <string name="settings_widgets">Widgets</string>
+    <string name="settings_widgets_empty">Add a widget from your home screen to manage it here.</string>
+    <string name="settings_widget_configure">Widget %1$d · %2$s</string>
     <string name="settings_calendars">Calendars</string>
     <string name="settings_data_and_sign_out">Data and sign out</string>
     <string name="settings_about">About</string>

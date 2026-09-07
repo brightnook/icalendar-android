@@ -1,7 +1,10 @@
 package com.brightnook.nookcalendar.ui
 
 import android.app.Activity
+import android.appwidget.AppWidgetManager
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.content.Intent
@@ -63,6 +66,11 @@ import com.brightnook.nookcalendar.ui.main.MainCalendarViewModel
 import com.brightnook.nookcalendar.ui.main.MainCalendarViewModelFactory
 import com.brightnook.nookcalendar.theme.ThemeAssetStore
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
+import com.brightnook.nookcalendar.widget.AgendaWidgetProvider
+import com.brightnook.nookcalendar.widget.WidgetManagementItem
+import com.brightnook.nookcalendar.widget.WidgetPreferences
+import com.brightnook.nookcalendar.widget.WidgetIntentFactory
+import com.brightnook.nookcalendar.widget.widgetManagementItems
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -118,6 +126,7 @@ fun AppRoot(
                 ),
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,
+                widgetPreferences = container.widgetPreferences,
                 hostActivity = activity,
                 monetization = monetization,
                 purchaseFeedbackEvents = container.monetizationRepository.purchaseFeedbackEvents,
@@ -247,6 +256,7 @@ private fun MainCalendarDestination(
     settingsFactory: ViewModelProvider.Factory,
     settingsStore: SettingsStore,
     themeAssetStore: ThemeAssetStore,
+    widgetPreferences: WidgetPreferences,
     hostActivity: Activity?,
     monetization: MonetizationUiState,
     purchaseFeedbackEvents: Flow<PurchaseFeedback>,
@@ -263,6 +273,7 @@ private fun MainCalendarDestination(
     val uiState by viewModel.uiState.collectAsState()
     val zoneId by zoneIds.collectAsState()
     val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
+    var managedWidgets by remember { mutableStateOf(emptyList<WidgetManagementItem>()) }
     val hasUpcomingReminders by reminderAvailability.collectAsState()
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -292,6 +303,17 @@ private fun MainCalendarDestination(
     LaunchedEffect(openSettingsRequest) {
         if (openSettingsRequest != 0) onSettingsOpenChanged(true)
     }
+    LaunchedEffect(settingsOpen) {
+        managedWidgets = if (settingsOpen) {
+            val activeIds = activeAgendaWidgetIds(context)
+            val configs = activeIds.associateWith { appWidgetId ->
+                widgetPreferences.configFor(appWidgetId)
+            }.filterValues { it != null }.mapValues { (_, config) -> config!! }
+            widgetManagementItems(activeIds, configs)
+        } else {
+            emptyList()
+        }
+    }
     if (settingsOpen) {
         val settingsViewModel: SettingsViewModel = viewModel(key = "settings", factory = settingsFactory)
         val settingsState by settingsViewModel.uiState.collectAsState()
@@ -305,6 +327,10 @@ private fun MainCalendarDestination(
             onImportTheme = settingsViewModel::importTheme,
             onRemoveThemeImage = settingsViewModel::removeThemeImage,
             onSetApplyThemeToWidget = settingsViewModel::setApplyThemeToWidget,
+            managedWidgets = managedWidgets,
+            onConfigureWidget = { appWidgetId ->
+                context.startActivity(WidgetIntentFactory.configurationIntent(context, appWidgetId))
+            },
             settingsSavedEvents = settingsViewModel.settingsSavedEvents,
             purchaseFeedbackEvents = purchaseFeedbackEvents,
             onLogin = onOpenLogin,
@@ -379,6 +405,9 @@ internal suspend fun reconcileRemindersForPurchaseState(
 ) {
     if (state == PurchaseUiState.OWNED) reminderScheduler.reconcile()
 }
+
+internal fun activeAgendaWidgetIds(context: Context): IntArray = AppWidgetManager.getInstance(context)
+    .getAppWidgetIds(ComponentName(context, AgendaWidgetProvider::class.java))
 
 private fun openSafeExternalAction(context: android.content.Context, action: ExternalAction) {
     val uri = when (action) {
