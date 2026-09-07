@@ -14,6 +14,7 @@ Affected in-app surfaces:
 - Event-detail sheet, including the scrim, sheet container, title, metadata, reminder rows, and close control.
 - Date picker sheet, including its header, month navigation, weekday labels, selected/today states, actions, and scrim.
 - Shared temporary feedback such as saved-settings messages and confirmation dialogs shown from these surfaces.
+- The existing widget-management list in Settings, where opaque Android instance IDs are replaced by a user-facing widget label.
 
 ## Theme rules
 
@@ -38,6 +39,12 @@ Each affected composable receives the resolved presentation (or a small immutabl
 The theme selection controls in Settings remain immediately usable. Selecting a new theme updates the visible Settings surface in place, without closing the sheet or restarting the activity.
 
 The independent widget setting is unchanged: when “apply theme to widget” is off, it remains light; when it is on, the existing widget renderer decides its own supported appearance.
+
+## Widget-management labels
+
+Android assigns every home-screen widget an opaque instance ID such as `44`. This value is an implementation detail and must not be displayed to users. The widget-management list instead labels entries `Agenda widget 1`, `Agenda widget 2`, and so on, in the stable order in which the app first observed them. The label is combined with the existing selected range, for example `Agenda widget 1 · Next 30 days`.
+
+The application stores a dedicated display ordinal for each widget configuration. Removing a widget does not renumber the remaining labels; a newly added widget uses the next ordinal. The ordinal is local UI metadata only and never replaces the Android app-widget ID used for configuration, refresh, or deletion.
 
 ## Accessibility and interaction
 
