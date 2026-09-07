@@ -104,6 +104,24 @@ class WidgetConfigViewModelTest {
         )
     }
 
+    @Test
+    fun reloadingWidgetManagementAfterConfigurationReturnUsesTheChangedRange() = runTest(dispatcher) {
+        val preferences = InMemoryWidgetPreferences()
+        preferences.save(WidgetConfig(101, emptySet(), WidgetRange.SEVEN_DAYS))
+
+        assertEquals(
+            listOf(WidgetManagementItem(101, WidgetRange.SEVEN_DAYS)),
+            loadWidgetManagementItems(intArrayOf(101), preferences),
+        )
+
+        preferences.save(WidgetConfig(101, emptySet(), WidgetRange.THIRTY_DAYS))
+
+        assertEquals(
+            listOf(WidgetManagementItem(101, WidgetRange.THIRTY_DAYS)),
+            loadWidgetManagementItems(intArrayOf(101), preferences),
+        )
+    }
+
     private fun calendar(id: String, visible: Boolean) = CalendarSummary(id, id, 0xff335577.toInt(), visible)
 }
 

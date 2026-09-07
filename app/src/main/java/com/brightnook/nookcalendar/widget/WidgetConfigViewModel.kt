@@ -32,6 +32,18 @@ internal fun widgetManagementItems(
     )
 }
 
+internal suspend fun loadWidgetManagementItems(
+    activeWidgetIds: IntArray,
+    preferences: WidgetPreferences,
+): List<WidgetManagementItem> {
+    val configs = activeWidgetIds.associateWith { appWidgetId ->
+        preferences.configFor(appWidgetId)
+    }.mapNotNull { (appWidgetId, config) ->
+        config?.let { appWidgetId to it }
+    }.toMap()
+    return widgetManagementItems(activeWidgetIds, configs)
+}
+
 class WidgetConfigViewModel(
     private val appWidgetId: Int,
     private val preferences: WidgetPreferences,

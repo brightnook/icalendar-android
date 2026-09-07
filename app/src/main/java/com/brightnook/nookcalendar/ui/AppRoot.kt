@@ -70,7 +70,7 @@ import com.brightnook.nookcalendar.widget.AgendaWidgetProvider
 import com.brightnook.nookcalendar.widget.WidgetManagementItem
 import com.brightnook.nookcalendar.widget.WidgetPreferences
 import com.brightnook.nookcalendar.widget.WidgetIntentFactory
-import com.brightnook.nookcalendar.widget.widgetManagementItems
+import com.brightnook.nookcalendar.widget.loadWidgetManagementItems
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -274,10 +274,16 @@ private fun MainCalendarDestination(
     val zoneId by zoneIds.collectAsState()
     val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
     var managedWidgets by remember { mutableStateOf(emptyList<WidgetManagementItem>()) }
+    var widgetManagementRefreshRequest by remember { mutableStateOf(0) }
     val hasUpcomingReminders by reminderAvailability.collectAsState()
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
+    val widgetConfiguration = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) widgetManagementRefreshRequest += 1
+    }
     LaunchedEffect(hasUpcomingReminders) {
         if (hasUpcomingReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -303,13 +309,10 @@ private fun MainCalendarDestination(
     LaunchedEffect(openSettingsRequest) {
         if (openSettingsRequest != 0) onSettingsOpenChanged(true)
     }
-    LaunchedEffect(settingsOpen) {
+    LaunchedEffect(settingsOpen, widgetManagementRefreshRequest) {
         managedWidgets = if (settingsOpen) {
             val activeIds = activeAgendaWidgetIds(context)
-            val configs = activeIds.associateWith { appWidgetId ->
-                widgetPreferences.configFor(appWidgetId)
-            }.filterValues { it != null }.mapValues { (_, config) -> config!! }
-            widgetManagementItems(activeIds, configs)
+            loadWidgetManagementItems(activeIds, widgetPreferences)
         } else {
             emptyList()
         }
@@ -329,7 +332,7 @@ private fun MainCalendarDestination(
             onSetApplyThemeToWidget = settingsViewModel::setApplyThemeToWidget,
             managedWidgets = managedWidgets,
             onConfigureWidget = { appWidgetId ->
-                context.startActivity(WidgetIntentFactory.configurationIntent(context, appWidgetId))
+                widgetConfiguration.launch(WidgetIntentFactory.configurationIntent(context, appWidgetId))
             },
             settingsSavedEvents = settingsViewModel.settingsSavedEvents,
             purchaseFeedbackEvents = purchaseFeedbackEvents,
