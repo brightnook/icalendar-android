@@ -3,7 +3,7 @@
     <string name="reminder_notification_channel_description">来自已同步 iCloud 日历的提醒</string>
     <string name="reminder_notification_default_text">日程提醒</string>
     <string name="startup_loading">正在打开日历…</string>
-    <string name="app_name">nookcalendar</string>
+    <string name="app_name">NookCalendar</string>
     <string name="login_title">连接 iCloud 日历</string>
     <string name="login_explanation">这里不能使用您的主 Apple 账户密码。请创建并仅使用 App 专用密码。</string>
     <string name="login_create_app_password">创建 App 专用密码</string>

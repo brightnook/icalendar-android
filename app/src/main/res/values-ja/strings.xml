@@ -2,7 +2,7 @@
     <string name="reminder_notification_channel_name">iCloud カレンダーのリマインダー</string>
     <string name="reminder_notification_channel_description">同期済みの iCloud カレンダーからのリマインダー</string>
     <string name="reminder_notification_default_text">予定のリマインダー</string>
-    <string name="app_name">nookcalendar</string>
+    <string name="app_name">NookCalendar</string>
     <string name="startup_loading">カレンダーを開いています…</string>
     <string name="login_title">iCloudカレンダーに接続</string>
     <string name="login_explanation">ここではApple Accountのメインパスワードは使用できません。代わりにApp用パスワードを作成して使用してください。</string>

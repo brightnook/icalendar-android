@@ -2,7 +2,7 @@
     <string name="reminder_notification_channel_name">iCloud calendar reminders</string>
     <string name="reminder_notification_channel_description">Reminders from your synced iCloud calendars</string>
     <string name="reminder_notification_default_text">Event reminder</string>
-    <string name="app_name">nookcalendar</string>
+    <string name="app_name">NookCalendar</string>
     <string name="startup_loading">Opening calendar…</string>
     <string name="login_title">Connect iCloud Calendar</string>
     <string name="login_explanation">Your main Apple Account password cannot be used here. Create and use an app-specific password instead.</string>

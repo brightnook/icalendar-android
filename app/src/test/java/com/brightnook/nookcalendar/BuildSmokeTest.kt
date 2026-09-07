@@ -1,8 +1,13 @@
 package com.brightnook.nookcalendar
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class BuildSmokeTest {
     @Test
     fun packageNameIsStable() {
@@ -10,8 +15,15 @@ class BuildSmokeTest {
     }
 
     @Test
-    fun diagnosticTestBuildUsesTheNextPlayVersion() {
-        assertEquals("1.0.7", BuildConfig.VERSION_NAME)
-        assertEquals(8, BuildConfig.VERSION_CODE)
+    fun releaseBuildUsesTheNextPlayVersion() {
+        assertEquals("1.0.13", BuildConfig.VERSION_NAME)
+        assertEquals(14, BuildConfig.VERSION_CODE)
+    }
+
+    @Test
+    fun defaultApplicationNameUsesTheStorefrontLabel() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        assertEquals("NookCalendar", context.getString(R.string.app_name))
     }
 }
