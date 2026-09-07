@@ -126,6 +126,7 @@ fun EventDetailContent(
     contentColor: Color,
     secondaryContentColor: Color,
     surfaceColor: Color,
+    actionContentColor: Color,
     premium: Boolean,
 ) {
     Column(
@@ -180,7 +181,7 @@ fun EventDetailContent(
             parseExternalAction(location)?.let { action ->
                 TextButton(
                     onClick = { onOpenExternalAction(action) },
-                    colors = ButtonDefaults.textButtonColors(contentColor = contentColor),
+                    colors = ButtonDefaults.textButtonColors(contentColor = actionContentColor),
                 ) {
                     Text(stringResource(R.string.calendar_open_external))
                 }
@@ -191,7 +192,7 @@ fun EventDetailContent(
             parseExternalAction(notes)?.let { action ->
                 TextButton(
                     onClick = { onOpenExternalAction(action) },
-                    colors = ButtonDefaults.textButtonColors(contentColor = contentColor),
+                    colors = ButtonDefaults.textButtonColors(contentColor = actionContentColor),
                 ) {
                     Text(stringResource(R.string.calendar_open_external))
                 }
@@ -209,7 +210,7 @@ fun EventDetailContent(
             onClick = onClose,
             modifier = Modifier.align(Alignment.End),
             colors = ButtonDefaults.buttonColors(
-                containerColor = contentColor,
+                containerColor = actionContentColor,
                 contentColor = surfaceColor,
             ),
         ) {

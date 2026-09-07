@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.ui.main
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -36,6 +38,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
@@ -49,17 +53,33 @@ import com.brightnook.nookcalendar.ui.theme.CalendarBackground
 import com.brightnook.nookcalendar.ui.theme.CalendarThemePresentation
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 const val SELECTED_DATE_TAG = "selected-date"
 const val EVENT_DETAIL_SHEET_TAG = "event-detail-sheet"
+const val DATE_PICKER_SURFACE_TAG = "date-picker-surface"
 const val BOTTOM_TODAY_TAG = "bottom-today"
 const val BOTTOM_VIEW_TAG = "bottom-view"
 const val BOTTOM_PICK_DATE_TAG = "bottom-pick-date"
 const val BOTTOM_REFRESH_TAG = "bottom-refresh"
 const val BOTTOM_SETTINGS_TAG = "bottom-settings"
+
+internal val ModalContainerColorSemantics = SemanticsPropertyKey<Color>("ModalContainerColor")
+internal val ModalScrimColorSemantics = SemanticsPropertyKey<Color>("ModalScrimColor")
+internal val ModalOutlineColorSemantics = SemanticsPropertyKey<Color>("ModalOutlineColor")
+internal val ModalPrimaryContentColorSemantics = SemanticsPropertyKey<Color>("ModalPrimaryContentColor")
+internal val ModalSecondaryContentColorSemantics = SemanticsPropertyKey<Color>("ModalSecondaryContentColor")
+internal val ModalActionContentColorSemantics = SemanticsPropertyKey<Color>("ModalActionContentColor")
+
+private var SemanticsPropertyReceiver.modalContainerColor by ModalContainerColorSemantics
+private var SemanticsPropertyReceiver.modalScrimColor by ModalScrimColorSemantics
+private var SemanticsPropertyReceiver.modalOutlineColor by ModalOutlineColorSemantics
+private var SemanticsPropertyReceiver.modalPrimaryContentColor by ModalPrimaryContentColorSemantics
+private var SemanticsPropertyReceiver.modalSecondaryContentColor by ModalSecondaryContentColorSemantics
+private var SemanticsPropertyReceiver.modalActionContentColor by ModalActionContentColorSemantics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,6 +232,7 @@ fun MainCalendarScreen(
     if (datePickerOpen) CompactDatePickerDialog(
         initialDate = state.selectedDate,
         weekStart = weekStart,
+        themePresentation = themePresentation,
         onDismiss = { datePickerOpen = false },
         onConfirm = {
             onSelectDateAndShowCombined(it)
@@ -222,18 +243,23 @@ fun MainCalendarScreen(
     state.openEvent?.let { detail ->
         ModalBottomSheet(
             onDismissRequest = onCloseEvent,
-            modifier = Modifier.testTag(EVENT_DETAIL_SHEET_TAG),
-            containerColor = themePresentation.eventDetailContainerColor,
-            contentColor = themePresentation.eventDetailContentColor,
+            modifier = Modifier
+                .testTag(EVENT_DETAIL_SHEET_TAG)
+                .modalPresentationSemantics(themePresentation),
+            containerColor = themePresentation.modalContainerColor,
+            contentColor = themePresentation.contentColor,
+            scrimColor = themePresentation.modalScrimColor,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = themePresentation.outlineColor) },
         ) {
             EventDetailContent(
                 detail = detail,
                 zoneId = zoneId,
                 onClose = onCloseEvent,
                 onOpenExternalAction = onOpenExternalAction,
-                contentColor = themePresentation.eventDetailContentColor,
-                secondaryContentColor = themePresentation.eventDetailSecondaryContentColor,
-                surfaceColor = themePresentation.eventDetailContainerColor,
+                contentColor = themePresentation.contentColor,
+                secondaryContentColor = themePresentation.secondaryContentColor,
+                surfaceColor = themePresentation.modalContainerColor,
+                actionContentColor = themePresentation.actionContentColor,
                 premium = monetization.purchaseState == PurchaseUiState.OWNED,
             )
         }
@@ -250,6 +276,7 @@ internal fun compactDatePickerMonthTitle(month: java.time.YearMonth, locale: jav
 private fun CompactDatePickerDialog(
     initialDate: java.time.LocalDate,
     weekStart: WeekStart,
+    themePresentation: CalendarThemePresentation,
     onDismiss: () -> Unit,
     onConfirm: (java.time.LocalDate) -> Unit,
 ) {
@@ -259,43 +286,96 @@ private fun CompactDatePickerDialog(
     val displayedMonth = java.time.YearMonth.parse(displayedMonthValue)
     val locale = currentLocale()
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth(),
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(themePresentation.modalScrimColor)
+                .padding(horizontal = 32.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Column(Modifier.padding(16.dp).height(430.dp)) {
-                Text(
-                    datePickerTitle(selectedDate, locale),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-                MonthGrid(
-                    month = displayedMonth,
-                    selectedDate = selectedDate,
-                    dayMarkerColors = emptyMap(),
-                    onSelectDate = { date ->
-                        selectedDateValue = date.toString()
-                        displayedMonthValue = java.time.YearMonth.from(date).toString()
-                    },
-                    onShowMonth = { month -> displayedMonthValue = month.toString() },
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    weekStart = weekStart,
-                    localeOverride = locale,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                tonalElevation = 6.dp,
+                color = themePresentation.modalContainerColor,
+                contentColor = themePresentation.contentColor,
+                border = BorderStroke(1.dp, themePresentation.outlineColor),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(DATE_PICKER_SURFACE_TAG)
+                    .modalPresentationSemantics(themePresentation),
+            ) {
+                MaterialTheme(
+                    colorScheme = MaterialTheme.colorScheme.copy(
+                        primary = themePresentation.actionContentColor,
+                        onPrimary = themePresentation.modalContainerColor,
+                        surface = themePresentation.modalContainerColor,
+                        onSurface = themePresentation.contentColor,
+                        onSurfaceVariant = themePresentation.secondaryContentColor,
+                        outline = themePresentation.outlineColor,
+                    ),
+                    typography = MaterialTheme.typography,
                 ) {
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
-                    TextButton(onClick = { onConfirm(selectedDate) }) {
-                        Text(stringResource(R.string.calendar_date_picker_confirm))
+                    Column(Modifier.padding(16.dp).height(430.dp)) {
+                        Text(
+                            datePickerTitle(selectedDate, locale),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = themePresentation.contentColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        MonthGrid(
+                            month = displayedMonth,
+                            selectedDate = selectedDate,
+                            dayMarkerColors = emptyMap(),
+                            onSelectDate = { date ->
+                                selectedDateValue = date.toString()
+                                displayedMonthValue = java.time.YearMonth.from(date).toString()
+                            },
+                            onShowMonth = { month -> displayedMonthValue = month.toString() },
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            weekStart = weekStart,
+                            localeOverride = locale,
+                            contentColor = themePresentation.contentColor,
+                            secondaryContentColor = themePresentation.secondaryContentColor,
+                            saturdayColor = themePresentation.saturdayColor,
+                            sundayColor = themePresentation.sundayColor,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
+                        ) {
+                            TextButton(onClick = onDismiss) {
+                                Text(
+                                    stringResource(R.string.settings_cancel),
+                                    color = themePresentation.actionContentColor,
+                                )
+                            }
+                            TextButton(onClick = { onConfirm(selectedDate) }) {
+                                Text(
+                                    stringResource(R.string.calendar_date_picker_confirm),
+                                    color = themePresentation.actionContentColor,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+private fun Modifier.modalPresentationSemantics(
+    presentation: CalendarThemePresentation,
+): Modifier = semantics {
+    modalContainerColor = presentation.modalContainerColor
+    modalScrimColor = presentation.modalScrimColor
+    modalOutlineColor = presentation.outlineColor
+    modalPrimaryContentColor = presentation.contentColor
+    modalSecondaryContentColor = presentation.secondaryContentColor
+    modalActionContentColor = presentation.actionContentColor
 }
 
 private fun Modifier.calendarPanel(
