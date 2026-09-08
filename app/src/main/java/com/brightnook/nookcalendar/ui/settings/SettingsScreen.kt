@@ -202,7 +202,7 @@ fun SettingsScreen(
                     modifier = Modifier.semantics { contentDescription = closeDescription },
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_action_close),
+                        painter = painterResource(settingsCloseArtwork(themePresentation)),
                         contentDescription = null,
                         modifier = Modifier.testTag("settings-close-icon"),
                         tint = themePresentation.actionIconTint(),
@@ -624,6 +624,13 @@ private fun settingsSwitchColors(settingsPresentation: SettingsSurfacePresentati
 
 private fun CalendarThemePresentation.actionIconTint(): Color =
     if (useOriginalActionArtwork) Color.Unspecified else actionContentColor
+
+internal fun settingsCloseArtwork(presentation: CalendarThemePresentation): Int =
+    if (presentation.useOriginalActionArtwork) {
+        R.drawable.ic_action_close
+    } else {
+        R.drawable.ic_action_close_transparent
+    }
 
 @Composable private fun SyncMode.label() = stringResource(when (this) { SyncMode.MANUAL -> R.string.settings_mode_manual; SyncMode.HOURLY -> R.string.settings_mode_hourly; SyncMode.DAILY -> R.string.settings_mode_daily; SyncMode.DISABLED -> R.string.settings_mode_disabled })
 @Composable private fun WeekStart.label() = stringResource(if (this == WeekStart.SUNDAY) R.string.settings_week_start_sunday else R.string.settings_week_start_monday)
