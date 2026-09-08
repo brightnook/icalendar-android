@@ -177,24 +177,37 @@ fun SettingsScreen(
     Column(
         Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("settings-header")
+                .semantics {
+                    this[SettingsSectionColorSemantics] = settingsPresentation.sectionColor
+                    this[SettingsContentColorSemantics] = settingsPresentation.contentColor
+                },
+            shape = RoundedCornerShape(20.dp),
+            color = settingsPresentation.sectionColor,
+            contentColor = settingsPresentation.contentColor,
         ) {
-            Text(
-                stringResource(R.string.settings_title),
-                Modifier.weight(1f).heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically).testTag("settings-title"),
-            )
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.semantics { contentDescription = closeDescription },
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_action_close),
-                    contentDescription = null,
-                    modifier = Modifier.testTag("settings-close-icon"),
-                    tint = themePresentation.actionIconTint(),
+                Text(
+                    stringResource(R.string.settings_title),
+                    Modifier.weight(1f).heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically).testTag("settings-title"),
                 )
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.semantics { contentDescription = closeDescription },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_close),
+                        contentDescription = null,
+                        modifier = Modifier.testTag("settings-close-icon"),
+                        tint = themePresentation.actionIconTint(),
+                    )
+                }
             }
         }
         Column(

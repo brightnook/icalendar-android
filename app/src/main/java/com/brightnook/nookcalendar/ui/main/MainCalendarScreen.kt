@@ -3,6 +3,7 @@ package com.brightnook.nookcalendar.ui.main
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -313,10 +314,15 @@ private fun CompactDatePickerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(modalPresentation.scrimColor)
-                .padding(horizontal = 32.dp),
+                .background(modalPresentation.scrimColor),
             contentAlignment = Alignment.Center,
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("date-picker-scrim")
+                    .clickable(onClick = onDismiss),
+            )
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 tonalElevation = 6.dp,
@@ -325,6 +331,7 @@ private fun CompactDatePickerDialog(
                 border = BorderStroke(1.dp, modalPresentation.outlineColor),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
                     .testTag(DATE_PICKER_SURFACE_TAG),
             ) {
                 MaterialTheme(

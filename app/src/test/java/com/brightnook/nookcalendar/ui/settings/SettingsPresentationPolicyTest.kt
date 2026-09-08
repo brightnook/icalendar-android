@@ -118,6 +118,30 @@ class SettingsPresentationPolicyTest {
         }
     }
 
+    @Test
+    fun imageThemeProtectsTheSettingsHeaderOverBrightWallpaper() {
+        val asset = createValidThemeImage()
+        try {
+            val presentation = calendarThemePresentation(
+                theme = ThemeSettings(ThemeBackgroundMode.IMAGE, asset.name),
+                assetFile = asset,
+            )
+
+            renderSettings(presentation)
+
+            val headerColor = composeRule.onNodeWithTag("settings-header")
+                .assertIsDisplayed()
+                .fetchSemanticsNode().config[SettingsSectionColorSemantics]
+            val headerOverBrightWallpaper = headerColor.compositeOver(Color.White)
+
+            assertEquals(presentation.settingsSectionColor, headerColor)
+            assertTrue(contrastRatio(presentation.contentColor, headerOverBrightWallpaper) >= 4.5f)
+            assertTrue(contrastRatio(presentation.actionContentColor, headerOverBrightWallpaper) >= 4.5f)
+        } finally {
+            asset.delete()
+        }
+    }
+
     private fun renderSettings(presentation: CalendarThemePresentation) {
         composeRule.setContent {
             MaterialTheme {

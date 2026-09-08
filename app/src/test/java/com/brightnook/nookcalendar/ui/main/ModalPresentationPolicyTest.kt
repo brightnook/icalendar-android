@@ -4,9 +4,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
 import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
 import com.brightnook.nookcalendar.domain.ThemeSettings
@@ -77,6 +81,25 @@ class ModalPresentationPolicyTest {
         assertEquals(presentation.modalContainerColor, modal.calendarHighlightContentColor)
         assertTrue(contrastRatio(modal.primaryContentColor, modal.containerColor) >= 4.5f)
         assertTrue(contrastRatio(modal.actionContentColor, modal.containerColor) >= 4.5f)
+    }
+
+    @Test
+    fun datePickerDismissesFromTheScrimButKeepsOpenForDateSelection() {
+        val presentation = calendarThemePresentation(
+            theme = ThemeSettings(mode = ThemeBackgroundMode.BLACK),
+            assetFile = null,
+        )
+        renderCalendar(state(), presentation)
+
+        composeRule.onNodeWithTag(BOTTOM_PICK_DATE_TAG).performClick()
+        composeRule.onNodeWithTag("date-picker-scrim").performTouchInput {
+            click(Offset(1f, 1f))
+        }
+        composeRule.onNodeWithTag(DATE_PICKER_SURFACE_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(BOTTOM_PICK_DATE_TAG).performClick()
+        composeRule.onAllNodesWithTag("calendar-day-2026-08-15")[1].performClick()
+        composeRule.onNodeWithTag(DATE_PICKER_SURFACE_TAG).assertIsDisplayed()
     }
 
     @Test
