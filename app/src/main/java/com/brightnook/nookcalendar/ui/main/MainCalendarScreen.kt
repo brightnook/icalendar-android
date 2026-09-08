@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -65,6 +66,9 @@ const val BOTTOM_VIEW_TAG = "bottom-view"
 const val BOTTOM_PICK_DATE_TAG = "bottom-pick-date"
 const val BOTTOM_REFRESH_TAG = "bottom-refresh"
 const val BOTTOM_SETTINGS_TAG = "bottom-settings"
+
+internal fun agendaPanelHeight(availableHeight: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+    (availableHeight * 0.45f).coerceIn(200.dp, 320.dp)
 
 internal data class CalendarModalPresentation(
     val containerColor: Color,
@@ -141,13 +145,14 @@ fun MainCalendarScreen(
     }
     CalendarBackground(themePresentation) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        BoxWithConstraints(Modifier.weight(1f)) {
         if (state.viewMode == CalendarViewMode.YEAR) {
             YearCalendar(
                 state.displayedMonth.year,
                 state.selectedDate,
                 state.dayMarkerColors,
                 onSelectDateAndShowCombined,
-                Modifier.fillMaxWidth().weight(1f).calendarPanel(themePresentation, horizontalPadding = 0.dp),
+                Modifier.fillMaxSize().calendarPanel(themePresentation, horizontalPadding = 0.dp),
                 weekStart,
                 contentColor = themePresentation.contentColor,
                 secondaryContentColor = themePresentation.secondaryContentColor,
@@ -155,18 +160,20 @@ fun MainCalendarScreen(
                 sundayColor = themePresentation.sundayColor,
             )
         } else {
-            MonthGrid(
-                month = state.displayedMonth, selectedDate = state.selectedDate, dayMarkerColors = state.dayMarkerColors,
-                onSelectDate = onSelectDate, onShowMonth = onShowMonth,
-                modifier = Modifier.fillMaxWidth().weight(0.58f).calendarPanel(themePresentation),
-                weekStart = weekStart,
-                contentColor = themePresentation.contentColor,
-                secondaryContentColor = themePresentation.secondaryContentColor,
-                saturdayColor = themePresentation.saturdayColor,
-                sundayColor = themePresentation.sundayColor,
-            )
-            HorizontalDivider(color = dividerColor)
-            Column(Modifier.fillMaxWidth().weight(0.42f).calendarPanel(themePresentation, horizontalPadding = 0.dp)) {
+            val panelHeight = agendaPanelHeight(maxHeight)
+            Column(Modifier.fillMaxSize()) {
+                MonthGrid(
+                    month = state.displayedMonth, selectedDate = state.selectedDate, dayMarkerColors = state.dayMarkerColors,
+                    onSelectDate = onSelectDate, onShowMonth = onShowMonth,
+                    modifier = Modifier.fillMaxWidth().weight(1f).calendarPanel(themePresentation),
+                    weekStart = weekStart,
+                    contentColor = themePresentation.contentColor,
+                    secondaryContentColor = themePresentation.secondaryContentColor,
+                    saturdayColor = themePresentation.saturdayColor,
+                    sundayColor = themePresentation.sundayColor,
+                )
+                HorizontalDivider(color = dividerColor)
+                Column(Modifier.fillMaxWidth().height(panelHeight).calendarPanel(themePresentation, horizontalPadding = 0.dp)) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
@@ -213,6 +220,8 @@ fun MainCalendarScreen(
                 secondaryContentColor = themePresentation.secondaryContentColor,
             )
             }
+            }
+        }
         }
         AdBannerSlot(monetization)
         HorizontalDivider(color = dividerColor)

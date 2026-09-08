@@ -83,7 +83,7 @@ class LocalizedAppContentTest {
     }
 
     @Test
-    fun changingTheLanguageRecreatesTheLocalizedContentTree() {
+    fun changingTheLanguageKeepsTheExistingContentTree() {
         var selectedLanguage by mutableStateOf(AppLanguage.ENGLISH)
         var firstIdentity = ""
         composeRule.setContent {
@@ -99,7 +99,7 @@ class LocalizedAppContentTest {
 
         composeRule.runOnIdle { selectedLanguage = AppLanguage.JAPANESE }
 
-        composeRule.onNodeWithTag("localized-identity").assertTextEquals("changed")
+        composeRule.onNodeWithTag("localized-identity").assertTextEquals("same")
     }
 
     @Test

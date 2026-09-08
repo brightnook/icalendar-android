@@ -23,14 +23,23 @@ android {
         applicationId = "com.brightnook.nookcalendar"
         minSdk = 28
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.0.16"
+        versionCode = 21
+        versionName = "1.0.20"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
         buildConfig = true
         compose = true
+    }
+
+    // The in-app picker can switch between Chinese, English, and Japanese while
+    // the device remains in another language. Keep these small resource sets in
+    // the installed base package so a Play language split cannot force a fallback.
+    bundle {
+        language {
+            enableSplit = false
+        }
     }
 
     compileOptions {

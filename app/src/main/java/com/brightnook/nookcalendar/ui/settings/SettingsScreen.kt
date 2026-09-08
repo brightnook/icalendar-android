@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -82,6 +83,20 @@ internal fun settingsSurfacePresentation(
 )
 
 @Composable
+internal fun SettingsSavedMessageHandler(
+    savedEvents: Flow<Unit>,
+    savedMessage: String,
+    snackbarHostState: SnackbarHostState,
+) {
+    val currentSavedMessage by rememberUpdatedState(savedMessage)
+    LaunchedEffect(savedEvents) {
+        savedEvents.collect {
+            snackbarHostState.showSnackbar(currentSavedMessage)
+        }
+    }
+}
+
+@Composable
 fun SettingsScreen(
     state: SettingsUiState,
     themePresentation: CalendarThemePresentation,
@@ -128,11 +143,11 @@ fun SettingsScreen(
     LaunchedEffect(Unit) {
         refreshPurchaseSupportWhenSettingsOpened(monetization.purchaseState, onRefreshPurchaseSupport)
     }
-    LaunchedEffect(settingsSavedEvents) {
-        settingsSavedEvents.collect {
-            snackbarHostState.showSnackbar(settingsSavedMessage)
-        }
-    }
+    SettingsSavedMessageHandler(
+        savedEvents = settingsSavedEvents,
+        savedMessage = settingsSavedMessage,
+        snackbarHostState = snackbarHostState,
+    )
     LaunchedEffect(purchaseFeedbackEvents) {
         purchaseFeedbackEvents.collect { feedback ->
             snackbarHostState.showSnackbar(

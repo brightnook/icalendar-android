@@ -6,7 +6,6 @@ import android.os.LocaleList
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -25,20 +24,18 @@ fun LocalizedAppContent(language: AppLanguage, content: @Composable () -> Unit) 
     val systemLocale = LocalConfiguration.current.locales[0]
     val locale = resolveDomainAppLocale(language, systemLocale)
     val localizedContext = remember(context, locale) { context.localizedFor(locale) }
-    key(locale) {
-        CompositionLocalProvider(
-            LocalContext provides localizedContext,
-            LocalConfiguration provides localizedContext.resources.configuration,
-            LocalResources provides localizedContext.resources,
-        ) {
-            if (activityResultRegistryOwner != null) {
-                CompositionLocalProvider(
-                    LocalActivityResultRegistryOwner provides activityResultRegistryOwner,
-                    content = content,
-                )
-            } else {
-                content()
-            }
+    CompositionLocalProvider(
+        LocalContext provides localizedContext,
+        LocalConfiguration provides localizedContext.resources.configuration,
+        LocalResources provides localizedContext.resources,
+    ) {
+        if (activityResultRegistryOwner != null) {
+            CompositionLocalProvider(
+                LocalActivityResultRegistryOwner provides activityResultRegistryOwner,
+                content = content,
+            )
+        } else {
+            content()
         }
     }
 }
