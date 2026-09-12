@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.SemanticsPropertyKey
@@ -37,6 +38,8 @@ import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
 import com.brightnook.nookcalendar.domain.WeekStart
+import com.brightnook.nookcalendar.sync.AutomaticSyncOutcome
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatus
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import com.brightnook.nookcalendar.monetization.PurchaseAction
 import com.brightnook.nookcalendar.monetization.PurchaseFeedback
@@ -272,7 +275,12 @@ fun SettingsScreen(
                 }
             }
             SettingsSection(R.string.settings_sync_mode, "sync", settingsPresentation) {
-                SyncModePicker(state.syncMode, settingsPresentation, onSelectSyncMode)
+                SyncModePicker(
+                    selectedMode = state.syncMode,
+                    automaticSyncStatus = state.automaticSyncStatus,
+                    settingsPresentation = settingsPresentation,
+                    onSelectMode = onSelectSyncMode,
+                )
             }
             SettingsSection(R.string.settings_week_start, "week-start", settingsPresentation) {
                 WeekStartPicker(state.weekStart, settingsPresentation, onSelectWeekStart)
@@ -464,13 +472,15 @@ private fun RestorePurchasesAction(onRestorePurchase: () -> Unit, enabled: Boole
 @Composable
 private fun SyncModePicker(
     selectedMode: SyncMode,
+    automaticSyncStatus: AutomaticSyncStatus?,
     settingsPresentation: SettingsSurfacePresentation,
     onSelectMode: (SyncMode) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.settings_sync_mode)
     val selectedLabel = selectedMode.label()
-    Box {
+    Column {
+        Box {
         TextButton(
             onClick = { expanded = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("sync-mode-picker").semantics {
@@ -498,6 +508,23 @@ private fun SyncModePicker(
                     modifier = Modifier.testTag("sync-mode-option-$mode"),
                 )
             }
+        }
+        }
+        if (selectedMode == SyncMode.HOURLY || selectedMode == SyncMode.DAILY) {
+            val locale = LocalConfiguration.current.locales[0]
+            val statusText = automaticSyncStatus?.let { status ->
+                stringResource(
+                    R.string.settings_last_automatic_sync,
+                    formatAutomaticSyncTimestamp(status.completedAt, locale),
+                    status.outcome.label(),
+                )
+            } ?: stringResource(R.string.settings_last_automatic_sync_none)
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = settingsPresentation.secondaryContentColor,
+                modifier = Modifier.padding(start = 16.dp, top = 2.dp),
+            )
         }
     }
 }
@@ -648,6 +675,13 @@ internal fun settingsCloseArtwork(presentation: CalendarThemePresentation): Int 
     }
 
 @Composable private fun SyncMode.label() = stringResource(when (this) { SyncMode.MANUAL -> R.string.settings_mode_manual; SyncMode.HOURLY -> R.string.settings_mode_hourly; SyncMode.DAILY -> R.string.settings_mode_daily; SyncMode.DISABLED -> R.string.settings_mode_disabled })
+@Composable private fun AutomaticSyncOutcome.label() = stringResource(
+    when (this) {
+        AutomaticSyncOutcome.COMPLETED -> R.string.settings_automatic_sync_completed
+        AutomaticSyncOutcome.RETRYING -> R.string.settings_automatic_sync_retrying
+        AutomaticSyncOutcome.AUTHENTICATION_REQUIRED -> R.string.settings_automatic_sync_authentication_required
+    },
+)
 @Composable private fun WeekStart.label() = stringResource(if (this == WeekStart.SUNDAY) R.string.settings_week_start_sunday else R.string.settings_week_start_monday)
 @Composable private fun AppLanguage.label() = stringResource(
     when (this) {

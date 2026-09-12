@@ -10,8 +10,11 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.WeekStart
+import com.brightnook.nookcalendar.sync.AutomaticSyncOutcome
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatus
 import java.io.File
 import java.io.IOException
+import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,6 +83,20 @@ class DataStoreSettingsStoreTest {
         val store = DataStoreSettingsStore(FailingReadDataStore(IOException("temporary read failure")))
 
         assertEquals(SyncMode.MANUAL, store.settings.first().syncMode)
+    }
+
+    @Test
+    fun automaticSyncStatusSurvivesStoreRecreation() = runTest {
+        // Catches the settings screen losing the last background-sync result after the app process is recreated.
+        val fixture = fixture()
+        val expected = AutomaticSyncStatus(
+            completedAt = Instant.parse("2026-09-10T08:00:00Z"),
+            outcome = AutomaticSyncOutcome.COMPLETED,
+        )
+
+        DataStoreAutomaticSyncStatusStore(fixture.dataStore).record(expected)
+
+        assertEquals(expected, DataStoreAutomaticSyncStatusStore(fixture.dataStore).status.first())
     }
 
     private fun fixture(corrupt: Boolean = false): DataStoreFixture {

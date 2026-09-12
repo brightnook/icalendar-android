@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.sync
 
 import android.content.Context
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -30,6 +31,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -120,6 +122,7 @@ class WorkManagerSyncSchedulerTest {
         scheduler.readiness.first { it == SyncSchedulerReadiness.READY }
 
         scheduler.enqueueManual()
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertTrue(scheduler.manualSyncInProgress.first { it })
     }

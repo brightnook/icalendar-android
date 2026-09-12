@@ -8,11 +8,15 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import com.brightnook.nookcalendar.domain.AppLanguage
 import com.brightnook.nookcalendar.domain.ThemeSettings
+import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.monetization.MonetizationUiState
 import kotlinx.coroutines.test.runTest
 import com.brightnook.nookcalendar.monetization.PurchaseUiState
 import com.brightnook.nookcalendar.ui.LocalizedAppContent
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
+import com.brightnook.nookcalendar.sync.AutomaticSyncOutcome
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatus
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -107,5 +111,37 @@ class SettingsPurchaseSupportTest {
 
         composeRule.onNodeWithTag("remove-ads").assertIsEnabled()
         composeRule.onNodeWithTag("restore-purchases").assertIsNotEnabled()
+    }
+
+    @Test
+    fun periodicModeShowsTheLocalizedLastAutomaticSyncStatus() {
+        composeRule.setContent {
+            LocalizedAppContent(AppLanguage.ENGLISH) {
+                MaterialTheme {
+                    SettingsScreen(
+                        state = SettingsUiState(
+                            accountLoading = false,
+                            syncMode = SyncMode.HOURLY,
+                            automaticSyncStatus = AutomaticSyncStatus(
+                                Instant.parse("2026-09-10T08:00:00Z"),
+                                AutomaticSyncOutcome.COMPLETED,
+                            ),
+                        ),
+                        themePresentation = testThemePresentation,
+                        onClose = {},
+                        onSelectSyncMode = {},
+                        onSetCalendarVisible = { _, _ -> },
+                        onClearHistory = {},
+                        onClearCache = {},
+                        onLogout = {},
+                        onDismissConfirmation = {},
+                        onConfirmDestructiveAction = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("Last automatic sync:", substring = true).assertExists()
+        composeRule.onNodeWithText("Completed", substring = true).assertExists()
     }
 }

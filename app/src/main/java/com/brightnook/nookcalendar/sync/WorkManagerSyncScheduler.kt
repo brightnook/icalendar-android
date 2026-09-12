@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
+import androidx.work.workDataOf
 import androidx.lifecycle.asFlow
 import com.brightnook.nookcalendar.data.SettingsStore
 import com.brightnook.nookcalendar.domain.SyncMode
@@ -141,6 +142,7 @@ class WorkManagerSyncScheduler internal constructor(
     private suspend fun schedulePeriodic(interval: Long, unit: TimeUnit) {
         val request = PeriodicWorkRequestBuilder<CalendarSyncWorker>(interval, unit)
             .setConstraints(connectedNetwork)
+            .setInputData(workDataOf(CalendarSyncWorker.INPUT_IS_AUTOMATIC to true))
             .build()
         workManager.enqueueUniquePeriodicWork(
             PERIODIC_SYNC_WORK_NAME,

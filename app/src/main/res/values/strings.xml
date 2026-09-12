@@ -88,6 +88,11 @@
     <string name="settings_mode_hourly">Hourly (approximately every hour)</string>
     <string name="settings_mode_daily">Daily (approximately once a day)</string>
     <string name="settings_mode_disabled">Disabled</string>
+    <string name="settings_last_automatic_sync">Last automatic sync: %1$s · %2$s</string>
+    <string name="settings_last_automatic_sync_none">Last automatic sync: not yet run</string>
+    <string name="settings_automatic_sync_completed">Completed</string>
+    <string name="settings_automatic_sync_retrying">Will retry</string>
+    <string name="settings_automatic_sync_authentication_required">Sign in required</string>
     <string name="settings_week_start">Week starts on</string>
     <string name="settings_week_start_sunday">Sunday</string>
     <string name="settings_week_start_monday">Monday</string>

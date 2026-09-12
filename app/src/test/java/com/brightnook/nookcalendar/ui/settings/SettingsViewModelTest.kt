@@ -21,6 +21,9 @@ import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.domain.TimeRange
 import com.brightnook.nookcalendar.sync.SyncScheduler
 import com.brightnook.nookcalendar.sync.SyncSchedulerReadiness
+import com.brightnook.nookcalendar.sync.AutomaticSyncOutcome
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatus
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatusStore
 import com.brightnook.nookcalendar.widget.WidgetRefreshNotifier
 import java.time.Instant
 import java.time.LocalDate
@@ -103,6 +106,20 @@ class SettingsViewModelTest {
 
         assertEquals(AppLanguage.JAPANESE, settings.settings.value.language)
         assertEquals(AppLanguage.JAPANESE, viewModel.uiState.value.language)
+    }
+
+    @Test
+    fun exposesTheMostRecentAutomaticSyncForTheSettingsScreen() = runTest(dispatcher) {
+        // Catches a persisted background-sync result never reaching the settings UI.
+        val expected = AutomaticSyncStatus(
+            completedAt = Instant.parse("2026-09-10T08:00:00Z"),
+            outcome = AutomaticSyncOutcome.COMPLETED,
+        )
+        val viewModel = viewModel(automaticSyncStatusStore = InMemoryAutomaticSyncStatusStore(expected))
+
+        advanceUntilIdle()
+
+        assertEquals(expected, viewModel.uiState.value.automaticSyncStatus)
     }
 
     @Test
@@ -217,6 +234,7 @@ class SettingsViewModelTest {
             repository,
         ),
         widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
+        automaticSyncStatusStore: AutomaticSyncStatusStore = InMemoryAutomaticSyncStatusStore(),
     ) = SettingsViewModel(
         repository = repository,
         settingsStore = settings,
@@ -224,6 +242,7 @@ class SettingsViewModelTest {
         accountManager = accountManager,
         clock = FixedClock,
         widgetUpdater = widgetUpdater,
+        automaticSyncStatusStore = automaticSyncStatusStore,
     )
 }
 
@@ -260,6 +279,16 @@ private class PersistingScheduler(
     override fun enqueueManual(): UUID = UUID.randomUUID()
     override suspend fun cancelAll() {
         operations?.add("cancel")
+    }
+}
+
+private class InMemoryAutomaticSyncStatusStore(
+    initial: AutomaticSyncStatus? = null,
+) : AutomaticSyncStatusStore {
+    override val status = MutableStateFlow(initial)
+
+    override suspend fun record(status: AutomaticSyncStatus) {
+        this.status.value = status
     }
 }
 

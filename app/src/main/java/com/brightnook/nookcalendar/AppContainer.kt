@@ -12,6 +12,7 @@ import com.brightnook.nookcalendar.caldav.Ical4jIcsParser
 import com.brightnook.nookcalendar.caldav.IcsParser
 import com.brightnook.nookcalendar.data.CalendarDatabase
 import com.brightnook.nookcalendar.data.DataStoreSettingsStore
+import com.brightnook.nookcalendar.data.DataStoreAutomaticSyncStatusStore
 import com.brightnook.nookcalendar.data.RoomCalendarRepository
 import com.brightnook.nookcalendar.data.SettingsStore
 import com.brightnook.nookcalendar.domain.CalendarRepository
@@ -63,6 +64,7 @@ class AppContainer(val application: Application) {
     val widgetPreferences: WidgetPreferences by lazy { RoomWidgetPreferences(database) }
     val widgetUpdater: WidgetUpdater by lazy { WidgetUpdater(application) }
     val settingsStore: SettingsStore by lazy { DataStoreSettingsStore(application) }
+    val automaticSyncStatusStore by lazy { DataStoreAutomaticSyncStatusStore(application) }
     val themeAssetStore: ThemeAssetStore by lazy { PrivateThemeAssetStore(application) }
     val credentialsStore: CredentialsStore by lazy { KeystoreCredentialsStore(application) }
     val accountManager: AccountManager by lazy {

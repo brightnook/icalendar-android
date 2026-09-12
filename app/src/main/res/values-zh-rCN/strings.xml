@@ -88,6 +88,11 @@
     <string name="settings_mode_hourly">每小时（大约每小时一次）</string>
     <string name="settings_mode_daily">每天（大约每天一次）</string>
     <string name="settings_mode_disabled">已禁用</string>
+    <string name="settings_last_automatic_sync">上次自动同步：%1$s · %2$s</string>
+    <string name="settings_last_automatic_sync_none">上次自动同步：尚未执行</string>
+    <string name="settings_automatic_sync_completed">已完成</string>
+    <string name="settings_automatic_sync_retrying">将重试</string>
+    <string name="settings_automatic_sync_authentication_required">需要重新登录</string>
     <string name="settings_week_start">一周开始于</string>
     <string name="settings_week_start_sunday">星期日</string>
     <string name="settings_week_start_monday">星期一</string>

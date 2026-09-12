@@ -123,6 +123,7 @@ fun AppRoot(
                     widgetUpdater = container.widgetUpdater,
                     themeAssetStore = container.themeAssetStore,
                     reminderScheduler = container.reminderScheduler,
+                    automaticSyncStatusStore = container.automaticSyncStatusStore,
                 ),
                 settingsStore = container.settingsStore,
                 themeAssetStore = container.themeAssetStore,

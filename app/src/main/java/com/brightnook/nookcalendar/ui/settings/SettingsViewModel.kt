@@ -18,6 +18,9 @@ import com.brightnook.nookcalendar.domain.ThemeSettings
 import com.brightnook.nookcalendar.domain.WeekStart
 import com.brightnook.nookcalendar.domain.SystemClockProvider
 import com.brightnook.nookcalendar.sync.SyncScheduler
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatus
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatusStore
+import com.brightnook.nookcalendar.sync.NoOpAutomaticSyncStatusStore
 import com.brightnook.nookcalendar.theme.ThemeAssetFailure
 import com.brightnook.nookcalendar.theme.ThemeAssetImport
 import com.brightnook.nookcalendar.theme.ThemeAssetStore
@@ -47,6 +50,7 @@ class SettingsViewModel(
     private val widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
     private val themeAssetStore: ThemeAssetStore = UnavailableThemeAssetStore,
     private val reminderScheduler: ReminderScheduler = NoOpReminderScheduler,
+    private val automaticSyncStatusStore: AutomaticSyncStatusStore = NoOpAutomaticSyncStatusStore,
 ) : ViewModel() {
     private val confirmation = MutableStateFlow<SettingsConfirmation?>(null)
     private val destructiveActionInProgress = MutableStateFlow(false)
@@ -60,7 +64,8 @@ class SettingsViewModel(
         settingsStore.settings,
         repository.observeCalendars(),
         accountManager.authenticationState,
-    ) { settings, calendars, accountState ->
+        automaticSyncStatusStore.status,
+    ) { settings, calendars, accountState, automaticSyncStatus ->
         SettingsUiState(
             syncMode = settings.syncMode,
             weekStart = settings.weekStart,
@@ -69,6 +74,7 @@ class SettingsViewModel(
             calendars = calendars,
             maskedAppleId = (accountState as? AccountAuthenticationState.Authenticated)?.maskedAppleId,
             accountLoading = accountState == AccountAuthenticationState.Loading,
+            automaticSyncStatus = automaticSyncStatus,
         )
     }
 
@@ -266,6 +272,7 @@ data class SettingsUiState(
     val destructiveActionInProgress: Boolean = false,
     val showCleanupWarning: Boolean = false,
     val showOperationError: Boolean = false,
+    val automaticSyncStatus: AutomaticSyncStatus? = null,
 )
 
 private data class SettingsFeedback(
@@ -299,6 +306,7 @@ class SettingsViewModelFactory(
     private val widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
     private val themeAssetStore: ThemeAssetStore = UnavailableThemeAssetStore,
     private val reminderScheduler: ReminderScheduler = NoOpReminderScheduler,
+    private val automaticSyncStatusStore: AutomaticSyncStatusStore = NoOpAutomaticSyncStatusStore,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -311,6 +319,7 @@ class SettingsViewModelFactory(
             widgetUpdater = widgetUpdater,
             themeAssetStore = themeAssetStore,
             reminderScheduler = reminderScheduler,
+            automaticSyncStatusStore = automaticSyncStatusStore,
         ) as T
     }
 }
