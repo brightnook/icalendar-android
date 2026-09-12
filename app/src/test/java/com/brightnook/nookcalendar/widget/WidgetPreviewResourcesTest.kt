@@ -23,8 +23,8 @@ class WidgetPreviewResourcesTest {
         parser.use {
             while (parser.eventType != XmlPullParser.START_TAG) parser.next()
             assertEquals(
-                "@layout/agenda_widget_preview",
-                parser.getAttributeValue(ANDROID_NAMESPACE, "previewLayout"),
+                R.layout.agenda_widget_preview,
+                parser.getAttributeResourceValue(ANDROID_NAMESPACE, "previewLayout", 0),
             )
         }
 

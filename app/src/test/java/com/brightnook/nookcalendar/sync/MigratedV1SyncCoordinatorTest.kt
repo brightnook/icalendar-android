@@ -134,6 +134,10 @@ class MigratedV1SyncCoordinatorTest {
             .addMigrations(CalendarDatabase.MIGRATION_1_2)
             .addMigrations(CalendarDatabase.MIGRATION_2_3)
             .addMigrations(CalendarDatabase.MIGRATION_3_4)
+            .addMigrations(CalendarDatabase.MIGRATION_4_5)
+            .addMigrations(CalendarDatabase.MIGRATION_5_6)
+            .addMigrations(CalendarDatabase.MIGRATION_6_7)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
             .allowMainThreadQueries()
             .build()
         database = opened
@@ -166,7 +170,7 @@ class MigratedV1SyncCoordinatorTest {
         val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(path, null).apply {
             val schema = JSONObject(
-                context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/1.json")
+                context.assets.open("com.victor2319.ioscalendar.data.CalendarDatabase/1.json")
                     .bufferedReader()
                     .use { it.readText() },
             ).getJSONObject("database")

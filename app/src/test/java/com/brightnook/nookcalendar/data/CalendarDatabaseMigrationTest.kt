@@ -23,7 +23,7 @@ class CalendarDatabaseMigrationTest {
         val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(path, null).apply {
             val schema = JSONObject(
-                context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/1.json")
+                context.assets.open("com.victor2319.ioscalendar.data.CalendarDatabase/1.json")
                     .bufferedReader()
                     .use { it.readText() },
             ).getJSONObject("database")
@@ -62,6 +62,7 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_4_5)
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -97,7 +98,7 @@ class CalendarDatabaseMigrationTest {
         val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(path, null).apply {
             val schema = JSONObject(
-                context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/3.json")
+                context.assets.open("com.victor2319.ioscalendar.data.CalendarDatabase/3.json")
                     .bufferedReader()
                     .use { it.readText() },
             ).getJSONObject("database")
@@ -126,6 +127,7 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_4_5)
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -168,6 +170,7 @@ class CalendarDatabaseMigrationTest {
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
             .allowMainThreadQueries()
             .build()
         database.openHelper.writableDatabase.query("SELECT reminders FROM event_masters WHERE id = 'event'").use { cursor ->
@@ -208,6 +211,7 @@ class CalendarDatabaseMigrationTest {
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
             .allowMainThreadQueries()
             .build()
 
@@ -242,7 +246,9 @@ class CalendarDatabaseMigrationTest {
             legacy.version = 6
         }
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
-            .addMigrations(CalendarDatabase.MIGRATION_6_7).allowMainThreadQueries().build()
+            .addMigrations(CalendarDatabase.MIGRATION_6_7)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .allowMainThreadQueries().build()
         try {
             database.openHelper.writableDatabase.query(
                 "SELECT appWidgetId, rangeDays, followVisibleCalendars, displayOrdinal FROM widget_configuration ORDER BY appWidgetId",
@@ -253,6 +259,59 @@ class CalendarDatabaseMigrationTest {
             database.openHelper.writableDatabase.query("SELECT appWidgetId, calendarId FROM widget_calendar ORDER BY appWidgetId, calendarId").use { cursor ->
                 val actual = buildList { while (cursor.moveToNext()) add(cursor.getInt(0) to cursor.getString(1)) }
                 assertEquals(listOf(44 to "family", 44 to "work", 108 to "personal"), actual)
+            }
+        } finally {
+            database.close()
+            context.deleteDatabase(DATABASE_NAME)
+        }
+    }
+
+    @Test
+    fun migrationSevenToEightPreservesCalendarAndCreatesDormantWriteMetadata() {
+        context.deleteDatabase(DATABASE_NAME)
+        val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).use { legacy ->
+            val schema = JSONObject(
+                context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/7.json")
+                    .bufferedReader().use { it.readText() },
+            ).getJSONObject("database")
+            schema.getJSONArray("entities").let { entities ->
+                repeat(entities.length()) { index ->
+                    val entity = entities.getJSONObject(index)
+                    legacy.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                    entity.optJSONArray("indices")?.let { indices ->
+                        repeat(indices.length()) { position ->
+                            legacy.execSQL(indices.getJSONObject(position).getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                        }
+                    }
+                }
+            }
+            schema.getJSONArray("setupQueries").let { queries ->
+                repeat(queries.length()) { legacy.execSQL(queries.getString(it)) }
+            }
+            legacy.execSQL("INSERT INTO calendars VALUES ('personal', 'Personal', 1234, 1)")
+            legacy.version = 7
+        }
+
+        val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
+            .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            database.openHelper.writableDatabase.query(
+                "SELECT id, name, colorArgb, isVisible, isWritable FROM calendars",
+            ).use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals("personal", cursor.getString(0))
+                assertEquals("Personal", cursor.getString(1))
+                assertEquals(1234, cursor.getInt(2))
+                assertEquals(1, cursor.getInt(3))
+                assertEquals(0, cursor.getInt(4))
+            }
+            database.openHelper.writableDatabase.query(
+                "SELECT calendarId, href, etag, calendarData, updatedAtEpochMillis FROM calendar_resources",
+            ).use { cursor ->
+                assertEquals(false, cursor.moveToFirst())
             }
         } finally {
             database.close()

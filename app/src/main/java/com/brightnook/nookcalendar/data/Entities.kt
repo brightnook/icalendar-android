@@ -12,6 +12,28 @@ data class CalendarEntity(
     val name: String,
     val colorArgb: Int,
     val isVisible: Boolean,
+    @ColumnInfo(defaultValue = "0") val isWritable: Boolean = false,
+)
+
+@Entity(
+    tableName = "calendar_resources",
+    primaryKeys = ["calendarId", "href"],
+    foreignKeys = [
+        ForeignKey(
+            entity = CalendarEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["calendarId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("href")],
+)
+data class CalendarResourceEntity(
+    val calendarId: String,
+    val href: String,
+    val etag: String?,
+    val calendarData: String,
+    val updatedAtEpochMillis: Long,
 )
 
 @Entity(

@@ -15,8 +15,9 @@ import androidx.sqlite.execSQL
         CoverageEntity::class,
         WidgetConfigEntity::class,
         WidgetCalendarCrossRef::class,
+        CalendarResourceEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class CalendarDatabase : RoomDatabase() {
@@ -106,6 +107,25 @@ abstract class CalendarDatabase : RoomDatabase() {
                     "UPDATE widget_configuration SET displayOrdinal = " +
                         "(SELECT COUNT(*) FROM widget_configuration AS previous " +
                         "WHERE previous.appWidgetId <= widget_configuration.appWidgetId)",
+                )
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
+                    "ALTER TABLE calendars ADD COLUMN isWritable INTEGER NOT NULL DEFAULT 0",
+                )
+                connection.execSQL(
+                    "CREATE TABLE IF NOT EXISTS calendar_resources (" +
+                        "calendarId TEXT NOT NULL, href TEXT NOT NULL, etag TEXT, " +
+                        "calendarData TEXT NOT NULL, updatedAtEpochMillis INTEGER NOT NULL, " +
+                        "PRIMARY KEY(calendarId, href), " +
+                        "FOREIGN KEY(calendarId) REFERENCES calendars(id) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                connection.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_calendar_resources_href ON calendar_resources(href)",
                 )
             }
         }

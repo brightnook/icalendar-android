@@ -3,7 +3,7 @@
 Approved: 2026-09-12.
 
 - Keep `feature/icloud-reminders` as the existing stable release-maintenance branch. Its historical name is retained intentionally.
-- Baseline: source version 1.0.21 (versionCode 22). Production publication remains subject to closed-test acceptance and Google Play production access; a source baseline is not proof of publication.
+- Existing test baseline: source version 1.0.21 (versionCode 22). Version 1.0.22 (versionCode 23) adds the dormant database structures needed for later event editing and must be upgrade-tested before becoming the production baseline. Production publication remains subject to closed-test acceptance and Google Play production access; a source baseline is not proof of publication.
 - Only release preparation and bug fixes belong on the maintenance branch. Tag each verified published release against its exact source commit.
 - Develop additions on `feature/icloud-event-editing`, starting from the same baseline. Carry maintenance fixes forward into this branch.
 - Release the current stable feature set first. Deliver event creation and editing in a later update after internal testing, including upgrade and data-preservation checks.
