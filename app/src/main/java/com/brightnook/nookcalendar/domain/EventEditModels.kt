@@ -16,3 +16,10 @@ data class EventDraft(
     val timeZoneId: String? = null,
     val reminders: List<EventReminder> = emptyList(),
 )
+
+data class EventWriteSource(
+    val calendar: CalendarSummary,
+    val uid: String,
+    val resource: CalendarResource,
+    val isRecurring: Boolean,
+)

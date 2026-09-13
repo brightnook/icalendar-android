@@ -13,6 +13,7 @@ import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.TimeRange
 import com.brightnook.nookcalendar.domain.ScheduledReminder
 import com.brightnook.nookcalendar.domain.EventReminder
+import com.brightnook.nookcalendar.domain.EventWriteSource
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.Instant
@@ -59,6 +60,20 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
 
     override fun observeEvent(instanceId: String): Flow<EventDetail?> =
         eventDao.observeEvent(instanceId).map { it?.toDomain() }
+
+    override suspend fun findEventWriteSource(instanceId: String): EventWriteSource? {
+        val instance = eventDao.findInstance(instanceId) ?: return null
+        val event = eventDao.findEvent(instance.eventId) ?: return null
+        val calendar = calendarDao.find(instance.calendarId) ?: return null
+        val href = event.remoteResourceHref ?: return null
+        val resource = calendarResourceDao.find(instance.calendarId, href) ?: return null
+        return EventWriteSource(
+            calendar = calendar.toDomain(),
+            uid = event.uid,
+            resource = resource.toDomain(),
+            isRecurring = event.recurrenceKey.isNotEmpty() || !event.recurrenceRule.isNullOrBlank(),
+        )
+    }
 
     override suspend fun upcomingReminders(after: Instant): List<ScheduledReminder> =
         eventDao.reminderSources().flatMap { source ->

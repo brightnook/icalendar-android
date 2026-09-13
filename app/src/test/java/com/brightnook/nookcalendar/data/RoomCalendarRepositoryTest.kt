@@ -107,6 +107,29 @@ class RoomCalendarRepositoryTest {
     }
 
     @Test
+    fun findsConditionalWriteSourceForAnExistingInstance() = runTest {
+        val href = "/calendars/owner/work/event.ics"
+        val event = event("09:00").copy(remoteResourceHref = href)
+        repository.replaceCalendarSnapshot(
+            snapshot(
+                events = listOf(event),
+                instances = listOf(timedInstance("09:00", "2026-01-10T09:00:00Z", "2026-01-10T10:00:00Z")),
+                calendar = workCalendar.copy(isWritable = true),
+            ).copy(
+                resources = listOf(CalendarResource("work", href, "\"etag-1\"", "raw-ics", 123L)),
+            ),
+        )
+
+        val source = repository.findEventWriteSource("09:00-instance")
+
+        assertEquals("09:00-uid", source?.uid)
+        assertEquals(href, source?.resource?.href)
+        assertEquals("\"etag-1\"", source?.resource?.etag)
+        assertTrue(source?.calendar?.isWritable == true)
+        assertFalse(source?.isRecurring == true)
+    }
+
+    @Test
     fun emptyCalendarSelectionProducesAnEmptyAgenda() = runTest {
         // Catches an empty IN filter accidentally being treated as all calendars.
         repository.replaceCalendarSnapshot(calendarSnapshotWithMixedEvents())
