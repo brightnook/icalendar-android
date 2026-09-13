@@ -16,6 +16,8 @@ sealed class CalDavFailure(message: String) : Exception(message) {
         val detail: NetworkFailureDetail = NetworkFailureDetail.UNKNOWN,
     ) : CalDavFailure("The network is unavailable")
 
+    class Conflict : CalDavFailure("The calendar event changed on the server")
+
     class InvalidServerData : CalDavFailure("The CalDAV server returned invalid data")
 }
 

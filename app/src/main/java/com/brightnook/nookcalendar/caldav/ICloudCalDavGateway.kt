@@ -188,6 +188,61 @@ class ICloudCalDavGateway private constructor(
         )
     }
 
+    override suspend fun createResource(
+        calendar: RemoteCalendar,
+        href: String,
+        calendarData: String,
+    ): RemoteResource = sessionMutex.withLock {
+        val session = session(calendar.sessionId)
+        validateCalendarData(calendarData)
+        val calendarUrl = urlPolicy.resolve(baseUrl, calendar.href)
+        val resourceUrl = urlPolicy.resolve(calendarUrl, href)
+        val normalizedHref = normalizedHref(resourceUrl)
+        val request = Request.Builder()
+            .url(resourceUrl)
+            .header("Authorization", basicAuthorization(session.credentials))
+            .header("If-None-Match", "*")
+            .put(calendarData.toRequestBody(CALENDAR_MEDIA_TYPE))
+            .build()
+        RemoteResource(normalizedHref, executeWrite(request), calendarData)
+    }
+
+    override suspend fun updateResource(
+        calendar: RemoteCalendar,
+        resource: RemoteResource,
+    ): RemoteResource = sessionMutex.withLock {
+        val session = session(calendar.sessionId)
+        val etag = resource.etag?.takeIf(String::isNotBlank) ?: invalid()
+        validateCalendarData(resource.calendarData)
+        val calendarUrl = urlPolicy.resolve(baseUrl, calendar.href)
+        val resourceUrl = urlPolicy.resolve(calendarUrl, resource.href)
+        val request = Request.Builder()
+            .url(resourceUrl)
+            .header("Authorization", basicAuthorization(session.credentials))
+            .header("If-Match", etag)
+            .put(resource.calendarData.toRequestBody(CALENDAR_MEDIA_TYPE))
+            .build()
+        resource.copy(href = normalizedHref(resourceUrl), etag = executeWrite(request) ?: etag)
+    }
+
+    override suspend fun deleteResource(
+        calendar: RemoteCalendar,
+        href: String,
+        etag: String,
+    ): Unit = sessionMutex.withLock {
+        if (etag.isBlank()) invalid()
+        val session = session(calendar.sessionId)
+        val calendarUrl = urlPolicy.resolve(baseUrl, calendar.href)
+        val resourceUrl = urlPolicy.resolve(calendarUrl, href)
+        val request = Request.Builder()
+            .url(resourceUrl)
+            .header("Authorization", basicAuthorization(session.credentials))
+            .header("If-Match", etag)
+            .delete()
+            .build()
+        executeWrite(request)
+    }
+
     private suspend fun propfind(
         url: HttpUrl,
         depth: String,
@@ -250,6 +305,44 @@ class ICloudCalDavGateway private constructor(
                         else -> CalDavFailure.InvalidServerData()
                     }
                     continuation.resumeWith(Result.failure(mapped))
+                }
+            }
+        })
+    }
+
+    private suspend fun executeWrite(request: Request): String? = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (!continuation.isActive) return
+                val cancellation = e.causeSequence().filterIsInstance<CancellationException>().firstOrNull()
+                continuation.resumeWith(
+                    Result.failure(cancellation ?: CalDavFailure.NetworkUnavailable(NetworkFailureDetail.from(e))),
+                )
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!continuation.isActive) {
+                    response.close()
+                    return
+                }
+                try {
+                    val result = response.use {
+                        when (it.code) {
+                            401, 403 -> throw CalDavFailure.AuthenticationRejected()
+                            409, 412 -> throw CalDavFailure.Conflict()
+                            408, 429 -> throw CalDavFailure.Temporary(retryAfter(it.header("Retry-After")))
+                            in 500..599 -> throw CalDavFailure.Temporary(retryAfter(it.header("Retry-After")))
+                            !in 200..299 -> invalid()
+                        }
+                        if (it.body.contentLength() > MAX_RESPONSE_BYTES) invalid()
+                        it.header("ETag")
+                    }
+                    continuation.resume(result) { _, _, _ -> }
+                } catch (failure: Throwable) {
+                    if (!continuation.isActive) return
+                    continuation.resumeWith(Result.failure(failure))
                 }
             }
         })
@@ -354,6 +447,7 @@ class ICloudCalDavGateway private constructor(
         private const val CALDAV_WRITE_TIMEOUT_SECONDS = 30L
         private const val CALDAV_CALL_TIMEOUT_SECONDS = 45L
         private val XML_MEDIA_TYPE = "application/xml; charset=utf-8".toMediaType()
+        private val CALENDAR_MEDIA_TYPE = "text/calendar; charset=utf-8".toMediaType()
         private val UTC_BASIC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC)
         private const val MAX_RESPONSE_BYTES = 1_048_576
         private const val MAX_XML_CHARS = 1_048_576

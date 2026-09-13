@@ -732,9 +732,100 @@ class ICloudCalDavGatewayTest {
     @Test
     fun publicGatewaySurfaceExposesReadOperationsOnly() {
         assertEquals(
-            setOf("authenticate", "discoverCalendars", "fetchRange", "fetchDelta"),
-            CalDavGateway::class.java.declaredMethods.map { it.name.substringBefore('-') }.toSet(),
+            setOf(
+                "authenticate",
+                "discoverCalendars",
+                "fetchRange",
+                "fetchDelta",
+                "createResource",
+                "updateResource",
+                "deleteResource",
+            ),
+            CalDavGateway::class.java.declaredMethods
+                .filterNot { it.name.contains('$') }
+                .map { it.name.substringBefore('-') }
+                .toSet(),
         )
+    }
+
+    @Test
+    fun createResourceUsesPutWithCreatePreconditionAndReturnsServerEtag() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setResponseCode(201).addHeader("ETag", "\"created-etag\""))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+
+        val created = gateway.createResource(
+            calendar(principal.sessionId),
+            "/calendars/owner/work/new-event.ics",
+            VALID_ICS,
+        )
+
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("*", request.getHeader("If-None-Match"))
+        assertNull(request.getHeader("If-Match"))
+        assertEquals("text/calendar; charset=utf-8", request.getHeader("Content-Type"))
+        assertEquals(VALID_ICS, request.body.readUtf8())
+        assertEquals("\"created-etag\"", created.etag)
+        assertEquals("/calendars/owner/work/new-event.ics", created.href)
+        assertEquals(VALID_ICS, created.calendarData)
+    }
+
+    @Test
+    fun updateResourceUsesPutWithExistingEtag() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setResponseCode(204).addHeader("ETag", "\"updated-etag\""))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+
+        val updated = gateway.updateResource(
+            calendar(principal.sessionId),
+            RemoteResource("/calendars/owner/work/event.ics", "\"old-etag\"", VALID_ICS),
+        )
+
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("\"old-etag\"", request.getHeader("If-Match"))
+        assertNull(request.getHeader("If-None-Match"))
+        assertEquals("\"updated-etag\"", updated.etag)
+    }
+
+    @Test
+    fun deleteResourceUsesDeleteWithExistingEtag() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setResponseCode(204))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+
+        gateway.deleteResource(
+            calendar(principal.sessionId),
+            "/calendars/owner/work/event.ics",
+            "\"old-etag\"",
+        )
+
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("\"old-etag\"", request.getHeader("If-Match"))
+        assertEquals(0L, request.bodySize)
+    }
+
+    @Test
+    fun conditionalWriteMapsPreconditionFailureToConflict() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setResponseCode(412))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+
+        assertSuspendThrows<CalDavFailure.Conflict> {
+            gateway.updateResource(
+                calendar(principal.sessionId),
+                RemoteResource("/calendars/owner/work/event.ics", "\"stale-etag\"", VALID_ICS),
+            )
+        }
     }
 
     @Test
