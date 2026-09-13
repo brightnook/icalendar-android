@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface EventEditingRepository {
     fun observeWritableCalendars(): Flow<List<CalendarSummary>>
+    fun observeEvent(instanceId: String): Flow<EventDetail?>
     suspend fun create(draft: EventDraft): EventEditingResult
     suspend fun update(instanceId: String, draft: EventDraft): EventEditingResult
     suspend fun delete(instanceId: String): EventEditingResult

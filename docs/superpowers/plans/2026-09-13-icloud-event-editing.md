@@ -90,11 +90,11 @@
 - Consumes: `EventEditingRepository`, selected date, optional event instance ID, login state, and purchase state.
 - Produces: stable editor fields, saving/deleting flags, field errors, retained draft, and one-shot success/failure effects.
 
-- [ ] **Step 1: Write failing state tests** for selected-date defaults, edit loading, Premium/login gates, validation, duplicate-submit blocking, conflict handling, and retained drafts.
-- [ ] **Step 2: Run the focused test class** and verify failure.
-- [ ] **Step 3: Implement immutable state transitions** and submit/delete orchestration without navigation side effects in the repository.
-- [ ] **Step 4: Run focused tests** and expect PASS.
-- [ ] **Step 5: Commit** `feat: add event editor state`.
+- [x] **Step 1: Write failing state tests** for selected-date defaults, edit loading, Premium/login gates, validation, duplicate-submit blocking, conflict handling, and retained drafts.
+- [x] **Step 2: Run the focused test class** and verify failure.
+- [x] **Step 3: Implement immutable state transitions** and submit/delete orchestration without navigation side effects in the repository.
+- [x] **Step 4: Run focused tests** and expect PASS.
+- [x] **Step 5: Commit** `feat: add event editor state`.
 
 ### Task 5: Editor screen and localized copy
 

@@ -10,6 +10,7 @@ import com.brightnook.nookcalendar.caldav.stableCalendarId
 import com.brightnook.nookcalendar.domain.CalendarRepository
 import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.EventDraft
+import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventEditingRepository
 import com.brightnook.nookcalendar.domain.EventEditingResult
 import com.brightnook.nookcalendar.domain.EventWriteSource
@@ -35,6 +36,8 @@ class DefaultEventEditingRepository(
 ) : EventEditingRepository {
     override fun observeWritableCalendars(): Flow<List<CalendarSummary>> =
         calendarRepository.observeCalendars().map { calendars -> calendars.filter(CalendarSummary::isWritable) }
+
+    override fun observeEvent(instanceId: String): Flow<EventDetail?> = calendarRepository.observeEvent(instanceId)
 
     override suspend fun create(draft: EventDraft): EventEditingResult = perform {
         val calendar = remoteCalendar(draft.calendarId) ?: return@perform EventEditingResult.ReadOnly
