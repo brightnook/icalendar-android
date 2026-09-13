@@ -54,12 +54,15 @@ fun EventEditorScreen(
     onSave: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    showDeleteConfirmationInitially: Boolean = false,
 ) {
     var calendarMenuOpen by remember { mutableStateOf(false) }
     var reminderMenuOpen by remember { mutableStateOf(false) }
     var customReminderOpen by remember { mutableStateOf(false) }
     var customMinutes by remember { mutableStateOf("") }
-    var deleteConfirmationOpen by remember { mutableStateOf(false) }
+    var deleteConfirmationOpen by remember(showDeleteConfirmationInitially) {
+        mutableStateOf(showDeleteConfirmationInitially)
+    }
     val draft = state.draft
 
     Surface(Modifier.fillMaxSize()) {

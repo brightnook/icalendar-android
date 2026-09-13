@@ -17,6 +17,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +36,7 @@ import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.EventInstance
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 const val AGENDA_LIST_TAG = "agenda-list"
 
@@ -40,6 +47,8 @@ fun AgendaList(
     zoneId: ZoneId,
     listState: LazyListState,
     onOpenEvent: (String) -> Unit,
+    onEditEvent: (String) -> Unit = {},
+    onDeleteEvent: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     contentColor: Color = Color.Unspecified,
     secondaryContentColor: Color = Color.Unspecified,
@@ -60,15 +69,65 @@ fun AgendaList(
     }
     LazyColumn(modifier.testTag(AGENDA_LIST_TAG), state = listState) {
         items(sorted, key = EventInstance::instanceId) { event ->
-            AgendaItem(
+            SwipeAgendaItem(
                 event = event,
                 calendarName = calendars.firstOrNull { it.id == event.calendarId }?.name,
                 zoneId = zoneId,
                 onClick = { onOpenEvent(event.instanceId) },
+                onEdit = { onEditEvent(event.instanceId) },
+                onDelete = { onDeleteEvent(event.instanceId) },
                 contentColor = resolvedContentColor,
                 secondaryContentColor = resolvedSecondaryContentColor,
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeAgendaItem(
+    event: EventInstance,
+    calendarName: String?,
+    zoneId: ZoneId,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    contentColor: Color,
+    secondaryContentColor: Color,
+) {
+    val scope = rememberCoroutineScope()
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value -> value != SwipeToDismissBoxValue.Settled },
+    )
+    SwipeToDismissBox(
+        state = state,
+        backgroundContent = {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                    Arrangement.Start
+                } else Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = { scope.launch { state.reset() }; onEdit() },
+                    modifier = Modifier.testTag("agenda-edit-${event.instanceId}"),
+                ) { Text(stringResource(R.string.event_editor_edit_title)) }
+                TextButton(
+                    onClick = { scope.launch { state.reset() }; onDelete() },
+                    modifier = Modifier.testTag("agenda-delete-${event.instanceId}"),
+                ) { Text(stringResource(R.string.event_editor_delete)) }
+            }
+        },
+    ) {
+        AgendaItem(
+            event = event,
+            calendarName = calendarName,
+            zoneId = zoneId,
+            onClick = onClick,
+            contentColor = contentColor,
+            secondaryContentColor = secondaryContentColor,
+        )
     }
 }
 

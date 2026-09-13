@@ -386,14 +386,20 @@ private fun MainCalendarDestination(
         onCreateEvent = {
             if (monetization.purchaseState == PurchaseUiState.OWNED) {
                 editorSequence += 1
-                editorRequest = EventEditorRequest(editorSequence, null)
+                editorRequest = EventEditorRequest(editorSequence, null, false)
             } else onPurchase()
         },
         onEditEvent = { instanceId ->
             viewModel.closeEvent()
             if (monetization.purchaseState == PurchaseUiState.OWNED) {
                 editorSequence += 1
-                editorRequest = EventEditorRequest(editorSequence, instanceId)
+                editorRequest = EventEditorRequest(editorSequence, instanceId, false)
+            } else onPurchase()
+        },
+        onDeleteEvent = { instanceId ->
+            if (monetization.purchaseState == PurchaseUiState.OWNED) {
+                editorSequence += 1
+                editorRequest = EventEditorRequest(editorSequence, instanceId, true)
             } else onPurchase()
         },
     )
@@ -422,11 +428,16 @@ private fun MainCalendarDestination(
             onSave = editorViewModel::save,
             onDelete = editorViewModel::delete,
             onDismiss = { editorRequest = null },
+            showDeleteConfirmationInitially = request.confirmDelete,
         )
     }
 }
 
-private data class EventEditorRequest(val sequence: Int, val instanceId: String?)
+private data class EventEditorRequest(
+    val sequence: Int,
+    val instanceId: String?,
+    val confirmDelete: Boolean,
+)
 
 @Composable
 private fun rememberAdConsentState(activity: Activity?): AdConsentState {

@@ -130,6 +130,7 @@ fun MainCalendarScreen(
     onOpenLogin: () -> Unit = {},
     onCreateEvent: () -> Unit = {},
     onEditEvent: (String) -> Unit = {},
+    onDeleteEvent: (String) -> Unit = {},
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
@@ -226,6 +227,8 @@ fun MainCalendarScreen(
                 zoneId = zoneId,
                 listState = agendaListState,
                 onOpenEvent = onOpenEvent,
+                onEditEvent = onEditEvent,
+                onDeleteEvent = onDeleteEvent,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentColor = themePresentation.contentColor,
                 secondaryContentColor = themePresentation.secondaryContentColor,
