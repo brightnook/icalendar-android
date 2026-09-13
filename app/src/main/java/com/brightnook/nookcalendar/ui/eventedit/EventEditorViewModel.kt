@@ -1,6 +1,7 @@
 package com.brightnook.nookcalendar.ui.eventedit
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventDraft
@@ -167,3 +168,25 @@ private fun EventDetail.toDraft() = EventDraft(
     timeZoneId = originalTimeZoneId,
     reminders = reminders,
 )
+
+class EventEditorViewModelFactory(
+    private val repository: EventEditingRepository,
+    private val selectedDate: LocalDate,
+    private val instanceId: String?,
+    private val isPremium: () -> Boolean,
+    private val isSignedIn: () -> Boolean,
+    private val zoneId: ZoneId,
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        require(modelClass.isAssignableFrom(EventEditorViewModel::class.java))
+        return EventEditorViewModel(
+            repository = repository,
+            selectedDate = selectedDate,
+            instanceId = instanceId,
+            isPremium = isPremium,
+            isSignedIn = isSignedIn,
+            zoneId = zoneId,
+        ) as T
+    }
+}

@@ -45,6 +45,7 @@ import com.brightnook.nookcalendar.AppContainer
 import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.data.SettingsStore
 import com.brightnook.nookcalendar.domain.AppSettings
+import com.brightnook.nookcalendar.domain.EventEditingRepository
 import com.brightnook.nookcalendar.auth.CalDavLoginCoordinator
 import com.brightnook.nookcalendar.domain.AccountAuthenticationState
 import com.brightnook.nookcalendar.monetization.AdConsentManager
@@ -64,6 +65,9 @@ import com.brightnook.nookcalendar.ui.main.ExternalAction
 import com.brightnook.nookcalendar.ui.main.MainCalendarScreen
 import com.brightnook.nookcalendar.ui.main.MainCalendarViewModel
 import com.brightnook.nookcalendar.ui.main.MainCalendarViewModelFactory
+import com.brightnook.nookcalendar.ui.eventedit.EventEditorScreen
+import com.brightnook.nookcalendar.ui.eventedit.EventEditorViewModel
+import com.brightnook.nookcalendar.ui.eventedit.EventEditorViewModelFactory
 import com.brightnook.nookcalendar.theme.ThemeAssetStore
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import com.brightnook.nookcalendar.widget.AgendaWidgetProvider
@@ -133,6 +137,7 @@ fun AppRoot(
                 purchaseFeedbackEvents = container.monetizationRepository.purchaseFeedbackEvents,
                 reminderAvailability = container.reminderScheduler.hasUpcomingReminders,
                 reminderScheduler = container.reminderScheduler,
+                eventEditingRepository = container.eventEditingRepository,
                 showLoginPrompt = showLoginPrompt,
                 onOpenLogin = onOpenLogin,
                 onPurchase = {
@@ -263,6 +268,7 @@ private fun MainCalendarDestination(
     purchaseFeedbackEvents: Flow<PurchaseFeedback>,
     reminderAvailability: StateFlow<Boolean>,
     reminderScheduler: ReminderScheduler,
+    eventEditingRepository: EventEditingRepository,
     showLoginPrompt: Boolean,
     onOpenLogin: () -> Unit,
     onPurchase: () -> Unit,
@@ -276,6 +282,8 @@ private fun MainCalendarDestination(
     val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
     var managedWidgets by remember { mutableStateOf(emptyList<WidgetManagementItem>()) }
     var widgetManagementRefreshRequest by remember { mutableStateOf(0) }
+    var editorSequence by rememberSaveable { mutableStateOf(0) }
+    var editorRequest by remember { mutableStateOf<EventEditorRequest?>(null) }
     val hasUpcomingReminders by reminderAvailability.collectAsState()
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -375,8 +383,50 @@ private fun MainCalendarDestination(
         showLoginPrompt = showLoginPrompt,
         canRefresh = !showLoginPrompt,
         onOpenLogin = onOpenLogin,
+        onCreateEvent = {
+            if (monetization.purchaseState == PurchaseUiState.OWNED) {
+                editorSequence += 1
+                editorRequest = EventEditorRequest(editorSequence, null)
+            } else onPurchase()
+        },
+        onEditEvent = { instanceId ->
+            viewModel.closeEvent()
+            if (monetization.purchaseState == PurchaseUiState.OWNED) {
+                editorSequence += 1
+                editorRequest = EventEditorRequest(editorSequence, instanceId)
+            } else onPurchase()
+        },
     )
+
+    editorRequest?.let { request ->
+        val editorViewModel: EventEditorViewModel = viewModel(
+            key = "event-editor-${request.sequence}",
+            factory = EventEditorViewModelFactory(
+                repository = eventEditingRepository,
+                selectedDate = uiState.selectedDate,
+                instanceId = request.instanceId,
+                isPremium = { monetization.purchaseState == PurchaseUiState.OWNED },
+                isSignedIn = { !showLoginPrompt },
+                zoneId = zoneId,
+            ),
+        )
+        val editorState by editorViewModel.uiState.collectAsState()
+        LaunchedEffect(editorState.completed) {
+            if (editorState.completed) editorRequest = null
+        }
+        EventEditorScreen(
+            state = editorState,
+            zoneId = zoneId,
+            isEditing = request.instanceId != null,
+            onUpdateDraft = { updated -> editorViewModel.updateDraft { updated } },
+            onSave = editorViewModel::save,
+            onDelete = editorViewModel::delete,
+            onDismiss = { editorRequest = null },
+        )
+    }
 }
+
+private data class EventEditorRequest(val sequence: Int, val instanceId: String?)
 
 @Composable
 private fun rememberAdConsentState(activity: Activity?): AdConsentState {

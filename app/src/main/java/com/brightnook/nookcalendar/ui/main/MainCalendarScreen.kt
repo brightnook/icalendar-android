@@ -128,10 +128,13 @@ fun MainCalendarScreen(
     showLoginPrompt: Boolean = false,
     canRefresh: Boolean = true,
     onOpenLogin: () -> Unit = {},
+    onCreateEvent: () -> Unit = {},
+    onEditEvent: (String) -> Unit = {},
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
     val locale = currentLocale()
+    val addEventDescription = stringResource(R.string.calendar_add_event)
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
     val modalPresentation = calendarModalPresentation(
         presentation = themePresentation,
@@ -185,6 +188,14 @@ fun MainCalendarScreen(
                     color = themePresentation.contentColor,
                     style = MaterialTheme.typography.titleMedium,
                 )
+                TextButton(
+                    onClick = onCreateEvent,
+                    modifier = Modifier
+                        .testTag("calendar-add-event")
+                        .semantics { contentDescription = addEventDescription },
+                ) {
+                    Text("+", style = MaterialTheme.typography.headlineSmall)
+                }
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {
                 if (showLoginPrompt) {
@@ -291,6 +302,7 @@ fun MainCalendarScreen(
                 surfaceColor = modalPresentation.containerColor,
                 actionContentColor = modalPresentation.actionContentColor,
                 premium = monetization.purchaseState == PurchaseUiState.OWNED,
+                onEdit = { onEditEvent(detail.instanceId) },
             )
         }
     }

@@ -54,6 +54,13 @@ class MainCalendarScreenTest {
     private val selectedDate = LocalDate.of(2026, 8, 15)
 
     @Test
+    fun selectedDayHeaderOffersNewEventAction() {
+        setScreen(state())
+
+        composeRule.onNodeWithTag("calendar-add-event").assertIsDisplayed()
+    }
+
+    @Test
     fun pendingPurchaseKeepsBannerVisibleWhileOwnedHidesIt() {
         val monetization = mutableStateOf(MonetizationUiState(
             canShowAds = true,

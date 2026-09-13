@@ -128,6 +128,7 @@ fun EventDetailContent(
     surfaceColor: Color,
     actionContentColor: Color,
     premium: Boolean,
+    onEdit: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -206,15 +207,22 @@ fun EventDetailContent(
                 secondaryContentColor,
             )
         }
-        Button(
-            onClick = onClose,
-            modifier = Modifier.align(Alignment.End),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = actionContentColor,
-                contentColor = surfaceColor,
-            ),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Text(stringResource(R.string.calendar_close_detail))
+            TextButton(onClick = onEdit, modifier = Modifier.testTag("event-detail-edit")) {
+                Text(stringResource(R.string.event_editor_edit_title), color = actionContentColor)
+            }
+            Button(
+                onClick = onClose,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = actionContentColor,
+                    contentColor = surfaceColor,
+                ),
+            ) {
+                Text(stringResource(R.string.calendar_close_detail))
+            }
         }
     }
 }
