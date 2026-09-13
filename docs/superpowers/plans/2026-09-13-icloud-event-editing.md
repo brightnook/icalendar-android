@@ -33,11 +33,11 @@
 - Produces: `createResource(calendar, href, calendarData): RemoteResource`, `updateResource(calendar, resource): RemoteResource`, and `deleteResource(calendar, href, etag)`.
 - Produces: `CalDavFailure.Conflict` for HTTP 409/412.
 
-- [ ] **Step 1: Write failing gateway tests** for PUT with `If-None-Match: *`, PUT with `If-Match`, DELETE with `If-Match`, returned ETag handling, and 409/412 conflict mapping using MockWebServer.
-- [ ] **Step 2: Run** `.\gradlew.bat :app:testDebugUnitTest --tests "com.brightnook.nookcalendar.caldav.ICloudCalDavGatewayTest" --no-daemon --console=plain`; expect failures because write methods and conflict mapping do not exist.
-- [ ] **Step 3: Implement the minimal API** with trusted URL resolution, `text/calendar; charset=utf-8`, existing size validation, conditional headers, bounded response handling, and no redirect following.
-- [ ] **Step 4: Re-run the focused tests** and expect PASS.
-- [ ] **Step 5: Commit** `feat: add conditional CalDAV event writes`.
+- [x] **Step 1: Write failing gateway tests** for PUT with `If-None-Match: *`, PUT with `If-Match`, DELETE with `If-Match`, returned ETag handling, and 409/412 conflict mapping using MockWebServer.
+- [x] **Step 2: Run** `.\gradlew.bat :app:testDebugUnitTest --tests "com.brightnook.nookcalendar.caldav.ICloudCalDavGatewayTest" --no-daemon --console=plain`; expect failures because write methods and conflict mapping do not exist.
+- [x] **Step 3: Implement the minimal API** with trusted URL resolution, `text/calendar; charset=utf-8`, existing size validation, conditional headers, bounded response handling, and no redirect following.
+- [x] **Step 4: Re-run the focused tests** and expect PASS.
+- [x] **Step 5: Commit** `feat: add conditional CalDAV event writes`.
 
 ### Task 2: ICS serialization and editable-event policy
 
@@ -50,11 +50,11 @@
 - Consumes: editor title/location/time/all-day/reminder/notes values.
 - Produces: `EventDraft`, `EventWriteTarget`, `EventWriteValidation`, and `IcsEventWriter.write(draft, uid, now): String`.
 
-- [ ] **Step 1: Write failing tests** covering escaped text, timed and all-day DTSTART/DTEND, UID/DTSTAMP, multiple DISPLAY VALARMs, notes/location, and rejection of empty title or invalid ranges.
-- [ ] **Step 2: Run** the writer test class and verify it fails because the types do not exist.
-- [ ] **Step 3: Implement deterministic VCALENDAR/VEVENT serialization** with CRLF lines and folded UTF-8-safe content, retaining only the approved fields.
-- [ ] **Step 4: Run the writer tests** and expect PASS.
-- [ ] **Step 5: Commit** `feat: serialize editable iCloud events`.
+- [x] **Step 1: Write failing tests** covering escaped text, timed and all-day DTSTART/DTEND, UID/DTSTAMP, multiple DISPLAY VALARMs, notes/location, and rejection of empty title or invalid ranges.
+- [x] **Step 2: Run** the writer test class and verify it fails because the types do not exist.
+- [x] **Step 3: Implement deterministic VCALENDAR/VEVENT serialization** with CRLF lines and folded UTF-8-safe content, retaining only the approved fields.
+- [x] **Step 4: Run the writer tests** and expect PASS.
+- [x] **Step 5: Commit** `feat: serialize editable iCloud events`.
 
 ### Task 3: Remote-first event editing repository
 
