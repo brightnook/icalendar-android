@@ -58,6 +58,8 @@
 
 ### Task 3: Remote-first event editing repository
 
+**Completed prerequisite:** writable CalDAV privileges, raw ICS, and ETags are now carried through initial and incremental synchronization into the existing schema-8 tables. This closes the version-23 data-population gap without another migration.
+
 **Files:**
 - Create: `app/src/main/java/com/brightnook/nookcalendar/domain/EventEditingRepository.kt`
 - Create: `app/src/main/java/com/brightnook/nookcalendar/data/RoomEventEditingRepository.kt`

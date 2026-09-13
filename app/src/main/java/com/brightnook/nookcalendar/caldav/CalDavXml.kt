@@ -129,6 +129,13 @@ internal object CalDavXml {
                         if (name == CALENDAR) currentPropstat.properties["resourcetype.calendar"] = "true"
                         if (name == COLLECTION) currentPropstat.properties["resourcetype.collection"] = "true"
                     }
+                    if (
+                        currentPropstat != null &&
+                        CURRENT_USER_PRIVILEGE_SET in stack &&
+                        (name == WRITE || name == WRITE_CONTENT)
+                    ) {
+                        currentPropstat.properties["current-user-privilege-set.write"] = "true"
+                    }
                 }
 
                 XmlPullParser.TEXT, XmlPullParser.CDSECT, XmlPullParser.ENTITY_REF -> {
@@ -204,6 +211,7 @@ internal object CalDavXml {
         GET_ETAG -> "getetag"
         CALENDAR_DATA -> "calendar-data"
         RESOURCE_TYPE -> "resourcetype"
+        CURRENT_USER_PRIVILEGE_SET -> "current-user-privilege-set"
         else -> invalid()
     }
 
@@ -248,6 +256,10 @@ internal object CalDavXml {
     private val GET_ETAG = XmlName(DAV, "getetag")
     private val CALENDAR_DATA = XmlName(CALDAV, "calendar-data")
     private val RESOURCE_TYPE = XmlName(DAV, "resourcetype")
+    private val CURRENT_USER_PRIVILEGE_SET = XmlName(DAV, "current-user-privilege-set")
+    private val PRIVILEGE = XmlName(DAV, "privilege")
+    private val WRITE = XmlName(DAV, "write")
+    private val WRITE_CONTENT = XmlName(DAV, "write-content")
     private val COLLECTION = XmlName(DAV, "collection")
     private val CALENDAR = XmlName(CALDAV, "calendar")
     private val TEXT_PROPERTIES = setOf(
@@ -259,6 +271,7 @@ internal object CalDavXml {
         GET_ETAG,
         CALENDAR_DATA,
         RESOURCE_TYPE,
+        CURRENT_USER_PRIVILEGE_SET,
     )
     private val EXPECTED_NAMESPACES = mapOf(
         "multistatus" to setOf(DAV),
@@ -275,6 +288,10 @@ internal object CalDavXml {
         "getetag" to setOf(DAV),
         "calendar-data" to setOf(CALDAV),
         "resourcetype" to setOf(DAV),
+        "current-user-privilege-set" to setOf(DAV),
+        "privilege" to setOf(DAV),
+        "write" to setOf(DAV),
+        "write-content" to setOf(DAV),
         "collection" to setOf(DAV),
         "calendar" to setOf(CALDAV),
     )

@@ -25,6 +25,7 @@ abstract class CalendarDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
     abstract fun syncStateDao(): SyncStateDao
     abstract fun widgetConfigDao(): WidgetConfigDao
+    abstract fun calendarResourceDao(): CalendarResourceDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {

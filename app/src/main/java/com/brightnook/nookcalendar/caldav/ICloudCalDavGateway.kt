@@ -95,6 +95,7 @@ class ICloudCalDavGateway private constructor(
                     color = response.properties["calendar-color"],
                     syncToken = response.properties["sync-token"],
                     sessionId = principal.sessionId,
+                    isWritable = response.properties["current-user-privilege-set.write"] == "true",
                 )
             }
             .toList()
@@ -471,7 +472,7 @@ class ICloudCalDavGateway private constructor(
         private val CALENDAR_LISTING = """
             <?xml version="1.0" encoding="utf-8"?>
             <d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:x="http://apple.com/ns/ical/">
-              <d:prop><d:resourcetype/><d:displayname/><x:calendar-color/><d:sync-token/></d:prop>
+              <d:prop><d:resourcetype/><d:displayname/><x:calendar-color/><d:sync-token/><d:current-user-privilege-set/></d:prop>
             </d:propfind>
         """.trimIndent()
         private val CALENDAR_QUERY = """

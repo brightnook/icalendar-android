@@ -26,6 +26,7 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
     private val calendarDao = database.calendarDao()
     private val eventDao = database.eventDao()
     private val syncStateDao = database.syncStateDao()
+    private val calendarResourceDao = database.calendarResourceDao()
 
     override fun observeCalendars(): Flow<List<CalendarSummary>> =
         calendarDao.observeAll().map { calendars -> calendars.map(CalendarEntity::toDomain) }
@@ -109,6 +110,11 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
                     isVisible = existing?.isVisible ?: snapshot.calendar.isVisible,
                 ).toEntity(),
             )
+            calendarResourceDao.deleteForCalendar(snapshot.calendar.id)
+            if (snapshot.resources.isNotEmpty()) {
+                require(snapshot.resources.all { it.calendarId == snapshot.calendar.id })
+                calendarResourceDao.upsertAll(snapshot.resources.map { it.toEntity() })
+            }
             val overlappingIds = eventDao.instancesForCalendar(snapshot.calendar.id)
                 .filter { it.overlaps(snapshot.coverage) }
                 .map(EventInstanceEntity::instanceId)
@@ -130,6 +136,7 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
             val removedResourceHrefs = delta.deletedResourceHrefs + delta.replacedResourceHrefs
             if (removedResourceHrefs.isNotEmpty()) {
                 eventDao.deleteEventsByResourceHref(delta.calendarId, removedResourceHrefs)
+                calendarResourceDao.delete(delta.calendarId, removedResourceHrefs)
             }
             upsertEvents(delta.upsertEvents)
             if (delta.upsertInstances.isNotEmpty()) {
@@ -140,6 +147,10 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
             }
             if (delta.deletedInstanceIds.isNotEmpty()) {
                 eventDao.deleteInstances(delta.calendarId, delta.deletedInstanceIds)
+            }
+            if (delta.upsertResources.isNotEmpty()) {
+                require(delta.upsertResources.all { it.calendarId == delta.calendarId })
+                calendarResourceDao.upsertAll(delta.upsertResources.map { it.toEntity() })
             }
             syncStateDao.upsert(SyncStateEntity(delta.calendarId, delta.syncToken))
         }

@@ -12,6 +12,7 @@ data class RemoteCalendar(
     val color: String?,
     val syncToken: String?,
     val sessionId: String,
+    val isWritable: Boolean = false,
 )
 
 data class RemoteResource(

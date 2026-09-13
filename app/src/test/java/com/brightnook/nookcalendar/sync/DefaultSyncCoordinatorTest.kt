@@ -56,7 +56,7 @@ class DefaultSyncCoordinatorTest {
         // Catches UTC month boundaries, a twelve-month end, oversized gateway calls, and per-calendar login.
         val gateway = FakeGateway(
             calendars = listOf(
-                remote("work", "/calendars/work/", "Work", "#112233FF"),
+                remote("work", "/calendars/work/", "Work", "#112233FF", isWritable = true),
                 remote("home", "/calendars/home/", "Home", null),
             ),
         )
@@ -79,6 +79,10 @@ class DefaultSyncCoordinatorTest {
         assertTrue(parser.calls.all { it.zoneId == tokyo })
         assertEquals(2, repository.snapshots.size)
         assertEquals(setOf("Work", "Home"), repository.snapshots.map { it.calendar.name }.toSet())
+        val workSnapshot = repository.snapshots.single { it.calendar.name == "Work" }
+        assertTrue(workSnapshot.calendar.isWritable)
+        assertEquals("etag-work", workSnapshot.resources.single().etag)
+        assertEquals("/calendars/work/event.ics", workSnapshot.resources.single().href)
         assertEquals(2, result.counts.calendars)
     }
 
@@ -173,6 +177,11 @@ class DefaultSyncCoordinatorTest {
         )
         assertTrue(delta.deletedEventUids.isEmpty())
         assertEquals("next-token", delta.syncToken)
+        assertEquals(setOf("etag-alpha", "etag-beta"), delta.upsertResources.mapNotNull { it.etag }.toSet())
+        assertEquals(
+            setOf("/calendars/work/alpha.ics", "/calendars/work/beta.ics"),
+            delta.upsertResources.map { it.href }.toSet(),
+        )
         assertEquals(SyncCounts(1, 2, 2), result.counts)
     }
 
@@ -723,7 +732,8 @@ private fun remote(
     name: String = id,
     color: String? = null,
     syncToken: String? = null,
-) = RemoteCalendar(id, href, name, color, syncToken, "remote-session")
+    isWritable: Boolean = false,
+) = RemoteCalendar(id, href, name, color, syncToken, "remote-session", isWritable)
 
 private fun resource(href: String, content: String) = RemoteResource(href, "etag-$content", content)
 

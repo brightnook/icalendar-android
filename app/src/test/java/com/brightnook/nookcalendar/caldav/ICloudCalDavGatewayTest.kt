@@ -89,6 +89,7 @@ class ICloudCalDavGatewayTest {
         assertEquals("#1a2b3c", calendars.single().color)
         assertEquals("token-1", calendars.single().syncToken)
         assertEquals("/calendars/owner/work/", calendars.single().href)
+        assertTrue(calendars.single().isWritable)
         assertEquals("/", server.takeRequest().path)
         val homeRequest = server.takeRequest()
         assertEquals("/principals/users/owner/", homeRequest.path)
@@ -973,6 +974,7 @@ class ICloudCalDavGatewayTest {
             <d:displayname>Work &amp; Focus</d:displayname>
             <x:calendar-color>#1a2b3c</x:calendar-color>
             <d:sync-token>token-1</d:sync-token>
+            <d:current-user-privilege-set><d:privilege><d:write-content/></d:privilege></d:current-user-privilege-set>
             """.trimIndent(),
         ),
     )

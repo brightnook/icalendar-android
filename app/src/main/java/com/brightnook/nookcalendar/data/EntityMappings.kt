@@ -2,6 +2,7 @@ package com.brightnook.nookcalendar.data
 
 import com.brightnook.nookcalendar.domain.CalendarEvent
 import com.brightnook.nookcalendar.domain.CalendarSummary
+import com.brightnook.nookcalendar.domain.CalendarResource
 import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.EventStatus
@@ -10,9 +11,25 @@ import com.brightnook.nookcalendar.domain.TimeRange
 import java.time.Instant
 import java.time.LocalDate
 
-internal fun CalendarSummary.toEntity() = CalendarEntity(id, name, colorArgb, isVisible)
+internal fun CalendarSummary.toEntity() = CalendarEntity(id, name, colorArgb, isVisible, isWritable)
 
-internal fun CalendarEntity.toDomain() = CalendarSummary(id, name, colorArgb, isVisible)
+internal fun CalendarEntity.toDomain() = CalendarSummary(id, name, colorArgb, isVisible, isWritable)
+
+internal fun CalendarResource.toEntity() = CalendarResourceEntity(
+    calendarId = calendarId,
+    href = href,
+    etag = etag,
+    calendarData = calendarData,
+    updatedAtEpochMillis = updatedAtEpochMillis,
+)
+
+internal fun CalendarResourceEntity.toDomain() = CalendarResource(
+    calendarId = calendarId,
+    href = href,
+    etag = etag,
+    calendarData = calendarData,
+    updatedAtEpochMillis = updatedAtEpochMillis,
+)
 
 internal fun CalendarEvent.toEntity() = EventEntity(
     id = id,

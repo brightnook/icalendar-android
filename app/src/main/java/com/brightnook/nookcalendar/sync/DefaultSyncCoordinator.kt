@@ -12,6 +12,7 @@ import com.brightnook.nookcalendar.domain.CalendarDelta
 import com.brightnook.nookcalendar.domain.CalendarEvent
 import com.brightnook.nookcalendar.domain.CalendarRepository
 import com.brightnook.nookcalendar.domain.CalendarSnapshot
+import com.brightnook.nookcalendar.domain.CalendarResource
 import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.ClockProvider
 import com.brightnook.nookcalendar.domain.EventInstance
@@ -133,6 +134,15 @@ internal class DefaultSyncCoordinator(
                 syncToken = delta.syncToken,
                 deletedResourceHrefs = delta.tombstones.mapTo(linkedSetOf()) { canonicalHref(it.href) },
                 replacedResourceHrefs = delta.upserts.mapTo(linkedSetOf()) { canonicalHref(it.href) },
+                upsertResources = delta.upserts.map { resource ->
+                    CalendarResource(
+                        calendarId = calendarId,
+                        href = canonicalHref(resource.href),
+                        etag = resource.etag,
+                        calendarData = resource.calendarData,
+                        updatedAtEpochMillis = clock.now.toEpochMilli(),
+                    )
+                },
             ),
         )
         runCatching { reminderScheduler.reconcile() }
@@ -168,8 +178,9 @@ internal class DefaultSyncCoordinator(
             syncToken = snapshot.syncToken ?: syncToken
         }
         val colorArgb = calendarColor(calendar.color)
+        val distinctResources = resources.distinctBy(RemoteResource::href)
         val parsed = parseResources(
-            resources.distinctBy(RemoteResource::href),
+            distinctResources,
             calendarId,
             colorArgb,
             range.chunks(),
@@ -181,11 +192,21 @@ internal class DefaultSyncCoordinator(
                     name = calendar.displayName,
                     colorArgb = colorArgb,
                     isVisible = true,
+                    isWritable = calendar.isWritable,
                 ),
                 events = parsed.events,
                 instances = parsed.instances,
                 syncToken = syncToken,
                 coverage = range,
+                resources = distinctResources.map { resource ->
+                    CalendarResource(
+                        calendarId = calendarId,
+                        href = canonicalHref(resource.href),
+                        etag = resource.etag,
+                        calendarData = resource.calendarData,
+                        updatedAtEpochMillis = clock.now.toEpochMilli(),
+                    )
+                },
             ),
         )
         runCatching { reminderScheduler.reconcile() }

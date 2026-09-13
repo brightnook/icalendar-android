@@ -11,6 +11,15 @@ data class CalendarSummary(
     val name: String,
     val colorArgb: Int,
     val isVisible: Boolean,
+    val isWritable: Boolean = false,
+)
+
+data class CalendarResource(
+    val calendarId: String,
+    val href: String,
+    val etag: String?,
+    val calendarData: String,
+    val updatedAtEpochMillis: Long,
 )
 
 enum class EventStatus { CONFIRMED, TENTATIVE, CANCELLED }
@@ -114,6 +123,7 @@ data class CalendarSnapshot(
     val instances: List<EventInstance>,
     val syncToken: String?,
     val coverage: TimeRange,
+    val resources: List<CalendarResource> = emptyList(),
 )
 
 data class CalendarDelta(
@@ -125,6 +135,7 @@ data class CalendarDelta(
     val syncToken: String?,
     val deletedResourceHrefs: Set<String> = emptySet(),
     val replacedResourceHrefs: Set<String> = emptySet(),
+    val upsertResources: List<CalendarResource> = emptyList(),
 )
 
 data class CalendarSyncState(

@@ -11,6 +11,7 @@ import com.brightnook.nookcalendar.domain.CalendarEvent
 import com.brightnook.nookcalendar.domain.CalendarHistoryBoundary
 import com.brightnook.nookcalendar.domain.CalendarSnapshot
 import com.brightnook.nookcalendar.domain.CalendarSummary
+import com.brightnook.nookcalendar.domain.CalendarResource
 import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.EventStatus
 import com.brightnook.nookcalendar.domain.TimeRange
@@ -80,6 +81,29 @@ class RoomCalendarRepositoryTest {
         assertTrue(repository.observeAgenda(dayRange, setOf("work")).first().isEmpty())
         assertFalse(repository.observeCalendars().first().single().isVisible)
         assertEquals("Work renamed", repository.observeCalendars().first().single().name)
+    }
+
+    @Test
+    fun snapshotPersistsWritableStateAndRawResourcesForSafeEditing() = runTest {
+        val resource = CalendarResource(
+            calendarId = "work",
+            href = "/calendars/owner/work/event.ics",
+            etag = "\"etag-1\"",
+            calendarData = "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n",
+            updatedAtEpochMillis = 1_757_721_600_000,
+        )
+        repository.replaceCalendarSnapshot(
+            calendarSnapshotWithMixedEvents().copy(
+                calendar = workCalendar.copy(isWritable = true),
+                resources = listOf(resource),
+            ),
+        )
+
+        assertTrue(repository.observeCalendars().first().single().isWritable)
+        assertEquals(
+            resource,
+            database.calendarResourceDao().find("work", "/calendars/owner/work/event.ics")?.toDomain(),
+        )
     }
 
     @Test
