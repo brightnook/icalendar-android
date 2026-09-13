@@ -72,12 +72,12 @@
 - Consumes: conditional gateway methods, `IcsEventWriter`, version 23 `calendar_resources`, parser, DAOs, widget updater, and reminder scheduler.
 - Produces: calendar choices plus `create`, `update`, and `delete` results with typed validation/auth/network/conflict failures.
 
-- [ ] **Step 1: Write failing repository tests** proving remote-first ordering, no local mutation on failure, ETag refresh, local row replacement/deletion after success, recurring-event rejection, widget refresh, and reminder reconciliation.
-- [ ] **Step 2: Run the repository test class** and verify the missing repository fails compilation.
-- [ ] **Step 3: Add only the DAO queries needed** to load writable calendars/resources and atomically replace or remove one resource's parsed rows.
-- [ ] **Step 4: Implement the repository** so Room changes occur only inside a transaction after remote success.
-- [ ] **Step 5: Run repository plus migration tests** and expect PASS without changing schema version 8.
-- [ ] **Step 6: Commit** `feat: coordinate iCloud event edits`.
+- [x] **Step 1: Write failing repository tests** proving remote-first ordering, no local mutation on failure, ETag refresh, local row replacement/deletion after success, recurring-event rejection, widget refresh, and reminder reconciliation.
+- [x] **Step 2: Run the repository test class** and verify the missing repository fails compilation.
+- [x] **Step 3: Reuse the existing synchronized resource lookup and post-write refresh path**, avoiding new DAO/schema changes.
+- [x] **Step 4: Implement the repository** so local state changes only through synchronization after remote success.
+- [x] **Step 5: Run repository plus migration tests** and expect PASS without changing schema version 8.
+- [x] **Step 6: Commit** `feat: coordinate iCloud event edits`.
 
 ### Task 4: Premium editor state and validation
 

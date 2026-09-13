@@ -8,6 +8,8 @@ import com.brightnook.nookcalendar.caldav.IcsParser
 import com.brightnook.nookcalendar.caldav.NetworkFailureDetail
 import com.brightnook.nookcalendar.caldav.RemoteCalendar
 import com.brightnook.nookcalendar.caldav.RemoteResource
+import com.brightnook.nookcalendar.caldav.canonicalHref
+import com.brightnook.nookcalendar.caldav.stableCalendarId
 import com.brightnook.nookcalendar.domain.CalendarDelta
 import com.brightnook.nookcalendar.domain.CalendarEvent
 import com.brightnook.nookcalendar.domain.CalendarRepository
@@ -17,9 +19,6 @@ import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.ClockProvider
 import com.brightnook.nookcalendar.domain.EventInstance
 import com.brightnook.nookcalendar.domain.TimeRange
-import java.net.URI
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.time.Duration
 import java.time.YearMonth
 import java.time.ZoneId
@@ -309,29 +308,6 @@ private fun Throwable.category(): SyncFailureCategory = when (this) {
     is CalDavFailure.NetworkUnavailable -> SyncFailureCategory.NETWORK
     is CalDavFailure.InvalidServerData, is IcsParseException -> SyncFailureCategory.INVALID_DATA
     else -> SyncFailureCategory.REPOSITORY
-}
-
-private fun stableCalendarId(href: String): String = stableHash("icloud-calendar", canonicalHref(href))
-
-private fun stableHash(namespace: String, value: String): String {
-    val material = "$namespace:${value.length}:$value"
-    return MessageDigest.getInstance("SHA-256")
-        .digest(material.toByteArray(StandardCharsets.UTF_8))
-        .joinToString("") { byte -> "%02x".format(byte) }
-}
-
-private fun canonicalHref(href: String): String {
-    val normalized = URI(href).normalize()
-    if (!normalized.isAbsolute) return normalized.rawPath ?: href
-    val scheme = normalized.scheme.lowercase()
-    val host = normalized.host?.lowercase() ?: return normalized.toASCIIString()
-    val port = normalized.port.takeUnless { it == -1 || scheme == "https" && it == 443 || scheme == "http" && it == 80 }
-    return buildString {
-        append(scheme).append("://").append(host)
-        port?.let { append(':').append(it) }
-        append(normalized.rawPath.orEmpty().ifEmpty { "/" })
-        normalized.rawQuery?.let { append('?').append(it) }
-    }
 }
 
 private fun calendarColor(value: String?): Int {

@@ -14,8 +14,10 @@ import com.brightnook.nookcalendar.data.CalendarDatabase
 import com.brightnook.nookcalendar.data.DataStoreSettingsStore
 import com.brightnook.nookcalendar.data.DataStoreAutomaticSyncStatusStore
 import com.brightnook.nookcalendar.data.RoomCalendarRepository
+import com.brightnook.nookcalendar.data.DefaultEventEditingRepository
 import com.brightnook.nookcalendar.data.SettingsStore
 import com.brightnook.nookcalendar.domain.CalendarRepository
+import com.brightnook.nookcalendar.domain.EventEditingRepository
 import com.brightnook.nookcalendar.domain.AccountManager
 import com.brightnook.nookcalendar.domain.SystemClockProvider
 import com.brightnook.nookcalendar.monetization.BillingGateway
@@ -84,6 +86,15 @@ class AppContainer(val application: Application) {
             clock = SystemClockProvider,
             diagnostics = AndroidSyncDiagnostics,
             reminderScheduler = reminderScheduler,
+        )
+    }
+    val eventEditingRepository: EventEditingRepository by lazy {
+        DefaultEventEditingRepository(
+            credentialsStore = credentialsStore,
+            gateway = calDavGateway,
+            calendarRepository = calendarRepository,
+            syncCoordinator = syncCoordinator,
+            widgetRefreshNotifier = widgetUpdater,
         )
     }
     val syncScheduler: SyncScheduler by lazy {
