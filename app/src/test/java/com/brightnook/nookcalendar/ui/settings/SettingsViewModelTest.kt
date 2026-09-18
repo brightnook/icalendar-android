@@ -123,6 +123,23 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun historicalFailureIsSeparateFromCurrentAuthenticationAndSuccessfulRetryClearsOnlyCurrentWarning() = runTest(dispatcher) {
+        val oldFailure = AutomaticSyncStatus(Instant.parse("2026-09-10T08:00:00Z"),
+            AutomaticSyncOutcome.AUTHENTICATION_REQUIRED)
+        val store = InMemoryAutomaticSyncStatusStore(oldFailure)
+        val model = viewModel(automaticSyncStatusStore = store)
+        advanceUntilIdle()
+        assertFalse(model.uiState.value.authenticationRequired)
+        store.recordAuthenticationRequired(true)
+        advanceUntilIdle()
+        assertTrue(model.uiState.value.authenticationRequired)
+        store.recordAuthenticationRequired(false)
+        advanceUntilIdle()
+        assertFalse(model.uiState.value.authenticationRequired)
+        assertEquals(oldFailure, model.uiState.value.automaticSyncStatus)
+    }
+
+    @Test
     fun hidingCalendarUpdatesTheObservedCalendarVisibility() = runTest(dispatcher) {
         // Catches a settings switch changing only transient UI state rather than repository-backed visibility.
         val repository = InMemoryCalendarRepository(listOf(calendar("work", true)))
@@ -286,6 +303,10 @@ private class InMemoryAutomaticSyncStatusStore(
     initial: AutomaticSyncStatus? = null,
 ) : AutomaticSyncStatusStore {
     override val status = MutableStateFlow(initial)
+    override val authenticationRequired = MutableStateFlow(false)
+    override suspend fun recordAuthenticationRequired(required: Boolean) {
+        authenticationRequired.value = required
+    }
 
     override suspend fun record(status: AutomaticSyncStatus) {
         this.status.value = status

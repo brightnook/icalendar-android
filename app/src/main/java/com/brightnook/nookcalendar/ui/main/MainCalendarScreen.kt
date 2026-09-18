@@ -227,7 +227,6 @@ fun MainCalendarScreen(
                 zoneId = zoneId,
                 listState = agendaListState,
                 onOpenEvent = onOpenEvent,
-                onEditEvent = onEditEvent,
                 onDeleteEvent = onDeleteEvent,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentColor = themePresentation.contentColor,

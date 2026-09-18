@@ -233,6 +233,12 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SettingsSection(R.string.settings_account, "account", settingsPresentation) {
+                if (state.authenticationRequired) {
+                    Text(stringResource(R.string.settings_current_authentication_required), color = settingsPresentation.errorColor)
+                    TextButton(onClick = onLogin, modifier = Modifier.testTag("account-reauthenticate")) {
+                        Text(stringResource(R.string.calendar_login_action))
+                    }
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         state.maskedAppleId ?: stringResource(R.string.settings_account_signed_out),

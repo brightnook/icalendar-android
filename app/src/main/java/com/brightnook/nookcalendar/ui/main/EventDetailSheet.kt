@@ -14,9 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -135,11 +134,24 @@ fun EventDetailContent(
             .fillMaxWidth()
             .fillMaxHeight(0.9f)
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp)
             .testTag(EVENT_DETAIL_CONTENT_TAG),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            TextButton(onClick = onClose, modifier = Modifier.testTag("event-detail-close")) {
+                Text(stringResource(R.string.calendar_close_detail), color = actionContentColor)
+            }
+            TextButton(onClick = onEdit, modifier = Modifier.testTag("event-detail-edit")) {
+                Text(stringResource(R.string.event_editor_edit_title), color = actionContentColor)
+            }
+        }
+        Column(
+            Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp).testTag("event-detail-body"),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
         Text(detail.title, style = MaterialTheme.typography.headlineSmall, color = contentColor)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -207,22 +219,6 @@ fun EventDetailContent(
                 secondaryContentColor,
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(onClick = onEdit, modifier = Modifier.testTag("event-detail-edit")) {
-                Text(stringResource(R.string.event_editor_edit_title), color = actionContentColor)
-            }
-            Button(
-                onClick = onClose,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = actionContentColor,
-                    contentColor = surfaceColor,
-                ),
-            ) {
-                Text(stringResource(R.string.calendar_close_detail))
-            }
         }
     }
 }

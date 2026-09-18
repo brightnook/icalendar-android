@@ -3,11 +3,14 @@ package com.brightnook.nookcalendar.ui.main
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,16 +20,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -36,7 +43,6 @@ import com.brightnook.nookcalendar.domain.CalendarSummary
 import com.brightnook.nookcalendar.domain.EventInstance
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.launch
 
 const val AGENDA_LIST_TAG = "agenda-list"
 
@@ -47,7 +53,6 @@ fun AgendaList(
     zoneId: ZoneId,
     listState: LazyListState,
     onOpenEvent: (String) -> Unit,
-    onEditEvent: (String) -> Unit = {},
     onDeleteEvent: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     contentColor: Color = Color.Unspecified,
@@ -74,7 +79,6 @@ fun AgendaList(
                 calendarName = calendars.firstOrNull { it.id == event.calendarId }?.name,
                 zoneId = zoneId,
                 onClick = { onOpenEvent(event.instanceId) },
-                onEdit = { onEditEvent(event.instanceId) },
                 onDelete = { onDeleteEvent(event.instanceId) },
                 contentColor = resolvedContentColor,
                 secondaryContentColor = resolvedSecondaryContentColor,
@@ -83,51 +87,65 @@ fun AgendaList(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeAgendaItem(
     event: EventInstance,
     calendarName: String?,
     zoneId: ZoneId,
     onClick: () -> Unit,
-    onEdit: () -> Unit,
     onDelete: () -> Unit,
     contentColor: Color,
     secondaryContentColor: Color,
 ) {
-    val scope = rememberCoroutineScope()
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value -> value != SwipeToDismissBoxValue.Settled },
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    var direction by rememberSaveable { mutableStateOf(-1) }
+    val threshold = with(LocalDensity.current) { 48.dp.toPx() }
+    val actionWidth = 80.dp
+    val offset by animateDpAsState(
+        if (revealed) actionWidth * direction else 0.dp,
+        label = "agenda-delete-reveal",
     )
-    SwipeToDismissBox(
-        state = state,
-        backgroundContent = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-                    Arrangement.Start
-                } else Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = { scope.launch { state.reset() }; onEdit() },
-                    modifier = Modifier.testTag("agenda-edit-${event.instanceId}"),
-                ) { Text(stringResource(R.string.event_editor_edit_title)) }
-                TextButton(
-                    onClick = { scope.launch { state.reset() }; onDelete() },
-                    modifier = Modifier.testTag("agenda-delete-${event.instanceId}"),
-                ) { Text(stringResource(R.string.event_editor_delete)) }
-            }
+    Box(
+        Modifier.fillMaxWidth().clipToBounds().pointerInput(revealed, direction, threshold) {
+            var drag = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { drag = 0f },
+                onHorizontalDrag = { change, amount -> change.consume(); drag += amount },
+                onDragEnd = {
+                    if (kotlin.math.abs(drag) >= threshold) {
+                        val swipeDirection = if (drag > 0f) 1 else -1
+                        if (revealed && swipeDirection != direction) revealed = false
+                        else { direction = swipeDirection; revealed = true }
+                    }
+                },
+                onDragCancel = { drag = 0f },
+            )
         },
     ) {
-        AgendaItem(
-            event = event,
-            calendarName = calendarName,
-            zoneId = zoneId,
-            onClick = onClick,
-            contentColor = contentColor,
-            secondaryContentColor = secondaryContentColor,
-        )
+        AgendaItem(event, calendarName, zoneId,
+            onClick = { revealed = false; onClick() },
+            contentColor = contentColor, secondaryContentColor = secondaryContentColor,
+            modifier = Modifier.offset(x = offset))
+        if (revealed) {
+            Box(Modifier.matchParentSize(),
+                contentAlignment = if (direction > 0) Alignment.CenterStart else Alignment.CenterEnd) {
+                Column(
+                    Modifier.width(actionWidth).fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.error)
+                        .clickable { revealed = false; onDelete() }
+                        .testTag("agenda-delete-${event.instanceId}")
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_agenda_delete), contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onError)
+                    Text(stringResource(R.string.event_editor_delete),
+                        color = MaterialTheme.colorScheme.onError,
+                        style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
     }
 }
 
@@ -139,9 +157,10 @@ private fun AgendaItem(
     onClick: () -> Unit,
     contentColor: Color,
     secondaryContentColor: Color,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .testTag("agenda-item-${event.instanceId}")

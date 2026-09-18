@@ -4,6 +4,8 @@ import com.brightnook.nookcalendar.domain.AccountAuthenticationState
 import com.brightnook.nookcalendar.domain.AccountManager
 import com.brightnook.nookcalendar.domain.CalendarRepository
 import com.brightnook.nookcalendar.sync.SyncScheduler
+import com.brightnook.nookcalendar.sync.AutomaticSyncStatusStore
+import com.brightnook.nookcalendar.sync.NoOpAutomaticSyncStatusStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +20,7 @@ class LocalAccountManager(
     private val repository: CalendarRepository,
     private val syncScheduler: SyncScheduler,
     scope: CoroutineScope,
+    private val automaticSyncStatusStore: AutomaticSyncStatusStore = NoOpAutomaticSyncStatusStore,
 ) : AccountManager {
     private val transitions = Mutex()
     private val mutableAuthenticationState = MutableStateFlow<AccountAuthenticationState>(AccountAuthenticationState.Loading)
@@ -45,13 +48,17 @@ class LocalAccountManager(
     }
 
     override suspend fun markAuthenticated(appleId: String) {
-        transitions.withLock { mutableAuthenticationState.value = AccountAuthenticationState.Authenticated(appleId.maskAppleId()) }
+        transitions.withLock {
+            automaticSyncStatusStore.recordAuthenticationRequired(false)
+            mutableAuthenticationState.value = AccountAuthenticationState.Authenticated(appleId.maskAppleId())
+        }
     }
 
     override suspend fun logout(clearCache: Boolean): Boolean = transitions.withLock {
         syncScheduler.cancelAll()
         credentialsStore.clear()
         mutableAuthenticationState.value = AccountAuthenticationState.SignedOut
+        automaticSyncStatusStore.recordAuthenticationRequired(false)
         if (!clearCache) return@withLock true
         try {
             repository.clearCalendarCache()

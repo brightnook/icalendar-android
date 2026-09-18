@@ -36,6 +36,7 @@ private val themeAssetKey = stringPreferencesKey("theme_asset_key")
 private val themeApplyToWidgetKey = booleanPreferencesKey("theme_apply_to_widget")
 private val automaticSyncCompletedAtKey = longPreferencesKey("automatic_sync_completed_at")
 private val automaticSyncOutcomeKey = stringPreferencesKey("automatic_sync_outcome")
+private val authenticationRequiredKey = booleanPreferencesKey("calendar_authentication_required")
 
 class DataStoreSettingsStore(
     private val dataStore: DataStore<androidx.datastore.preferences.core.Preferences>,
@@ -98,6 +99,16 @@ class DataStoreAutomaticSyncStatusStore(
     private val dataStore: DataStore<androidx.datastore.preferences.core.Preferences>,
 ) : AutomaticSyncStatusStore {
     constructor(context: Context) : this(context.applicationContext.settingsDataStore)
+
+    override val authenticationRequired: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { it[authenticationRequiredKey] ?: false }
+
+    override suspend fun recordAuthenticationRequired(required: Boolean) {
+        dataStore.edit { it[authenticationRequiredKey] = required }
+    }
 
     override val status: Flow<AutomaticSyncStatus?> = dataStore.data
         .catch { exception ->

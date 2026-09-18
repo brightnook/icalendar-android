@@ -93,7 +93,8 @@
     <string name="settings_last_automatic_sync_none">前回の自動同期：まだ実行されていません</string>
     <string name="settings_automatic_sync_completed">完了</string>
     <string name="settings_automatic_sync_retrying">再試行予定</string>
-    <string name="settings_automatic_sync_authentication_required">再ログインが必要</string>
+    <string name="settings_automatic_sync_authentication_required">失敗：認証が拒否されました</string>
+    <string name="settings_current_authentication_required">iCloudの認証に失敗しました。同期を再開するには再ログインしてください。</string>
     <string name="settings_week_start">週の開始日</string>
     <string name="settings_week_start_sunday">日曜日</string>
     <string name="settings_week_start_monday">月曜日</string>

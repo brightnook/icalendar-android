@@ -21,6 +21,8 @@ fun interface AutomaticSyncStatusRecorder {
 
 interface AutomaticSyncStatusStore : AutomaticSyncStatusRecorder {
     val status: Flow<AutomaticSyncStatus?>
+    val authenticationRequired: Flow<Boolean> get() = flowOf(false)
+    suspend fun recordAuthenticationRequired(required: Boolean) = Unit
 }
 
 object NoOpAutomaticSyncStatusRecorder : AutomaticSyncStatusRecorder {

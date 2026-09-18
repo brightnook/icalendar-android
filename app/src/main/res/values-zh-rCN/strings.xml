@@ -93,7 +93,8 @@
     <string name="settings_last_automatic_sync_none">上次自动同步：尚未执行</string>
     <string name="settings_automatic_sync_completed">已完成</string>
     <string name="settings_automatic_sync_retrying">将重试</string>
-    <string name="settings_automatic_sync_authentication_required">需要重新登录</string>
+    <string name="settings_automatic_sync_authentication_required">失败：认证未通过</string>
+    <string name="settings_current_authentication_required">iCloud 认证失败，需要重新登录才能继续同步。</string>
     <string name="settings_week_start">一周开始于</string>
     <string name="settings_week_start_sunday">星期日</string>
     <string name="settings_week_start_monday">星期一</string>

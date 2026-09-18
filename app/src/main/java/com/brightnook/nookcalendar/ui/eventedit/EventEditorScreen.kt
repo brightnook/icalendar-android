@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +57,34 @@ fun EventEditorScreen(
     onDismiss: () -> Unit,
     showDeleteConfirmationInitially: Boolean = false,
 ) {
+    if (showDeleteConfirmationInitially) {
+        AlertDialog(
+            onDismissRequest = { if (!state.isDeleting) onDismiss() },
+            title = { Text(stringResource(R.string.event_editor_delete_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.event_editor_delete_message))
+                    if (!state.isLoading) Text(state.draft.title)
+                    state.error?.let {
+                        Text(stringResource(it.messageResource()), color = MaterialTheme.colorScheme.error)
+                    }
+                    if (state.isLoading || state.isDeleting) LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onDelete,
+                    enabled = !state.isLoading && !state.isDeleting && !state.isSaving) {
+                    Text(stringResource(R.string.event_editor_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss, enabled = !state.isDeleting) {
+                    Text(stringResource(R.string.event_editor_cancel))
+                }
+            },
+        )
+        return
+    }
     var calendarMenuOpen by remember { mutableStateOf(false) }
     var reminderMenuOpen by remember { mutableStateOf(false) }
     var customReminderOpen by remember { mutableStateOf(false) }

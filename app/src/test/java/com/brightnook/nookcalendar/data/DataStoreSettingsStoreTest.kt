@@ -113,6 +113,36 @@ class DataStoreSettingsStoreTest {
             ),
         ).also(fixtures::add)
     }
+
+    @Test
+    fun currentAuthenticationFailurePersistsSeparatelyFromAutomaticSyncHistory() = runTest {
+        // FileStorage uses File.renameTo, which cannot replace existing files on Windows.
+        // Exercise multiple updates in memory; verify the disk write separately below.
+        val dataStore = object : DataStore<Preferences> {
+            private val state = kotlinx.coroutines.flow.MutableStateFlow(emptyPreferences())
+            override val data: Flow<Preferences> = state
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                return transform(state.value).also { state.value = it }
+            }
+        }
+        val store = DataStoreAutomaticSyncStatusStore(dataStore)
+        val historical = AutomaticSyncStatus(Instant.parse("2026-09-10T08:00:00Z"),
+            AutomaticSyncOutcome.AUTHENTICATION_REQUIRED)
+        store.record(historical)
+        assertEquals(false, store.authenticationRequired.first())
+        store.recordAuthenticationRequired(true)
+        assertEquals(true, DataStoreAutomaticSyncStatusStore(dataStore).authenticationRequired.first())
+        store.recordAuthenticationRequired(false)
+        assertEquals(false, store.authenticationRequired.first())
+        assertEquals(historical, store.status.first())
+    }
+
+    @Test
+    fun currentAuthenticationFailureIsWrittenToDisk() = runTest {
+        val fixture = fixture()
+        DataStoreAutomaticSyncStatusStore(fixture.dataStore).recordAuthenticationRequired(true)
+        assertEquals(true, DataStoreAutomaticSyncStatusStore(fixture.dataStore).authenticationRequired.first())
+    }
 }
 
 private data class DataStoreFixture(

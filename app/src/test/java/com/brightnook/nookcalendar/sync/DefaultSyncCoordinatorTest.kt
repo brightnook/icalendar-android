@@ -52,6 +52,28 @@ class DefaultSyncCoordinatorTest {
     private val now = Instant.parse("2026-03-15T08:00:00Z")
 
     @Test
+    fun authenticationRejectionAndSuccessfulManualRetryUpdateCurrentStatusWithoutRewritingHistory() = runTest {
+        val current = kotlinx.coroutines.flow.MutableStateFlow(false)
+        val history = AutomaticSyncStatus(now, AutomaticSyncOutcome.AUTHENTICATION_REQUIRED)
+        val store = object : AutomaticSyncStatusStore {
+            override val status = kotlinx.coroutines.flow.flowOf(history)
+            override val authenticationRequired = current
+            override suspend fun record(status: AutomaticSyncStatus) = error("Manual sync must not rewrite history")
+            override suspend fun recordAuthenticationRequired(required: Boolean) { current.value = required }
+        }
+        val gateway = FakeGateway(listOf(remote("work", "/calendars/work/"))).apply {
+            failures["work"] = CalDavFailure.AuthenticationRejected()
+        }
+        val coordinator = DefaultSyncCoordinator(FakeCredentialsStore(Credentials("person@example.com", "password".toCharArray())),
+            gateway, FakeParser(), FakeRepository(), FixedClock(now, tokyo), automaticSyncStatusStore = store)
+        assertTrue(coordinator.sync(SyncRequest.Refresh) is SyncResult.AuthenticationRequired)
+        assertTrue(current.value)
+        gateway.failures.clear()
+        assertTrue(coordinator.sync(SyncRequest.Refresh) is SyncResult.Success)
+        assertFalse(current.value)
+    }
+
+    @Test
     fun initialUsesDstSafeThirteenMonthBoundsAndOneSession() = runTest {
         // Catches UTC month boundaries, a twelve-month end, oversized gateway calls, and per-calendar login.
         val gateway = FakeGateway(

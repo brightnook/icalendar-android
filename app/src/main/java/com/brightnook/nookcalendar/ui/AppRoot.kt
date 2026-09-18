@@ -112,6 +112,7 @@ fun AppRoot(
                     syncCoordinator = container.syncCoordinator,
                     syncScheduler = container.syncScheduler,
                     zoneIds = zoneIds,
+                    isSignedIn = { container.accountManager.authenticationState.value is AccountAuthenticationState.Authenticated },
                 ),
                 zoneIds = zoneIds,
                 launchTarget = launchTarget,

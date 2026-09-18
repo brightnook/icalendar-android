@@ -187,7 +187,7 @@ class MainCalendarViewModelTest {
         val coordinator = RetryingMonthCoordinator(august)
         val viewModel = viewModel(repository, coordinator = coordinator)
         advanceUntilIdle()
-        assertEquals(MainCalendarMessage.SYNC_FAILED, viewModel.uiState.value.message)
+        assertNull(viewModel.uiState.value.message)
 
         viewModel.showMonth(september)
         advanceUntilIdle()
@@ -214,6 +214,19 @@ class MainCalendarViewModelTest {
         assertEquals(0, coordinator.cancelled.value)
         coordinator.release.complete(Unit)
         advanceUntilIdle()
+    }
+
+    @Test
+    fun missingMonthDoesNotContactICloudWhileSchedulerIsInitializing() = runTest(dispatcher) {
+        val scheduler = RecordingScheduler()
+        val coordinator = RecordingSyncCoordinator()
+        val model = viewModel(FlowRepository(calendars = listOf(calendar("work"))),
+            coordinator = coordinator, scheduler = scheduler)
+        advanceUntilIdle()
+        model.selectDate(today.plusMonths(1))
+        advanceUntilIdle()
+        assertTrue(coordinator.requests.isEmpty())
+        assertNull(model.uiState.value.message)
     }
 
     @Test

@@ -40,6 +40,7 @@ class MainCalendarViewModel(
     private val syncScheduler: SyncScheduler,
     private val clock: ClockProvider = SystemClockProvider,
     private val zoneIds: StateFlow<ZoneId> = MutableStateFlow(clock.zoneId),
+    private val isSignedIn: () -> Boolean = { true },
 ) : ViewModel() {
     private val initialDate = clock.now.atZone(clock.zoneId).toLocalDate()
     private val selectedDate = MutableStateFlow(initialDate)
@@ -193,7 +194,7 @@ class MainCalendarViewModel(
         calendarIds: List<String>,
         zoneId: ZoneId,
     ) {
-        if (calendarIds.isEmpty()) return
+        if (calendarIds.isEmpty() || !isSignedIn() || syncScheduler.readiness.value != SyncSchedulerReadiness.READY) return
         val requiredStart = month.atDay(1).atStartOfDay(zoneId).toInstant()
         val requiredEnd = month.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant()
         val fullyCovered = try {
@@ -207,22 +208,17 @@ class MainCalendarViewModel(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
-            message.value = MainCalendarMessage.SYNC_FAILED
             return
         }
         if (fullyCovered || !monthsBeingEnsured.add(month)) return
-        message.value = null
         try {
-            when (syncCoordinator.sync(SyncRequest.EnsureMonth(month))) {
-                is SyncResult.Success -> Unit
-                is SyncResult.PartialSuccess,
-                is SyncResult.AuthenticationRequired,
-                is SyncResult.RetryableFailure -> message.value = MainCalendarMessage.SYNC_FAILED
-            }
+            // Month navigation is background loading, not a user-requested refresh.
+            // Keep the manual-refresh feedback independent of this result.
+            syncCoordinator.sync(SyncRequest.EnsureMonth(month))
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
-            message.value = MainCalendarMessage.SYNC_FAILED
+            // The sync layer records diagnostics; retain the locally cached agenda.
         } finally {
             monthsBeingEnsured.remove(month)
         }
@@ -264,10 +260,11 @@ class MainCalendarViewModelFactory(
     private val syncScheduler: SyncScheduler,
     private val clock: ClockProvider = SystemClockProvider,
     private val zoneIds: StateFlow<ZoneId> = MutableStateFlow(clock.zoneId),
+    private val isSignedIn: () -> Boolean = { true },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(MainCalendarViewModel::class.java))
-        return MainCalendarViewModel(repository, syncCoordinator, syncScheduler, clock, zoneIds) as T
+        return MainCalendarViewModel(repository, syncCoordinator, syncScheduler, clock, zoneIds, isSignedIn) as T
     }
 }

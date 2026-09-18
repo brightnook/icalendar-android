@@ -35,19 +35,25 @@ internal class DefaultSyncCoordinator(
     private val clock: ClockProvider,
     private val diagnostics: SyncDiagnostics = NoOpSyncDiagnostics,
     private val reminderScheduler: ReminderScheduler = NoOpReminderScheduler,
+    private val automaticSyncStatusStore: AutomaticSyncStatusStore = NoOpAutomaticSyncStatusStore,
 ) : SyncCoordinator {
     override suspend fun sync(request: SyncRequest): SyncResult = SyncMutex.instance.withLock {
         syncLocked(request, newSyncDiagnosticAttemptId())
     }
 
     private suspend fun syncLocked(request: SyncRequest, attemptId: String): SyncResult {
-        val credentials = credentialsStore.load() ?: return SyncResult.AuthenticationRequired()
+        val credentials = credentialsStore.load() ?: run {
+            automaticSyncStatusStore.recordAuthenticationRequired(true)
+            return SyncResult.AuthenticationRequired()
+        }
         val calendars = try {
             val principal = gateway.authenticate(credentials)
+            automaticSyncStatusStore.recordAuthenticationRequired(false)
             gateway.discoverCalendars(principal)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: CalDavFailure.AuthenticationRejected) {
+            automaticSyncStatusStore.recordAuthenticationRequired(true)
             return SyncResult.AuthenticationRequired()
         } catch (failure: Throwable) {
             return SyncResult.RetryableFailure(failure.category())
@@ -71,6 +77,7 @@ internal class DefaultSyncCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: CalDavFailure.AuthenticationRejected) {
+                automaticSyncStatusStore.recordAuthenticationRequired(true)
                 return SyncResult.AuthenticationRequired(counts, succeededIds)
             } catch (failure: Throwable) {
                 val category = failure.category()

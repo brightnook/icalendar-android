@@ -65,7 +65,8 @@ class SettingsViewModel(
         repository.observeCalendars(),
         accountManager.authenticationState,
         automaticSyncStatusStore.status,
-    ) { settings, calendars, accountState, automaticSyncStatus ->
+        automaticSyncStatusStore.authenticationRequired,
+    ) { settings, calendars, accountState, automaticSyncStatus, authenticationRequired ->
         SettingsUiState(
             syncMode = settings.syncMode,
             weekStart = settings.weekStart,
@@ -75,6 +76,7 @@ class SettingsViewModel(
             maskedAppleId = (accountState as? AccountAuthenticationState.Authenticated)?.maskedAppleId,
             accountLoading = accountState == AccountAuthenticationState.Loading,
             automaticSyncStatus = automaticSyncStatus,
+            authenticationRequired = authenticationRequired && accountState is AccountAuthenticationState.Authenticated,
         )
     }
 
@@ -273,6 +275,7 @@ data class SettingsUiState(
     val showCleanupWarning: Boolean = false,
     val showOperationError: Boolean = false,
     val automaticSyncStatus: AutomaticSyncStatus? = null,
+    val authenticationRequired: Boolean = false,
 )
 
 private data class SettingsFeedback(

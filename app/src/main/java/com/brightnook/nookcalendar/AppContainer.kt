@@ -71,7 +71,7 @@ class AppContainer(val application: Application) {
     val themeAssetStore: ThemeAssetStore by lazy { PrivateThemeAssetStore(application) }
     val credentialsStore: CredentialsStore by lazy { KeystoreCredentialsStore(application) }
     val accountManager: AccountManager by lazy {
-        LocalAccountManager(credentialsStore, calendarRepository, syncScheduler, applicationScope)
+        LocalAccountManager(credentialsStore, calendarRepository, syncScheduler, applicationScope, automaticSyncStatusStore)
     }
     val calDavGateway: CalDavGateway by lazy { ICloudCalDavGateway() }
     val icsParser: IcsParser by lazy { Ical4jIcsParser() }
@@ -85,6 +85,7 @@ class AppContainer(val application: Application) {
             repository = calendarRepository,
             clock = SystemClockProvider,
             diagnostics = AndroidSyncDiagnostics,
+            automaticSyncStatusStore = automaticSyncStatusStore,
             reminderScheduler = reminderScheduler,
         )
     }
