@@ -6,6 +6,7 @@
     <string name="app_name">NookCalendar</string>
     <string name="login_title">连接 iCloud 日历</string>
     <string name="login_explanation">这里不能使用您的主 Apple 账户密码。请创建并仅使用 App 专用密码。</string>
+    <string name="login_password_reset_notice">更改或重置 Apple 账户密码后，原有的 App 专用密码会失效。请重新生成 App 专用密码，并在此重新登录。</string>
     <string name="login_create_app_password">创建 App 专用密码</string>
     <string name="login_support_link">了解 App 专用密码</string>
     <string name="login_apple_id_label">Apple 账户电子邮件</string>

@@ -1,6 +1,8 @@
 package com.brightnook.nookcalendar.ui.login
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
@@ -56,6 +58,8 @@ fun LoginScreen(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -76,6 +80,7 @@ fun LoginScreen(
             }
         }
         Text(text = stringResource(R.string.login_explanation))
+        Text(text = stringResource(R.string.login_password_reset_notice))
         Button(onClick = { onOpenUri(APPLE_ACCOUNT_URL) }) {
             Text(stringResource(R.string.login_create_app_password))
         }
