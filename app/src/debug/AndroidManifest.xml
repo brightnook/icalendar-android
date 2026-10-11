@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permits instrumentation's synthetic loopback MockWebServer; release remains HTTPS-only. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

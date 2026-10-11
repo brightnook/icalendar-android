@@ -1,0 +1,22 @@
+.worktrees/
+.superpowers/
+.gradle/
+.idea/
+build/
+**/build/
+local.properties
+*.iml
+
+# Local Android and Gradle test homes
+.android*/
+.gradle-*/
+.kotlin/
+gradle/gradle-daemon-jvm.properties
+
+# Local verification artifacts and release credentials
+artifacts-*.png
+*.apk
+*.aab
+*.jks
+*.keystore
+keystore.properties

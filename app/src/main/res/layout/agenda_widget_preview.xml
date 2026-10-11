@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background_rounded"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_preview_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/widget_title"
+                android:textAppearance="@android:style/TextAppearance.Material.Medium"
+                android:textColor="@color/widget_primary_text"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/widget_preview_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/widget_range_today"
+                android:textColor="@color/widget_secondary_text"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:contentDescription="@string/widget_add_event"
+            android:text="+"
+            android:textColor="@color/widget_primary_text"
+            android:textSize="28sp" />
+
+        <ImageButton
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/widget_refresh"
+            android:src="@drawable/ic_refresh_green" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@color/widget_date_group_background"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:text="@string/widget_range_today"
+        android:textColor="@color/widget_date_group_text"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/widget_preview_event_title_one"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:background="@color/widget_event_title_background"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="6dp"
+        android:text="@string/calendar_all_day"
+        android:textColor="@color/widget_primary_text"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/widget_preview_event_title_two"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@color/widget_event_title_background"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="6dp"
+        android:text="@string/calendar_recurrence_daily"
+        android:textColor="@color/widget_primary_text"
+        android:textSize="14sp" />
+</LinearLayout>

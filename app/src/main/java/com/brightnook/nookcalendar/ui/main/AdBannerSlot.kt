@@ -1,0 +1,123 @@
+package com.brightnook.nookcalendar.ui.main
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.key
+import com.brightnook.nookcalendar.BuildConfig
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
+import com.brightnook.nookcalendar.monetization.MonetizationUiState
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+const val AD_BANNER_SLOT_TAG = "ad-banner-slot"
+const val ANCHORED_ADAPTIVE_TEST_AD_UNIT_ID = "ca-app-pub-3940256099942544/9214589741"
+const val RELEASE_BANNER_AD_UNIT_ID = "ca-app-pub-7357814564478740/8148143789"
+
+internal fun bannerAdUnitIdFor(
+    isDebugBuild: Boolean,
+    configuredReleaseAdUnitId: String,
+): String = if (isDebugBuild) {
+    ANCHORED_ADAPTIVE_TEST_AD_UNIT_ID
+} else {
+    configuredReleaseAdUnitId
+}
+
+internal enum class AdBannerLoadState { LOADING, FAILED }
+
+internal fun anchoredAdaptiveBannerWidthDp(width: androidx.compose.ui.unit.Dp): Int =
+    width.value.roundToInt()
+
+/** Keeps free screens stable while the adaptive banner reports its eventual measured height. */
+internal fun reservedBannerSlotHeight(state: MonetizationUiState): Dp? =
+    if (state.canShowAds) 90.dp else null
+
+@Composable
+fun AdBannerSlot(
+    state: MonetizationUiState,
+    adUnitId: String = bannerAdUnitIdFor(
+        isDebugBuild = BuildConfig.DEBUG,
+        configuredReleaseAdUnitId = BuildConfig.BANNER_AD_UNIT_ID,
+    ),
+    modifier: Modifier = Modifier,
+) {
+    if (!state.canShowAds) return
+
+    var loadState by remember(adUnitId) { mutableStateOf(AdBannerLoadState.LOADING) }
+    AdBannerSlotContent(
+        state = state,
+        loadState = loadState,
+        modifier = modifier,
+    ) {
+        AdaptiveBannerAd(
+            adUnitId = adUnitId,
+            onFailedToLoad = { loadState = AdBannerLoadState.FAILED },
+        )
+    }
+}
+
+@Composable
+internal fun AdBannerSlotContent(
+    state: MonetizationUiState,
+    loadState: AdBannerLoadState,
+    modifier: Modifier = Modifier,
+    adContent: @Composable () -> Unit = {},
+) {
+    val reservedHeight = reservedBannerSlotHeight(state) ?: return
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(reservedHeight)
+            .testTag(AD_BANNER_SLOT_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (loadState != AdBannerLoadState.FAILED) adContent()
+    }
+}
+
+@Composable
+private fun AdaptiveBannerAd(
+    adUnitId: String,
+    onFailedToLoad: () -> Unit,
+) {
+    val context = LocalContext.current
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val adWidthDp = anchoredAdaptiveBannerWidthDp(maxWidth)
+        key(adWidthDp) {
+            AndroidView(
+                factory = {
+                    AdView(context).apply {
+                        this.adUnitId = adUnitId
+                        setAdSize(
+                            AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, adWidthDp),
+                        )
+                        adListener = object : AdListener() {
+                            override fun onAdFailedToLoad(error: LoadAdError) {
+                                onFailedToLoad()
+                            }
+                        }
+                        loadAd(AdRequest.Builder().build())
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                onRelease = AdView::destroy,
+            )
+        }
+    }
+}
