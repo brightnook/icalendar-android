@@ -10,6 +10,8 @@ import java.time.LocalDate
 object WidgetIntentFactory {
     const val ACTION_REFRESH = "com.brightnook.nookcalendar.widget.REFRESH"
     const val ACTION_OPEN_TODAY = "com.brightnook.nookcalendar.widget.OPEN_TODAY"
+    const val ACTION_CREATE_EVENT = "com.brightnook.nookcalendar.widget.CREATE_EVENT"
+    const val EXTRA_CREATE_EVENT = "com.brightnook.nookcalendar.widget.extra.CREATE_EVENT"
 
     fun eventIntent(row: AgendaWidgetRow): Intent = Intent().apply {
         putExtra(CalendarLaunchTargetDelivery.EXTRA_DATE, row.date.toString())
@@ -33,7 +35,19 @@ object WidgetIntentFactory {
     fun refreshPendingIntent(context: Context, appWidgetId: Int): PendingIntent = PendingIntent.getBroadcast(
         context,
         appWidgetId + 20_000,
-        Intent(context, AgendaWidgetProvider::class.java).setAction(ACTION_REFRESH),
+        Intent(context, WidgetSyncRequestReceiver::class.java).setAction(ACTION_REFRESH),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    fun createEventIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
+        .setAction(ACTION_CREATE_EVENT)
+        .putExtra(EXTRA_CREATE_EVENT, true)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+    fun createEventPendingIntent(context: Context, appWidgetId: Int): PendingIntent = PendingIntent.getActivity(
+        context,
+        appWidgetId + 30_000,
+        createEventIntent(context),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 

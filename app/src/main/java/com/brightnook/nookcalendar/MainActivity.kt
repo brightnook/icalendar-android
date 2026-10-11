@@ -15,12 +15,14 @@ import com.brightnook.nookcalendar.ui.LocalizedAppContent
 import com.brightnook.nookcalendar.domain.AppSettings
 import com.brightnook.nookcalendar.ui.main.CalendarLaunchTarget
 import com.brightnook.nookcalendar.ui.main.CalendarLaunchTargetDelivery
+import com.brightnook.nookcalendar.widget.WidgetIntentFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : AppCompatActivity() {
     private lateinit var launchTargetDelivery: CalendarLaunchTargetDelivery
     private lateinit var launchTarget: MutableStateFlow<CalendarLaunchTarget?>
     private val openSettingsRequest = MutableStateFlow(0)
+    private val createEventRequest = MutableStateFlow(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +46,7 @@ class MainActivity : AppCompatActivity() {
                     zoneIds = calendarApplication.timeZoneIds,
                     launchTarget = target,
                     openSettingsRequest = openSettingsRequest.collectAsState().value,
+                    createEventRequest = createEventRequest.collectAsState().value,
                     onLaunchTargetConsumed = ::markLaunchTargetConsumed,
                     settingsOpen = settingsOpen,
                     onSettingsOpenChanged = { settingsOpen = it },
@@ -78,6 +81,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun deliverLaunchTarget(intent: Intent?) {
+        if (intent?.getBooleanExtra(WidgetIntentFactory.EXTRA_CREATE_EVENT, false) == true) {
+            createEventRequest.value += 1
+            intent.removeExtra(WidgetIntentFactory.EXTRA_CREATE_EVENT)
+        }
         if (intent?.getBooleanExtra(com.brightnook.nookcalendar.widget.WidgetIntentFactory.EXTRA_OPEN_SETTINGS, false) == true) {
             openSettingsRequest.value += 1
         }

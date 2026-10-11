@@ -153,7 +153,12 @@ internal class DefaultSyncCoordinator(
         )
         runCatching { reminderScheduler.reconcile() }
         diagnostics.record(SyncDiagnosticsEvent.deltaApplied(attemptId, calendarId, parsed.events.size, parsed.instances.size))
-        return SyncCounts(1, parsed.events.size, parsed.instances.size)
+        return SyncCounts(
+            calendars = 1,
+            events = parsed.events.size,
+            instances = parsed.instances.size,
+            eventDataChanged = delta.upserts.isNotEmpty() || delta.tombstones.isNotEmpty(),
+        )
     }
 
     private suspend fun ensureMonth(
@@ -216,7 +221,12 @@ internal class DefaultSyncCoordinator(
             ),
         )
         runCatching { reminderScheduler.reconcile() }
-        return SyncCounts(1, parsed.events.size, parsed.instances.size)
+        return SyncCounts(
+            calendars = 1,
+            events = parsed.events.size,
+            instances = parsed.instances.size,
+            eventDataChanged = true,
+        )
     }
 
     private fun parseResources(

@@ -144,7 +144,7 @@ fun EventDetailContent(
                 Text(stringResource(R.string.calendar_close_detail), color = actionContentColor)
             }
             TextButton(onClick = onEdit, modifier = Modifier.testTag("event-detail-edit")) {
-                Text(stringResource(R.string.event_editor_edit_title), color = actionContentColor)
+                Text(stringResource(R.string.event_editor_edit), color = actionContentColor)
             }
         }
         Column(

@@ -34,6 +34,15 @@ class ICloudCalDavGateway private constructor(
         .followRedirects(false)
         .followSslRedirects(false)
         .build()
+    // Stalled incremental reports can safely fall back to a range query. Keep
+    // the longer timeout for authentication, range queries and resource writes.
+    private val incrementalReportClient = this.client.newBuilder()
+        .readTimeout(
+            this.client.readTimeoutMillis.toLong().takeIf { it > 0 }
+                ?.coerceAtMost(INCREMENTAL_REPORT_READ_TIMEOUT_MILLIS) ?: INCREMENTAL_REPORT_READ_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS,
+        )
+        .build()
     private val sessionMutex = Mutex()
     private var activeSession: Session? = null
 
@@ -134,6 +143,7 @@ class ICloudCalDavGateway private constructor(
             "1",
             SYNC_COLLECTION.format(xmlEscape(syncToken)),
             session.credentials,
+            incrementalReportClient,
         )
         val newSyncToken = result.syncToken?.takeIf(String::isNotBlank) ?: invalid()
         val upserts = mutableListOf<RemoteResource>()
@@ -162,9 +172,10 @@ class ICloudCalDavGateway private constructor(
             val hrefs = chunk.joinToString("") { "<d:href>${xmlEscape(it)}</d:href>" }
             val multiget = report(
                 target,
-                "1",
+                null,
                 CALENDAR_MULTIGET.format(hrefs),
                 session.credentials,
+                incrementalReportClient,
             )
             val accounted = mutableSetOf<String>()
             multiget.responses.forEach { response ->
@@ -253,33 +264,51 @@ class ICloudCalDavGateway private constructor(
 
     private suspend fun report(
         url: HttpUrl,
-        depth: String,
+        depth: String?,
         body: String,
         credentials: StoredCredentials,
-    ): DavMultistatus = request("REPORT", url, depth, body, credentials)
+        requestClient: OkHttpClient = client,
+    ): DavMultistatus = request("REPORT", url, depth, body, credentials, requestClient)
 
     private suspend fun request(
         method: String,
         url: HttpUrl,
-        depth: String,
+        depth: String?,
         xml: String,
         credentials: StoredCredentials,
+        requestClient: OkHttpClient = client,
     ): DavMultistatus {
         val trustedUrl = urlPolicy.requireTrusted(url)
         val authorization = basicAuthorization(credentials)
         val request = Request.Builder()
             .url(trustedUrl)
             .header("Authorization", authorization)
-            .header("Depth", depth)
+            .apply { if (depth != null) header("Depth", depth) }
             .method(method, xml.toRequestBody(XML_MEDIA_TYPE))
             .build()
-        val responseText = execute(request)
+        val operation = when {
+            xml.contains("<d:sync-collection") -> "sync_collection"
+            xml.contains("<c:calendar-multiget") -> "calendar_multiget"
+            xml.contains("<c:calendar-query") -> "calendar_query"
+            else -> "discovery"
+        }
+        val started = System.nanoTime()
+        if (com.brightnook.nookcalendar.BuildConfig.DEBUG) {
+            android.util.Log.i("NookCalendarCalDav", "operation=$operation phase=started readTimeoutMillis=${requestClient.readTimeoutMillis}")
+        }
+        val responseText = try {
+            execute(request, requestClient)
+        } finally {
+            if (com.brightnook.nookcalendar.BuildConfig.DEBUG) {
+                android.util.Log.i("NookCalendarCalDav", "operation=$operation phase=finished elapsedMillis=${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)}")
+            }
+        }
         if (responseText.length > MAX_XML_CHARS) invalid()
         return CalDavXml.parse(responseText)
     }
 
-    private suspend fun execute(request: Request): String = suspendCancellableCoroutine { continuation ->
-        val call = client.newCall(request)
+    private suspend fun execute(request: Request, requestClient: OkHttpClient): String = suspendCancellableCoroutine { continuation ->
+        val call = requestClient.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -447,6 +476,7 @@ class ICloudCalDavGateway private constructor(
         private const val CALDAV_READ_TIMEOUT_SECONDS = 30L
         private const val CALDAV_WRITE_TIMEOUT_SECONDS = 30L
         private const val CALDAV_CALL_TIMEOUT_SECONDS = 45L
+        private const val INCREMENTAL_REPORT_READ_TIMEOUT_MILLIS = 8_000L
         private val XML_MEDIA_TYPE = "application/xml; charset=utf-8".toMediaType()
         private val CALENDAR_MEDIA_TYPE = "text/calendar; charset=utf-8".toMediaType()
         private val UTC_BASIC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC)

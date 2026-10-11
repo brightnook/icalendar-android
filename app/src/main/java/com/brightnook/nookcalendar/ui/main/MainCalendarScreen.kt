@@ -195,7 +195,7 @@ fun MainCalendarScreen(
                         .testTag("calendar-add-event")
                         .semantics { contentDescription = addEventDescription },
                 ) {
-                    Text("+", style = MaterialTheme.typography.headlineSmall)
+                    Text("+", color = themePresentation.contentColor, style = MaterialTheme.typography.headlineSmall)
                 }
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {

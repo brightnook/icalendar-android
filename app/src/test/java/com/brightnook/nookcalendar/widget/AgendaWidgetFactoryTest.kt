@@ -4,14 +4,18 @@ import android.app.PendingIntent
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.brightnook.nookcalendar.domain.EventInstance
+import com.brightnook.nookcalendar.MainActivity
 import com.brightnook.nookcalendar.ui.main.CalendarLaunchTargetDelivery
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
@@ -50,6 +54,34 @@ class AgendaWidgetFactoryTest {
         val template = WidgetIntentFactory.eventPendingIntent(context, 101)
 
         assertFalse(template.isImmutable)
+    }
+
+    @Test
+    fun addActionOpensTheEditorRequestWithoutFreezingTodaysDateAtWidgetRefresh() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        val intent = WidgetIntentFactory.createEventIntent(context)
+
+        assertEquals(MainActivity::class.java.name, intent.component?.className)
+        assertEquals(WidgetIntentFactory.ACTION_CREATE_EVENT, intent.action)
+        assertTrue(intent.getBooleanExtra(WidgetIntentFactory.EXTRA_CREATE_EVENT, false))
+        assertNull(intent.getStringExtra(CalendarLaunchTargetDelivery.EXTRA_DATE))
+        assertNull(intent.getStringExtra(CalendarLaunchTargetDelivery.EXTRA_INSTANCE_ID))
+    }
+
+    @Test
+    fun refreshActionUsesTheWidgetJobReceiverInsteadOfTheAppWidgetProvider() {
+        // WorkManager toggles one of its manifest receivers for each short manual job. Sending
+        // widget refreshes through that path emits PACKAGE_CHANGED and makes Launcher rebuild the
+        // complete widget, including its title. Keep this click on the dedicated JobScheduler path.
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        val intent = shadowOf(WidgetIntentFactory.refreshPendingIntent(context, 101)).savedIntent
+
+        assertEquals(
+            "com.brightnook.nookcalendar.widget.WidgetSyncRequestReceiver",
+            intent.component?.className,
+        )
     }
 
     @Test

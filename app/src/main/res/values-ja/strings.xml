@@ -113,6 +113,10 @@
     <string name="settings_theme_error_unsupported">このファイルは対応している画像ではありません。</string>
     <string name="settings_theme_error_too_large">この画像は20 MBを超えています。</string>
     <string name="settings_theme_error_io">画像を読み込めませんでした。もう一度お試しください。</string>
+    <string name="settings_wallpaper_adjust_title">背景を調整</string>
+    <string name="settings_wallpaper_adjust_hint">ドラッグで位置調整・ピンチで拡大縮小</string>
+    <string name="settings_wallpaper_adjust_cancel">キャンセル</string>
+    <string name="settings_wallpaper_adjust_save">保存</string>
     <string name="settings_widgets">ウィジェット</string>
     <string name="settings_widgets_empty">ホーム画面からウィジェットを追加すると、ここで管理できます。</string>
     <string name="settings_widget_configure">予定ウィジェット %1$d・%2$s</string>
@@ -139,6 +143,7 @@
     <string name="settings_cancel">キャンセル</string>
     <string name="widget_title">予定</string>
     <string name="widget_refresh">予定を更新</string>
+    <string name="widget_add_event">予定を追加</string>
     <string name="widget_empty">今後の予定はありません</string>
     <string name="widget_config_title">予定ウィジェット</string>
     <string name="widget_config_save">保存</string>
@@ -148,6 +153,7 @@
     <string name="widget_range_thirty_days">30日間</string>
     <string name="event_editor_new_title">新規予定</string>
     <string name="event_editor_edit_title">予定を編集</string>
+    <string name="event_editor_edit">編集</string>
     <string name="event_editor_title_field">タイトル</string>
     <string name="event_editor_location">場所またはビデオ通話</string>
     <string name="event_editor_all_day">終日</string>
@@ -162,7 +168,7 @@
     <string name="event_editor_cancel">キャンセル</string>
     <string name="event_editor_save">保存</string>
     <string name="event_editor_saving">保存中…</string>
-    <string name="event_editor_delete">予定を削除</string>
+    <string name="event_editor_delete">削除</string>
     <string name="event_editor_delete_title">この予定を削除しますか？</string>
     <string name="event_editor_delete_message">この予定は iCloud から削除されます。</string>
     <string name="event_editor_reminder_at_start">開始時刻</string>

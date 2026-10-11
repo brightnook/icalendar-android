@@ -26,6 +26,9 @@ data class CalendarThemePresentation(
     val bottomActionContainerColor: Color,
     val useOriginalActionArtwork: Boolean,
     val wallpaperPath: String?,
+    val wallpaperFocusX: Float = 0f,
+    val wallpaperFocusY: Float = 0f,
+    val wallpaperScale: Float = 1f,
 )
 
 fun calendarThemePresentation(
@@ -107,6 +110,9 @@ fun calendarThemePresentation(
             bottomActionContainerColor = IMAGE_ACTION_SURFACE,
             useOriginalActionArtwork = false,
             wallpaperPath = assetFile!!.absolutePath,
+            wallpaperFocusX = theme.wallpaperFocusX.coerceIn(-1f, 1f),
+            wallpaperFocusY = theme.wallpaperFocusY.coerceIn(-1f, 1f),
+            wallpaperScale = theme.wallpaperScale.coerceIn(1f, 4f),
         )
     }
 }

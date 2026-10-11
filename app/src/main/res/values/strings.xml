@@ -113,6 +113,10 @@
     <string name="settings_theme_error_unsupported">This file is not a supported image.</string>
     <string name="settings_theme_error_too_large">This image is larger than 20 MB.</string>
     <string name="settings_theme_error_io">The image could not be imported. Try again.</string>
+    <string name="settings_wallpaper_adjust_title">Adjust background</string>
+    <string name="settings_wallpaper_adjust_hint">Drag to position · Pinch to zoom</string>
+    <string name="settings_wallpaper_adjust_cancel">Cancel</string>
+    <string name="settings_wallpaper_adjust_save">Save</string>
     <string name="settings_widgets">Widgets</string>
     <string name="settings_widgets_empty">Add a widget from your home screen to manage it here.</string>
     <string name="settings_widget_configure">Agenda widget %1$d · %2$s</string>
@@ -139,6 +143,7 @@
     <string name="settings_cancel">Cancel</string>
     <string name="widget_title">Agenda</string>
     <string name="widget_refresh">Refresh agenda</string>
+    <string name="widget_add_event">Add event</string>
     <string name="widget_empty">No upcoming events</string>
     <string name="widget_config_title">Agenda widget</string>
     <string name="widget_config_save">Save</string>
@@ -148,6 +153,7 @@
     <string name="widget_range_thirty_days">30 days</string>
     <string name="event_editor_new_title">New event</string>
     <string name="event_editor_edit_title">Edit event</string>
+    <string name="event_editor_edit">Edit</string>
     <string name="event_editor_title_field">Title</string>
     <string name="event_editor_location">Location or video call</string>
     <string name="event_editor_all_day">All day</string>
@@ -162,7 +168,7 @@
     <string name="event_editor_cancel">Cancel</string>
     <string name="event_editor_save">Save</string>
     <string name="event_editor_saving">Saving…</string>
-    <string name="event_editor_delete">Delete event</string>
+    <string name="event_editor_delete">Delete</string>
     <string name="event_editor_delete_title">Delete this event?</string>
     <string name="event_editor_delete_message">This event will be deleted from iCloud.</string>
     <string name="event_editor_reminder_at_start">At start time</string>

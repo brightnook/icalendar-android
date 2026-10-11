@@ -561,7 +561,7 @@ class MainCalendarScreenTest {
     }
 
     @Test
-    fun longEventDetailsScrollToTheCloseActionAtLargeFont() {
+    fun longEventDetailsKeepToolbarActionsVisibleAtLargeFont() {
         val longText = "Long detail text ".repeat(180)
         val density = composeRule.activity.resources.displayMetrics.density
         composeRule.setContent {
@@ -581,9 +581,11 @@ class MainCalendarScreenTest {
             }
         }
 
-        composeRule.onNodeWithText(composeRule.activity.getString(R.string.calendar_close_detail))
-            .performScrollTo()
-            .assertIsDisplayed()
+        composeRule.onNodeWithTag("event-detail-close").assertIsDisplayed()
+        composeRule.onNodeWithTag("event-detail-edit").assertIsDisplayed()
+        composeRule.onNodeWithTag("event-detail-body").performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag("event-detail-close").assertIsDisplayed()
+        composeRule.onNodeWithTag("event-detail-edit").assertIsDisplayed()
     }
 
     @Test

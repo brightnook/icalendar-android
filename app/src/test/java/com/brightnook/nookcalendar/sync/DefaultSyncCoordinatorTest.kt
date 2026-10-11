@@ -204,7 +204,49 @@ class DefaultSyncCoordinatorTest {
             setOf("/calendars/work/alpha.ics", "/calendars/work/beta.ics"),
             delta.upsertResources.map { it.href }.toSet(),
         )
-        assertEquals(SyncCounts(1, 2, 2), result.counts)
+        assertEquals(SyncCounts(1, 2, 2, eventDataChanged = true), result.counts)
+    }
+
+    @Test
+    fun refreshWithAnEmptyDeltaReportsNoWidgetDataChange() = runTest {
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(
+            calendars = listOf(calendar),
+            deltas = mutableMapOf(
+                "work" to RemoteDelta(
+                    upserts = emptyList(),
+                    tombstones = emptyList(),
+                    syncToken = "next-token",
+                ),
+            ),
+        )
+        val repository = FakeRepository()
+        repository.states[stableIdFor(calendar)] = CalendarSyncState("saved-token", emptyList())
+
+        val result = coordinator(gateway, FakeParser(), repository).sync(SyncRequest.Refresh) as SyncResult.Success
+
+        assertFalse(result.counts.eventDataChanged)
+    }
+
+    @Test
+    fun refreshWithADeletionReportsWidgetDataChanged() = runTest {
+        val calendar = remote("work", "/calendars/work/")
+        val gateway = FakeGateway(
+            calendars = listOf(calendar),
+            deltas = mutableMapOf(
+                "work" to RemoteDelta(
+                    upserts = emptyList(),
+                    tombstones = listOf(RemoteTombstone("/calendars/work/deleted.ics")),
+                    syncToken = "next-token",
+                ),
+            ),
+        )
+        val repository = FakeRepository()
+        repository.states[stableIdFor(calendar)] = CalendarSyncState("saved-token", emptyList())
+
+        val result = coordinator(gateway, FakeParser(), repository).sync(SyncRequest.Refresh) as SyncResult.Success
+
+        assertTrue(result.counts.eventDataChanged)
     }
 
     @Test
@@ -363,7 +405,7 @@ class DefaultSyncCoordinatorTest {
 
         val result = coordinator(gateway, FakeParser(), repository).sync(SyncRequest.Refresh)
 
-        assertEquals(SyncResult.Success(SyncCounts(1, 1, 1), setOf(id)), result)
+        assertEquals(SyncResult.Success(SyncCounts(1, 1, 1, eventDataChanged = true), setOf(id)), result)
         assertEquals(1, gateway.deltaCalls.size)
         assertEquals(1, gateway.rangeCalls.size)
         assertEquals("snapshot-work", repository.states.getValue(id).syncToken)
@@ -419,7 +461,7 @@ class DefaultSyncCoordinatorTest {
         assertEquals(mapOf(failedId to SyncFailureCategory.REPOSITORY), result.failures)
         assertFalse(repository.states.containsKey(failedId))
         assertTrue(repository.states.containsKey(goodId))
-        assertEquals(SyncCounts(1, 1, 1), result.counts)
+        assertEquals(SyncCounts(1, 1, 1, eventDataChanged = true), result.counts)
     }
 
     @Test
@@ -438,7 +480,7 @@ class DefaultSyncCoordinatorTest {
 
         assertEquals(setOf("good", "rejected"), gateway.rangeCalls.map { it.first.id }.toSet())
         assertEquals(setOf(goodId), result.calendarIds)
-        assertEquals(SyncCounts(1, 1, 1), result.counts)
+        assertEquals(SyncCounts(1, 1, 1, eventDataChanged = true), result.counts)
         assertEquals(1, gateway.authenticateCount)
     }
 

@@ -50,7 +50,7 @@ class EventDeletionConfirmationTest {
     @Test fun deletionRunsOnlyAfterExplicitConfirmation() {
         showConfirmation()
         compose.runOnIdle { assertEquals(0, deletes) }
-        compose.onNodeWithText("Delete event").performClick()
+        compose.onNodeWithText("Delete").performClick()
         compose.runOnIdle { assertEquals(1, deletes) }
     }
 }

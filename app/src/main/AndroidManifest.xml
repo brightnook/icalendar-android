@@ -61,6 +61,13 @@
                 android:resource="@xml/agenda_widget_info" />
         </receiver>
         <receiver
+            android:name=".widget.WidgetSyncRequestReceiver"
+            android:exported="false" />
+        <service
+            android:name=".widget.WidgetSyncJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <receiver
             android:name=".reminder.ReminderReceiver"
             android:exported="false" />
         <receiver

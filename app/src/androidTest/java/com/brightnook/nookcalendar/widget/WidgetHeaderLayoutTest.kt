@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import android.widget.TextView
+import android.widget.ImageButton
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.brightnook.nookcalendar.R
@@ -23,17 +24,23 @@ class WidgetHeaderLayoutTest {
             .apply(context, FrameLayout(context))
 
         assertNotNull(inflated.findViewById<TextView>(R.id.widget_title))
+        assertNotNull(inflated.findViewById<TextView>(R.id.widget_header_date))
+        assertNotNull(inflated.findViewById<TextView>(R.id.widget_add_event))
+        assertNotNull(inflated.findViewById<ImageButton>(R.id.widget_refresh))
     }
 
     @Test
-    fun twoColumnHeaderKeepsDateNextToTitle() {
+    fun twoColumnHeaderKeepsAddAndRefreshSeparateFromTitle() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val density = context.resources.displayMetrics.density
         val widget = LayoutInflater.from(context).inflate(R.layout.agenda_widget, null)
         val title = widget.findViewById<TextView>(R.id.widget_title)
         val date = widget.findViewById<TextView>(R.id.widget_header_date)
+        val add = widget.findViewById<TextView>(R.id.widget_add_event)
+        val refresh = widget.findViewById<ImageButton>(R.id.widget_refresh)
         title.text = "Agenda"
         date.text = "Aug 24"
+        date.visibility = View.VISIBLE
 
         val width = (184 * density).toInt()
         widget.measure(
@@ -42,6 +49,10 @@ class WidgetHeaderLayoutTest {
         )
         widget.layout(0, 0, width, (220 * density).toInt())
 
-        assertTrue("Title must not stretch and push the date away", title.width <= (72 * density).toInt())
+        assertTrue("Date must be displayed in two-column widgets", date.visibility == View.VISIBLE)
+        assertTrue("Date must be below title", title.bottom <= date.top)
+        assertTrue("Title must not cover add", title.right <= add.left)
+        assertTrue("Date must not cover add", date.right <= add.left)
+        assertTrue("Add and refresh must have separate hit areas", add.right <= refresh.left)
     }
 }

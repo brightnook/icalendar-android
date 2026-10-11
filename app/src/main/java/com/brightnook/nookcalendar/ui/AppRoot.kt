@@ -76,6 +76,7 @@ import com.brightnook.nookcalendar.widget.WidgetPreferences
 import com.brightnook.nookcalendar.widget.WidgetIntentFactory
 import com.brightnook.nookcalendar.widget.loadWidgetManagementItems
 import java.time.ZoneId
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
@@ -87,6 +88,7 @@ fun AppRoot(
     zoneIds: StateFlow<ZoneId>,
     launchTarget: CalendarLaunchTarget? = null,
     openSettingsRequest: Int = 0,
+    createEventRequest: Int = 0,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit = {},
     settingsOpen: Boolean = false,
     onSettingsOpenChanged: (Boolean) -> Unit = {},
@@ -94,6 +96,7 @@ fun AppRoot(
     val activity = activityFromRegistryOwner(LocalActivityResultRegistryOwner.current)
     val coroutineScope = rememberCoroutineScope()
     val accountState by container.accountManager.authenticationState.collectAsState()
+    var handledCreateEventRequest by remember { mutableStateOf(0) }
     AppRootContent(
         loginViewModelFactory = LoginViewModelFactory(
             loginCoordinator = CalDavLoginCoordinator(container.calDavGateway),
@@ -103,8 +106,10 @@ fun AppRoot(
         ),
         calendarContent = { onOpenLogin, showLoginPrompt ->
             val monetization by container.monetizationRepository.state.collectAsState()
+            var purchaseStateReady by remember { mutableStateOf(false) }
             LaunchedEffect(container.monetizationRepository) {
                 container.monetizationRepository.refresh()
+                purchaseStateReady = true
             }
             MainCalendarDestination(
                 factory = MainCalendarViewModelFactory(
@@ -117,6 +122,10 @@ fun AppRoot(
                 zoneIds = zoneIds,
                 launchTarget = launchTarget,
                 openSettingsRequest = openSettingsRequest,
+                createEventRequest = createEventRequest,
+                handledCreateEventRequest = handledCreateEventRequest,
+                onCreateEventRequestHandled = { handledCreateEventRequest = it },
+                purchaseStateReady = purchaseStateReady,
                 onLaunchTargetConsumed = onLaunchTargetConsumed,
                 settingsOpen = settingsOpen,
                 onSettingsOpenChanged = onSettingsOpenChanged,
@@ -257,6 +266,10 @@ private fun MainCalendarDestination(
     zoneIds: StateFlow<ZoneId>,
     launchTarget: CalendarLaunchTarget?,
     openSettingsRequest: Int,
+    createEventRequest: Int,
+    handledCreateEventRequest: Int,
+    onCreateEventRequestHandled: (Int) -> Unit,
+    purchaseStateReady: Boolean,
     onLaunchTargetConsumed: (CalendarLaunchTarget) -> Unit,
     settingsOpen: Boolean,
     onSettingsOpenChanged: (Boolean) -> Unit,
@@ -318,6 +331,23 @@ private fun MainCalendarDestination(
     }
     LaunchedEffect(openSettingsRequest) {
         if (openSettingsRequest != 0) onSettingsOpenChanged(true)
+    }
+    LaunchedEffect(createEventRequest, purchaseStateReady, monetization.purchaseState) {
+        if (!purchaseStateReady || monetization.purchaseState == PurchaseUiState.LOADING ||
+            createEventRequest == 0 || createEventRequest == handledCreateEventRequest
+        ) return@LaunchedEffect
+        onCreateEventRequestHandled(createEventRequest)
+        onSettingsOpenChanged(false)
+        val today = LocalDate.now(zoneId)
+        viewModel.selectDate(today)
+        when {
+            showLoginPrompt -> onOpenLogin()
+            monetization.purchaseState == PurchaseUiState.OWNED -> {
+                editorSequence += 1
+                editorRequest = EventEditorRequest(editorSequence, null, false, today)
+            }
+            else -> onPurchase()
+        }
     }
     LaunchedEffect(settingsOpen, widgetManagementRefreshRequest) {
         managedWidgets = if (settingsOpen) {
@@ -410,7 +440,7 @@ private fun MainCalendarDestination(
             key = "event-editor-${request.sequence}",
             factory = EventEditorViewModelFactory(
                 repository = eventEditingRepository,
-                selectedDate = uiState.selectedDate,
+                selectedDate = request.selectedDate ?: uiState.selectedDate,
                 instanceId = request.instanceId,
                 isPremium = { monetization.purchaseState == PurchaseUiState.OWNED },
                 isSignedIn = { !showLoginPrompt },
@@ -425,6 +455,7 @@ private fun MainCalendarDestination(
             state = editorState,
             zoneId = zoneId,
             isEditing = request.instanceId != null,
+            themePresentation = themePresentation,
             onUpdateDraft = { updated -> editorViewModel.updateDraft { updated } },
             onSave = editorViewModel::save,
             onDelete = editorViewModel::delete,
@@ -438,6 +469,7 @@ private data class EventEditorRequest(
     val sequence: Int,
     val instanceId: String?,
     val confirmDelete: Boolean,
+    val selectedDate: LocalDate? = null,
 )
 
 @Composable

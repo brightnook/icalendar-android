@@ -8,6 +8,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import java.time.Instant
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.brightnook.nookcalendar.widget.WidgetRefreshNotifier
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -83,6 +84,38 @@ class CalendarSyncWorkerTest {
     }
 
     @Test
+    fun successfulSyncRefreshesWidgetRowsWithoutRebuildingTheWholeWidget() = runTest {
+        val widgets = RecordingWidgetRefreshNotifier()
+
+        val result = worker(
+            syncResult = SyncResult.Success(
+                counts = SyncCounts(eventDataChanged = true),
+            ),
+            widgetUpdater = widgets,
+        ).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(0, widgets.fullLayoutRefreshes)
+        assertEquals(1, widgets.eventDataRefreshes)
+    }
+
+    @Test
+    fun unchangedSuccessfulSyncDoesNotReloadAnEmptyWidget() = runTest {
+        val widgets = RecordingWidgetRefreshNotifier()
+
+        val result = worker(
+            syncResult = SyncResult.Success(
+                counts = SyncCounts(calendars = 1, eventDataChanged = false),
+            ),
+            widgetUpdater = widgets,
+        ).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(0, widgets.fullLayoutRefreshes)
+        assertEquals(0, widgets.eventDataRefreshes)
+    }
+
+    @Test
     fun partialNetworkFailureRequestsRetryAfterPublishingSuccessfulCalendars() = runTest {
         // Catches a failed calendar being silently abandoned just because another calendar completed.
         val result = worker(
@@ -99,6 +132,7 @@ class CalendarSyncWorkerTest {
     private fun worker(
         syncResult: SyncResult,
         statusRecorder: AutomaticSyncStatusRecorder = NoOpAutomaticSyncStatusRecorder,
+        widgetUpdater: WidgetRefreshNotifier = WidgetRefreshNotifier { },
         now: () -> Instant = { Instant.EPOCH },
         isAutomatic: Boolean = false,
     ): CalendarSyncWorker {
@@ -116,11 +150,25 @@ class CalendarSyncWorkerTest {
                     appContext,
                     workerParameters,
                     FakeCoordinator(syncResult),
+                    widgetUpdater = widgetUpdater,
                     statusRecorder = statusRecorder,
                     now = now,
                 )
             })
             .build()
+    }
+}
+
+private class RecordingWidgetRefreshNotifier : WidgetRefreshNotifier {
+    var fullLayoutRefreshes = 0
+    var eventDataRefreshes = 0
+
+    override fun refreshAll() {
+        fullLayoutRefreshes += 1
+    }
+
+    override fun refreshEventDataAll() {
+        eventDataRefreshes += 1
     }
 }
 

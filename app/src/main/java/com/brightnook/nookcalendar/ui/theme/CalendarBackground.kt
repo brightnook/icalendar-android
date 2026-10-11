@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import coil3.compose.AsyncImage
@@ -31,7 +33,11 @@ fun CalendarBackground(
                 model = File(path),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().testTag(CALENDAR_WALLPAPER_TAG),
+                alignment = BiasAlignment(presentation.wallpaperFocusX, presentation.wallpaperFocusY),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(scaleX = presentation.wallpaperScale, scaleY = presentation.wallpaperScale)
+                    .testTag(CALENDAR_WALLPAPER_TAG),
             )
         }
         content()

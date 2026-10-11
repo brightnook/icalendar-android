@@ -6,6 +6,7 @@ import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -34,6 +35,9 @@ private val languageKey = stringPreferencesKey("language")
 private val themeModeKey = stringPreferencesKey("theme_mode")
 private val themeAssetKey = stringPreferencesKey("theme_asset_key")
 private val themeApplyToWidgetKey = booleanPreferencesKey("theme_apply_to_widget")
+private val wallpaperFocusXKey = floatPreferencesKey("wallpaper_focus_x")
+private val wallpaperFocusYKey = floatPreferencesKey("wallpaper_focus_y")
+private val wallpaperScaleKey = floatPreferencesKey("wallpaper_scale")
 private val automaticSyncCompletedAtKey = longPreferencesKey("automatic_sync_completed_at")
 private val automaticSyncOutcomeKey = stringPreferencesKey("automatic_sync_outcome")
 private val authenticationRequiredKey = booleanPreferencesKey("calendar_authentication_required")
@@ -56,6 +60,9 @@ class DataStoreSettingsStore(
                     mode = preferences[themeModeKey].toThemeBackgroundMode(),
                     assetKey = preferences[themeAssetKey],
                     applyToWidget = preferences[themeApplyToWidgetKey] ?: false,
+                    wallpaperFocusX = (preferences[wallpaperFocusXKey] ?: 0f).coerceIn(-1f, 1f),
+                    wallpaperFocusY = (preferences[wallpaperFocusYKey] ?: 0f).coerceIn(-1f, 1f),
+                    wallpaperScale = (preferences[wallpaperScaleKey] ?: 1f).coerceIn(1f, 4f),
                 ),
             )
         }
@@ -78,6 +85,9 @@ class DataStoreSettingsStore(
         dataStore.edit { preferences ->
             preferences[themeModeKey] = settings.mode.name
             preferences[themeApplyToWidgetKey] = settings.applyToWidget
+            preferences[wallpaperFocusXKey] = settings.wallpaperFocusX.coerceIn(-1f, 1f)
+            preferences[wallpaperFocusYKey] = settings.wallpaperFocusY.coerceIn(-1f, 1f)
+            preferences[wallpaperScaleKey] = settings.wallpaperScale.coerceIn(1f, 4f)
             settings.assetKey?.let { preferences[themeAssetKey] = it } ?: preferences.remove(themeAssetKey)
         }
     }

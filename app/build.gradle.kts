@@ -23,8 +23,8 @@ android {
         applicationId = "com.brightnook.nookcalendar"
         minSdk = 28
         targetSdk = 36
-        versionCode = 25
-        versionName = "1.0.24"
+        versionCode = 31
+        versionName = "1.0.30"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

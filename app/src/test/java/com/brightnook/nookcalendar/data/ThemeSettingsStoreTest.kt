@@ -44,8 +44,8 @@ class ThemeSettingsStoreTest {
     }
 
     @Test
-    fun imageThemeRoundTripsAssetKeyAndWidgetApplication() = runTest {
-        // Catches persistence dropping a selected image key or the user's widget choice.
+    fun imageThemeRoundTripsAssetKeyCropAndWidgetApplication() = runTest {
+        // Catches persistence dropping the selected image position, zoom, key, or widget choice.
         val fixture = fixture()
         val store = DataStoreSettingsStore(fixture.dataStore)
 
@@ -54,6 +54,9 @@ class ThemeSettingsStoreTest {
                 mode = ThemeBackgroundMode.IMAGE,
                 assetKey = "theme/background.gif",
                 applyToWidget = true,
+                wallpaperFocusX = -0.75f,
+                wallpaperFocusY = 0.4f,
+                wallpaperScale = 2.25f,
             ),
         )
 
@@ -62,6 +65,9 @@ class ThemeSettingsStoreTest {
                 mode = ThemeBackgroundMode.IMAGE,
                 assetKey = "theme/background.gif",
                 applyToWidget = true,
+                wallpaperFocusX = -0.75f,
+                wallpaperFocusY = 0.4f,
+                wallpaperScale = 2.25f,
             ),
             DataStoreSettingsStore(fixture.dataStore).settings.first().theme,
         )

@@ -20,6 +20,8 @@ import kotlinx.coroutines.runBlocking
 
 fun interface WidgetRefreshNotifier {
     fun refreshAll()
+
+    fun refreshEventDataAll() = refreshAll()
 }
 
 internal interface WidgetUpdateGateway {
@@ -35,6 +37,12 @@ class WidgetUpdater internal constructor(
 
     override fun refreshAll() {
         refresh(gateway.activeWidgetIds())
+    }
+
+    override fun refreshEventDataAll() {
+        val appWidgetIds = gateway.activeWidgetIds()
+        if (appWidgetIds.isEmpty()) return
+        gateway.notifyEventsChanged(appWidgetIds)
     }
 
     fun refresh(appWidgetIds: IntArray) {
@@ -89,6 +97,7 @@ private class AndroidWidgetUpdateGateway(
         )
         renderedTheme.backgroundBitmap?.let { bitmap -> setImageViewBitmap(R.id.widget_background_image, bitmap) }
         setTextColor(R.id.widget_title, theme.primaryTextColor)
+        setTextColor(R.id.widget_add_event, theme.primaryTextColor)
         setTextColor(R.id.widget_header_date, theme.secondaryTextColor)
         setTextColor(R.id.widget_empty, theme.secondaryTextColor)
         setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, presentation.titleTextSizeSp)
@@ -99,6 +108,7 @@ private class AndroidWidgetUpdateGateway(
         setTextViewText(R.id.widget_title, localizedContext.getString(R.string.widget_title))
         setTextViewText(R.id.widget_empty, localizedContext.getString(R.string.widget_empty))
         setContentDescription(R.id.widget_refresh, localizedContext.getString(R.string.widget_refresh))
+        setContentDescription(R.id.widget_add_event, localizedContext.getString(R.string.widget_add_event))
         setTextViewText(R.id.widget_header_date, WidgetDateTimeFormatter.formatHeaderDate(
             LocalDate.now(),
             localizedContext.resources.configuration.locales[0],
@@ -114,6 +124,7 @@ private class AndroidWidgetUpdateGateway(
         setPendingIntentTemplate(R.id.widget_events, WidgetIntentFactory.eventPendingIntent(context, appWidgetId))
         setOnClickPendingIntent(R.id.widget_title, WidgetIntentFactory.todayPendingIntent(context, appWidgetId))
         setOnClickPendingIntent(R.id.widget_refresh, WidgetIntentFactory.refreshPendingIntent(context, appWidgetId))
+        setOnClickPendingIntent(R.id.widget_add_event, WidgetIntentFactory.createEventPendingIntent(context, appWidgetId))
     }
 
     private fun renderedTheme(): RenderedWidgetTheme {

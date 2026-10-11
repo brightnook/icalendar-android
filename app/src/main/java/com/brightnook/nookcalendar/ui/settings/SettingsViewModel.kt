@@ -143,7 +143,7 @@ class SettingsViewModel(
         }
     }
 
-    fun importTheme(uri: Uri) = launchThemeAction {
+    fun importTheme(uri: Uri, focusX: Float = 0f, focusY: Float = 0f, scale: Float = 1f) = launchThemeAction {
         val current = settingsStore.settings.first().theme
         when (val result = themeAssetStore.import(uri)) {
             is ThemeAssetImport.Failure -> {
@@ -151,7 +151,15 @@ class SettingsViewModel(
                 false
             }
             is ThemeAssetImport.Success -> {
-                persistTheme(current.copy(mode = ThemeBackgroundMode.IMAGE, assetKey = result.assetKey))
+                persistTheme(
+                    current.copy(
+                        mode = ThemeBackgroundMode.IMAGE,
+                        assetKey = result.assetKey,
+                        wallpaperFocusX = focusX.coerceIn(-1f, 1f),
+                        wallpaperFocusY = focusY.coerceIn(-1f, 1f),
+                        wallpaperScale = scale.coerceIn(1f, 4f),
+                    ),
+                )
                 current.assetKey
                     ?.takeIf { previousKey -> previousKey != result.assetKey }
                     ?.let { previousKey -> themeAssetStore.remove(previousKey) }

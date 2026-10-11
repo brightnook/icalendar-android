@@ -6,7 +6,7 @@ import org.junit.Test
 
 class WidgetCompactPresentationTest {
     @Test
-    fun narrowTwoColumnWidgetKeepsItsDateVisible() {
+    fun narrowTwoColumnWidgetKeepsItsDateVisibleAlongsideHeaderActions() {
         val presentation = widgetPresentationForWidth(120)
 
         assertTrue(presentation.isCompact)
@@ -26,5 +26,6 @@ class WidgetCompactPresentationTest {
     @Test
     fun widerWidgetKeepsTheRegularTypography() {
         assertTrue(!widgetPresentationForWidth(240).isCompact)
+        assertTrue(widgetPresentationForWidth(320).showHeaderDate)
     }
 }

@@ -12,11 +12,13 @@ data class SyncCounts(
     val calendars: Int = 0,
     val events: Int = 0,
     val instances: Int = 0,
+    val eventDataChanged: Boolean = false,
 ) {
     operator fun plus(other: SyncCounts) = SyncCounts(
         calendars + other.calendars,
         events + other.events,
         instances + other.instances,
+        eventDataChanged || other.eventDataChanged,
     )
 }
 

@@ -5,12 +5,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import com.brightnook.nookcalendar.CalendarApplication
-import com.brightnook.nookcalendar.domain.SyncMode
 import com.brightnook.nookcalendar.ui.main.CalendarLaunchTargetDelivery
 import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AgendaWidgetProvider : AppWidgetProvider() {
@@ -45,27 +43,17 @@ class AgendaWidgetProvider : AppWidgetProvider() {
             WidgetUpdater(context.applicationContext).refreshAll()
             return
         }
-        if (intent.action !in setOf(WidgetIntentFactory.ACTION_REFRESH, WidgetIntentFactory.ACTION_OPEN_TODAY)) return
+        if (intent.action != WidgetIntentFactory.ACTION_OPEN_TODAY) return
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val application = context.applicationContext as CalendarApplication
-                when (intent.action) {
-                    WidgetIntentFactory.ACTION_OPEN_TODAY -> context.startActivity(
-                        Intent(context, com.brightnook.nookcalendar.MainActivity::class.java)
-                            .putExtra(CalendarLaunchTargetDelivery.EXTRA_DATE, LocalDate.now().toString())
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
-                    WidgetIntentFactory.ACTION_REFRESH -> {
-                        if (application.container.settingsStore.settings.first().syncMode == SyncMode.DISABLED) {
-                            context.startActivity(WidgetIntentFactory.settingsIntent(context))
-                        } else {
-                            application.container.syncScheduler.enqueueManual()
-                        }
-                    }
-                }
+                context.startActivity(
+                    Intent(context, com.brightnook.nookcalendar.MainActivity::class.java)
+                        .putExtra(CalendarLaunchTargetDelivery.EXTRA_DATE, LocalDate.now().toString())
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
             } catch (_: Throwable) {
-                // A widget refresh is best effort; the in-app state remains the source of any error message.
+                // Opening the app from a widget is best effort.
             } finally {
                 pending.finish()
             }

@@ -3,10 +3,13 @@ package com.brightnook.nookcalendar.ui.main
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -35,6 +38,37 @@ import org.robolectric.annotation.Config
 class ModalPresentationPolicyTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun whiteThemeAddButtonUsesTheSameTextColorAsTheDate() {
+        val presentation = calendarThemePresentation(ThemeSettings(ThemeBackgroundMode.WHITE), null)
+        renderCalendar(state(), presentation)
+
+        assertAddButtonContainsColor(presentation.contentColor)
+    }
+
+    @Test
+    fun blackThemeAddButtonUsesTheSameTextColorAsTheDate() {
+        val presentation = calendarThemePresentation(ThemeSettings(ThemeBackgroundMode.BLACK), null)
+        renderCalendar(state(), presentation)
+
+        assertAddButtonContainsColor(presentation.contentColor)
+    }
+
+    @Test
+    fun imageThemeAddButtonUsesTheSameTextColorAsTheDate() {
+        val asset = createValidThemeImage()
+        try {
+            val presentation = calendarThemePresentation(
+                ThemeSettings(ThemeBackgroundMode.IMAGE, asset.name), asset,
+            )
+            renderCalendar(state(), presentation)
+
+            assertAddButtonContainsColor(presentation.contentColor)
+        } finally {
+            asset.delete()
+        }
+    }
 
     @Test
     fun whiteThemeDatePickerPreservesTheInheritedCalendarAccent() {
@@ -179,6 +213,14 @@ class ModalPresentationPolicyTest {
         val lighter = maxOf(first.luminance(), second.luminance())
         val darker = minOf(first.luminance(), second.luminance())
         return (lighter + 0.05f) / (darker + 0.05f)
+    }
+
+    private fun assertAddButtonContainsColor(expected: Color) {
+        val results = mutableListOf<TextLayoutResult>()
+        val action = composeRule.onNodeWithText("+", useUnmergedTree = true)
+            .fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action
+        assertTrue(action?.invoke(results) == true)
+        assertEquals(expected, results.single().layoutInput.style.color)
     }
 
     private fun createValidThemeImage() = Files.createTempFile("event-detail-theme", ".png").toFile().also { file ->

@@ -20,7 +20,12 @@ class CalendarSyncWorker @JvmOverloads constructor(
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         val result = coordinator.sync(SyncRequest.Refresh)
-        if (result is SyncResult.Success || result is SyncResult.PartialSuccess) widgetUpdater.refreshAll()
+        if (
+            (result is SyncResult.Success || result is SyncResult.PartialSuccess) &&
+            result.counts.eventDataChanged
+        ) {
+            widgetUpdater.refreshEventDataAll()
+        }
         if (inputData.getBoolean(INPUT_IS_AUTOMATIC, false)) {
             statusRecorder.record(
                 AutomaticSyncStatus(

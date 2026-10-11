@@ -1,8 +1,11 @@
 package com.brightnook.nookcalendar.ui.eventedit
 
+import android.app.Activity
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import android.content.res.Configuration
 import android.text.format.DateFormat
+import android.view.ContextThemeWrapper
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -24,6 +28,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -38,6 +46,10 @@ import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.EventDraft
 import com.brightnook.nookcalendar.domain.EventReminder
+import com.brightnook.nookcalendar.domain.ThemeSettings
+import com.brightnook.nookcalendar.ui.theme.CalendarBackground
+import com.brightnook.nookcalendar.ui.theme.CalendarThemePresentation
+import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -56,6 +68,7 @@ fun EventEditorScreen(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     showDeleteConfirmationInitially: Boolean = false,
+    themePresentation: CalendarThemePresentation = calendarThemePresentation(ThemeSettings(), null),
 ) {
     if (showDeleteConfirmationInitially) {
         AlertDialog(
@@ -94,28 +107,51 @@ fun EventEditorScreen(
     }
     val draft = state.draft
 
-    Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.event_editor_cancel)) }
-                Text(
-                    stringResource(if (isEditing) R.string.event_editor_edit_title else R.string.event_editor_new_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                TextButton(
-                    onClick = onSave,
-                    enabled = !state.isSaving && !state.isDeleting,
-                    modifier = Modifier.testTag("event-editor-save"),
-                ) { Text(stringResource(if (state.isSaving) R.string.event_editor_saving else R.string.event_editor_save)) }
-            }
-            Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+    val editorColorScheme = MaterialTheme.colorScheme.copy(
+        background = themePresentation.backgroundColor,
+        surface = themePresentation.settingsSectionColor,
+        surfaceVariant = themePresentation.settingsSectionColor,
+        onBackground = themePresentation.contentColor,
+        onSurface = themePresentation.contentColor,
+        onSurfaceVariant = themePresentation.secondaryContentColor,
+        primary = themePresentation.actionContentColor,
+        outline = themePresentation.outlineColor,
+        error = themePresentation.errorColor,
+    )
+    CalendarBackground(themePresentation) {
+        MaterialTheme(colorScheme = editorColorScheme) {
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+                Surface(
+                    color = themePresentation.settingsSectionColor,
+                    contentColor = themePresentation.contentColor,
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.event_editor_cancel)) }
+                        Text(
+                            stringResource(if (isEditing) R.string.event_editor_edit_title else R.string.event_editor_new_title),
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        TextButton(
+                            onClick = onSave,
+                            enabled = !state.isSaving && !state.isDeleting,
+                            modifier = Modifier.testTag("event-editor-save"),
+                        ) { Text(stringResource(if (state.isSaving) R.string.event_editor_saving else R.string.event_editor_save)) }
+                    }
+                }
+                Surface(
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp),
+                    shape = MaterialTheme.shapes.large,
+                    color = themePresentation.settingsSectionColor,
+                    contentColor = themePresentation.contentColor,
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                 OutlinedTextField(
                     value = draft.title,
                     onValueChange = { onUpdateDraft(draft.copy(title = it)) },
@@ -203,13 +239,15 @@ fun EventEditorScreen(
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth().testTag("event-editor-notes"),
                 )
-                state.error?.let { Text(stringResource(it.messageResource()), color = MaterialTheme.colorScheme.error) }
-                if (isEditing) {
-                    Button(
-                        onClick = { deleteConfirmationOpen = true },
-                        enabled = !state.isSaving && !state.isDeleting,
-                        modifier = Modifier.fillMaxWidth().testTag("event-editor-delete"),
-                    ) { Text(stringResource(R.string.event_editor_delete)) }
+                        state.error?.let { Text(stringResource(it.messageResource()), color = MaterialTheme.colorScheme.error) }
+                        if (isEditing) {
+                            Button(
+                                onClick = { deleteConfirmationOpen = true },
+                                enabled = !state.isSaving && !state.isDeleting,
+                                modifier = Modifier.fillMaxWidth().testTag("event-editor-delete"),
+                            ) { Text(stringResource(R.string.event_editor_delete)) }
+                        }
+                    }
                 }
             }
         }
@@ -262,6 +300,16 @@ private fun DateTimeRow(
     modifier: Modifier,
 ) {
     val context = LocalContext.current
+    var timePickerOpen by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val activity = LocalActivityResultRegistryOwner.current as? Activity
+    val pickerContext = remember(context, activity, configuration) {
+        activity?.let { host ->
+            ContextThemeWrapper(host, host.theme).apply {
+                applyOverrideConfiguration(Configuration(configuration))
+            }
+        } ?: context
+    }
     val date = if (draft.isAllDay) {
         if (start) draft.startDate else draft.endDateExclusive
     } else {
@@ -274,17 +322,56 @@ private fun DateTimeRow(
         Text(label)
         Row {
             TextButton(onClick = {
-                DatePickerDialog(context, { _, year, month, day ->
+                DatePickerDialog(pickerContext, { _, year, month, day ->
                     onUpdateDraft(draft.withDate(start, LocalDate.of(year, month + 1, day), zoneId))
                 }, date.year, date.monthValue - 1, date.dayOfMonth).show()
             }) { Text(dateText) }
             if (!draft.isAllDay) TextButton(onClick = {
-                TimePickerDialog(context, { _, hour, minute ->
-                    onUpdateDraft(draft.withTime(start, LocalTime.of(hour, minute), zoneId))
-                }, time.hour, time.minute, DateFormat.is24HourFormat(context)).show()
+                timePickerOpen = true
             }) { Text(timeText) }
         }
     }
+    if (timePickerOpen) {
+        EventTimePickerDialog(
+            title = label,
+            initialTime = time,
+            is24Hour = DateFormat.is24HourFormat(context),
+            onDismiss = { timePickerOpen = false },
+            onConfirm = { selectedTime ->
+                timePickerOpen = false
+                onUpdateDraft(draft.withTime(start, selectedTime, zoneId))
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EventTimePickerDialog(
+    title: String,
+    initialTime: LocalTime,
+    is24Hour: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalTime) -> Unit,
+) {
+    val pickerState = rememberTimePickerState(
+        initialHour = initialTime.hour,
+        initialMinute = initialTime.minute,
+        is24Hour = is24Hour,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { TimePicker(state = pickerState, modifier = Modifier.testTag("event-editor-time-picker")) },
+        confirmButton = {
+            TextButton(onClick = {
+                onConfirm(LocalTime.of(pickerState.hour, pickerState.minute))
+            }) { Text(stringResource(R.string.calendar_date_picker_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.event_editor_cancel)) }
+        },
+    )
 }
 
 private fun EventDraft.changeAllDay(allDay: Boolean, zoneId: ZoneId): EventDraft {

@@ -114,7 +114,7 @@ fun SettingsScreen(
     onSelectWeekStart: (WeekStart) -> Unit = {},
     onSelectLanguage: (AppLanguage) -> Unit = {},
     onSelectTheme: (ThemeBackgroundMode) -> Unit = {},
-    onImportTheme: (Uri) -> Unit = {},
+    onImportTheme: (Uri, Float, Float, Float) -> Unit = { _, _, _, _ -> },
     onRemoveThemeImage: () -> Unit = {},
     onSetApplyThemeToWidget: (Boolean) -> Unit = {},
     managedWidgets: List<WidgetManagementItem> = emptyList(),
@@ -134,8 +134,9 @@ fun SettingsScreen(
     onOpenPrivacyOptions: () -> Unit = {},
 ) {
     BackHandler(onBack = onClose)
+    var pendingWallpaper by remember { mutableStateOf<Uri?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let(onImportTheme)
+        pendingWallpaper = uri
     }
     val closeDescription = stringResource(R.string.settings_close)
     val logoutDescription = stringResource(R.string.settings_logout)
@@ -163,6 +164,16 @@ fun SettingsScreen(
     }
     val actionPresentation = transparentLabeledActionPresentation()
     val settingsPresentation = settingsSurfacePresentation(themePresentation)
+    pendingWallpaper?.let { uri ->
+        WallpaperAdjustmentDialog(
+            uri = uri,
+            onCancel = { pendingWallpaper = null },
+            onSave = { focusX, focusY, scale ->
+                pendingWallpaper = null
+                onImportTheme(uri, focusX, focusY, scale)
+            },
+        )
+    }
     val settingsColorScheme = MaterialTheme.colorScheme.copy(
         primary = settingsPresentation.actionContentColor,
         background = settingsPresentation.containerColor,

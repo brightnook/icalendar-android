@@ -23,6 +23,16 @@ class WidgetUpdaterTest {
         assertEquals(emptyList<List<Int>>(), gateway.updatedIds)
         assertEquals(emptyList<List<Int>>(), gateway.invalidatedIds)
     }
+
+    @Test
+    fun eventDataRefreshInvalidatesRowsWithoutRebuildingTheWidgetLayout() {
+        val gateway = RecordingWidgetUpdateGateway(activeIds = intArrayOf(41, 42))
+
+        WidgetUpdater(gateway).refreshEventDataAll()
+
+        assertEquals(emptyList<List<Int>>(), gateway.updatedIds)
+        assertEquals(listOf(intArrayOf(41, 42).asList()), gateway.invalidatedIds)
+    }
 }
 
 private class RecordingWidgetUpdateGateway(

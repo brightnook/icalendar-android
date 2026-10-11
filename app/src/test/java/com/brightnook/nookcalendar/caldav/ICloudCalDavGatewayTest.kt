@@ -264,6 +264,33 @@ class ICloudCalDavGatewayTest {
     }
 
     @Test
+    fun onlyIncrementalReportsUseShorterReadTimeout() = runTest {
+        val observed = java.util.Collections.synchronizedList(mutableListOf<Int>())
+        val client = OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS)
+            .addNetworkInterceptor { chain ->
+                observed += chain.readTimeoutMillis()
+                chain.proceed(chain.request())
+            }.build()
+        val href = "/calendars/owner/work/one.ics"
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(xmlResponse(syncResponse(listOf(href), null)))
+        server.enqueue(xmlResponse(multigetResponse(listOf(href))))
+        server.enqueue(xmlResponse(queryResponse("one.ics", VALID_ICS)))
+        server.enqueue(MockResponse().setResponseCode(201).addHeader("ETag", "\"created\""))
+        server.enqueue(MockResponse().setResponseCode(204).addHeader("ETag", "\"updated\""))
+        server.enqueue(MockResponse().setResponseCode(204))
+        val gateway = gateway(client)
+        val principal = gateway.authenticate(credentials)
+        val calendar = calendar(principal.sessionId)
+        gateway.fetchDelta(calendar, "old-token")
+        gateway.fetchRange(calendar, TimeRange(Instant.parse("2026-08-10T00:00:00Z"), Instant.parse("2026-08-11T00:00:00Z")))
+        val created = gateway.createResource(calendar, "new.ics", VALID_ICS)
+        val updated = gateway.updateResource(calendar, created)
+        gateway.deleteResource(calendar, updated.href, requireNotNull(updated.etag))
+        assertEquals(listOf(30_000, 8_000, 8_000, 30_000, 30_000, 30_000, 30_000), observed.toList())
+    }
+
+    @Test
     fun deltaProducesTombstonesAndMultigetsLiveHrefsInBoundedChunks() = runTest {
         val hrefs = (1..51).map { "/calendars/owner/work/e$it.ics" }
         server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
@@ -280,9 +307,14 @@ class ICloudCalDavGatewayTest {
         assertEquals("token-next", delta.syncToken)
         server.takeRequest() // authenticate
         val sync = server.takeRequest()
+        assertEquals("1", sync.getHeader("Depth"))
         assertTrue(sync.body.readUtf8().contains("<d:sync-token>old-token</d:sync-token>"))
-        val first = server.takeRequest().body.readUtf8()
-        val second = server.takeRequest().body.readUtf8()
+        val firstRequest = server.takeRequest()
+        val secondRequest = server.takeRequest()
+        assertNull(firstRequest.getHeader("Depth"))
+        assertNull(secondRequest.getHeader("Depth"))
+        val first = firstRequest.body.readUtf8()
+        val second = secondRequest.body.readUtf8()
         assertEquals(50, "<d:href>".toRegex().findAll(first).count())
         assertEquals(1, "<d:href>".toRegex().findAll(second).count())
     }
