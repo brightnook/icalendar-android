@@ -18,3 +18,14 @@ decisions passed; all disposable cloud resources were cleaned up. See the
 Release notes: docs/internal-testing/32-release-notes.txt (EN/ja/zh-CN).
 Target: Google Play internal testing only. Console track state is the final
 publication gate; build/signature verification alone is not publication proof.
+
+## Publication verified
+
+On2026-10-31, uploaded the signed AAB and published to internal testing. Console
+track displayed latest32 (1.0.31), active, and "released to internal testers".
+Details: https://play.google.com/console/u/0/developers/7166309858145226385/app/4974700495514389761/tracks/4701748470730273188/releases/30/details
+
+Implementation commit7e48b13 is pushed to brightnook/icalendar-android on
+fix/play-quality-actions. EN/ja/zh-CN release notes were included. The only
+review warning concerned missing native debug symbols; no blocking errors or
+device-support reductions were shown. Main and production track were not changed.
