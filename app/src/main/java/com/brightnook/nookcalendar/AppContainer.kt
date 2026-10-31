@@ -15,6 +15,11 @@ import com.brightnook.nookcalendar.data.DataStoreSettingsStore
 import com.brightnook.nookcalendar.data.DataStoreAutomaticSyncStatusStore
 import com.brightnook.nookcalendar.data.RoomCalendarRepository
 import com.brightnook.nookcalendar.data.DefaultEventEditingRepository
+import com.brightnook.nookcalendar.data.QueuedEventEditingRepository
+import com.brightnook.nookcalendar.data.EventOutboxProcessor
+import com.brightnook.nookcalendar.data.outboxAccountKey
+import com.brightnook.nookcalendar.sync.OutboxSyncCoordinator
+import com.brightnook.nookcalendar.sync.EventOutboxWorker
 import com.brightnook.nookcalendar.data.SettingsStore
 import com.brightnook.nookcalendar.domain.CalendarRepository
 import com.brightnook.nookcalendar.domain.EventEditingRepository
@@ -41,6 +46,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class AppContainer(val application: Application) {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -53,10 +59,11 @@ class AppContainer(val application: Application) {
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .build()
     }
 
-    val calendarRepository: CalendarRepository by lazy { RoomCalendarRepository(database) }
+    val calendarRepository: CalendarRepository by lazy { RoomCalendarRepository(database, remindersRequireAccount = true) { credentialsStore.outboxAccountKey() } }
     val reminderScheduler: ReminderScheduler by lazy {
         AndroidReminderScheduler(
             context = application,
@@ -71,13 +78,22 @@ class AppContainer(val application: Application) {
     val themeAssetStore: ThemeAssetStore by lazy { PrivateThemeAssetStore(application) }
     val credentialsStore: CredentialsStore by lazy { KeystoreCredentialsStore(application) }
     val accountManager: AccountManager by lazy {
-        LocalAccountManager(credentialsStore, calendarRepository, syncScheduler, applicationScope, automaticSyncStatusStore)
+        LocalAccountManager(credentialsStore, calendarRepository, syncScheduler, applicationScope, automaticSyncStatusStore,
+            onAccountChanged = {
+                database.eventOutboxDao().invalidateAccountOverlays()
+                refreshLocalEventConsumers()
+                val account = credentialsStore.outboxAccountKey()
+                if (account != null && database.eventOutboxDao().all().any {
+                        it.accountKey == account && it.state in setOf("PENDING", "SYNCING") &&
+                            it.phase !in setOf("ACKNOWLEDGED", "REMOTE_DELETED")
+                    }) EventOutboxWorker.enqueue(application)
+            })
     }
     val calDavGateway: CalDavGateway by lazy { ICloudCalDavGateway() }
     val icsParser: IcsParser by lazy { Ical4jIcsParser() }
     private val billingGateway: BillingGateway by lazy { PlayBillingGateway.create(application) }
     val monetizationRepository: MonetizationRepository by lazy { MonetizationRepository(billingGateway) }
-    val syncCoordinator: SyncCoordinator by lazy {
+    private val remoteSyncCoordinator: SyncCoordinator by lazy {
         DefaultSyncCoordinator(
             credentialsStore = credentialsStore,
             gateway = calDavGateway,
@@ -89,14 +105,20 @@ class AppContainer(val application: Application) {
             reminderScheduler = reminderScheduler,
         )
     }
+    private val outboxProcessor by lazy { EventOutboxProcessor(database, credentialsStore, ICloudCalDavGateway(), icsParser) }
+    val syncCoordinator: SyncCoordinator by lazy { OutboxSyncCoordinator(remoteSyncCoordinator, outboxProcessor) }
     val eventEditingRepository: EventEditingRepository by lazy {
-        DefaultEventEditingRepository(
+        val online = DefaultEventEditingRepository(
             credentialsStore = credentialsStore,
             gateway = calDavGateway,
             calendarRepository = calendarRepository,
             syncCoordinator = syncCoordinator,
             widgetRefreshNotifier = widgetUpdater,
         )
+        QueuedEventEditingRepository(database, credentialsStore, calendarRepository, online) {
+            refreshLocalEventConsumers()
+            EventOutboxWorker.enqueue(application)
+        }
     }
     val syncScheduler: SyncScheduler by lazy {
         WorkManagerSyncScheduler(
@@ -107,4 +129,9 @@ class AppContainer(val application: Application) {
     }
     val syncSchedulerReadiness: StateFlow<SyncSchedulerReadiness>
         get() = syncScheduler.readiness
+
+    private fun refreshLocalEventConsumers() {
+        applicationScope.launch { widgetUpdater.refreshAll() }
+        applicationScope.launch { reminderScheduler.reconcile() }
+    }
 }

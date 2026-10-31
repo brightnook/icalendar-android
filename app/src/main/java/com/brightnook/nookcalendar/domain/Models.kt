@@ -23,6 +23,7 @@ data class CalendarResource(
 )
 
 enum class EventStatus { CONFIRMED, TENTATIVE, CANCELLED }
+enum class PendingEventSyncState { PENDING, SYNCING, FAILED, CONFLICT }
 
 sealed interface EventReminder {
     data class RelativeToStart(val offset: Duration) : EventReminder
@@ -64,6 +65,7 @@ data class EventInstance(
     val startDate: LocalDate?,
     val endDateExclusive: LocalDate?,
     val location: String?,
+    val pendingSyncState: PendingEventSyncState? = null,
 ) {
     init {
         requireValidEventTimes(
@@ -93,6 +95,8 @@ data class EventDetail(
     val originalTimeZoneId: String?,
     val recurrenceRule: String?,
     val reminders: List<EventReminder> = emptyList(),
+    val pendingSyncState: PendingEventSyncState? = null,
+    val remoteConflict: EventDraft? = null,
 ) {
     init {
         requireValidEventTimes(

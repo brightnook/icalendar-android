@@ -18,7 +18,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventReminder
+import com.brightnook.nookcalendar.domain.EventDraft
+import com.brightnook.nookcalendar.domain.PendingEventSyncState
 import java.net.URI
 import java.time.DayOfWeek
 import java.time.ZoneId
@@ -128,7 +135,30 @@ fun EventDetailContent(
     actionContentColor: Color,
     premium: Boolean,
     onEdit: () -> Unit = {},
+    onRetrySync: () -> Unit = {},
+    onResolveConflict: (Boolean) -> Unit = {},
+    resolvingConflict: Boolean = false,
+    conflictResolutionFailed: Boolean = false,
+    calendarNames: Map<String, String> = emptyMap(),
 ) {
+    var confirmUseRemote by remember(detail.instanceId, detail.pendingSyncState) { mutableStateOf(false) }
+    if (confirmUseRemote) {
+        AlertDialog(
+            onDismissRequest = { confirmUseRemote = false },
+            title = { Text(stringResource(R.string.event_conflict_use_remote)) },
+            text = { Text(stringResource(R.string.event_conflict_discard_confirmation)) },
+            confirmButton = {
+                TextButton(onClick = { confirmUseRemote = false; onResolveConflict(false) },
+                    enabled = !resolvingConflict, modifier = Modifier.testTag("event-conflict-confirm-remote")) {
+                    Text(stringResource(R.string.event_conflict_use_remote))
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmUseRemote = false },
+                modifier = Modifier.testTag("event-conflict-cancel-remote")) {
+                Text(stringResource(R.string.event_editor_cancel))
+            } },
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -143,7 +173,8 @@ fun EventDetailContent(
             TextButton(onClick = onClose, modifier = Modifier.testTag("event-detail-close")) {
                 Text(stringResource(R.string.calendar_close_detail), color = actionContentColor)
             }
-            TextButton(onClick = onEdit, modifier = Modifier.testTag("event-detail-edit")) {
+            TextButton(onClick = onEdit, enabled = detail.pendingSyncState == null,
+                modifier = Modifier.testTag("event-detail-edit")) {
                 Text(stringResource(R.string.event_editor_edit), color = actionContentColor)
             }
         }
@@ -153,6 +184,42 @@ fun EventDetailContent(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
         Text(detail.title, style = MaterialTheme.typography.headlineSmall, color = contentColor)
+        detail.pendingSyncState?.let { status ->
+            Text(stringResource(status.statusResource()), color = contentColor,
+                style = MaterialTheme.typography.titleSmall, modifier = Modifier.testTag("event-detail-sync-status"))
+            Text(stringResource(R.string.event_sync_local_warning), color = secondaryContentColor)
+            Text(stringResource(R.string.event_sync_delete_blocked), color = secondaryContentColor)
+            if (status == PendingEventSyncState.FAILED) {
+                TextButton(onClick = onRetrySync, modifier = Modifier.testTag("event-sync-retry")) {
+                    Text(stringResource(R.string.event_sync_retry), color = actionContentColor)
+                }
+            }
+            if (status == PendingEventSyncState.CONFLICT) {
+                Text(stringResource(R.string.event_conflict_explanation), color = secondaryContentColor)
+                Text(stringResource(R.string.event_conflict_local), color = contentColor,
+                    style = MaterialTheme.typography.titleSmall)
+                ConflictDraftSummary(EventDraft(
+                    calendarId = detail.calendarId, title = detail.title, location = detail.location,
+                    notes = detail.notes, isAllDay = detail.isAllDay, startInstant = detail.startInstant,
+                    endInstant = detail.endInstant, startDate = detail.startDate,
+                    endDateExclusive = detail.endDateExclusive, reminders = detail.reminders,
+                ), zoneId, contentColor, secondaryContentColor, calendarNames)
+                Text(stringResource(R.string.event_conflict_remote), color = contentColor,
+                    style = MaterialTheme.typography.titleSmall)
+                detail.remoteConflict?.let { ConflictDraftSummary(it, zoneId, contentColor, secondaryContentColor, calendarNames) }
+                    ?: Text(stringResource(R.string.event_conflict_remote_missing), color = secondaryContentColor)
+                TextButton(onClick = { onResolveConflict(true) }, enabled = !resolvingConflict,
+                    modifier = Modifier.testTag("event-conflict-keep-local")) {
+                    Text(stringResource(R.string.event_conflict_keep_local), color = actionContentColor)
+                }
+                TextButton(onClick = { confirmUseRemote = true }, enabled = !resolvingConflict,
+                    modifier = Modifier.testTag("event-conflict-use-remote")) {
+                    Text(stringResource(R.string.event_conflict_use_remote), color = actionContentColor)
+                }
+                if (conflictResolutionFailed) Text(stringResource(R.string.event_conflict_resolution_failed),
+                    color = contentColor, modifier = Modifier.testTag("event-conflict-error"))
+            }
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -220,6 +287,38 @@ fun EventDetailContent(
             )
         }
         }
+    }
+}
+
+@Composable
+private fun ConflictDraftSummary(draft: EventDraft, zoneId: ZoneId, color: Color, secondaryColor: Color,
+    calendarNames: Map<String, String>) {
+    val formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).withLocale(currentLocale())
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(draft.title, color = color)
+        DetailRow(stringResource(R.string.calendar_detail_time), if (draft.isAllDay) {
+            val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(currentLocale())
+            "${draft.startDate?.format(dateFormatter).orEmpty()} – ${draft.endDateExclusive?.minusDays(1)?.format(dateFormatter).orEmpty()}"
+        } else {
+            "${draft.startInstant?.atZone(zoneId)?.format(formatter).orEmpty()} – ${draft.endInstant?.atZone(zoneId)?.format(formatter).orEmpty()}"
+        }, color, secondaryColor)
+        DetailRow(stringResource(R.string.calendar_detail_all_day),
+            stringResource(if (draft.isAllDay) R.string.calendar_yes else R.string.calendar_no), color, secondaryColor)
+        DetailRow(stringResource(R.string.event_editor_calendar), calendarNames[draft.calendarId] ?: draft.calendarId, color, secondaryColor)
+        val start = if (draft.isAllDay) draft.startDate?.atStartOfDay(zoneId) else draft.startInstant?.atZone(zoneId)
+        val end = if (draft.isAllDay) draft.endDateExclusive?.atStartOfDay(zoneId) else draft.endInstant?.atZone(zoneId)
+        val reminders = draft.reminders.mapNotNull { reminder ->
+            when (reminder) {
+                is EventReminder.Absolute -> reminder.instant.atZone(zoneId)
+                is EventReminder.RelativeToStart -> start?.plus(reminder.offset)
+                is EventReminder.RelativeToEnd -> end?.plus(reminder.offset)
+            }
+        }.sorted()
+        DetailRow(stringResource(R.string.calendar_detail_reminders),
+            if (reminders.isEmpty()) stringResource(R.string.calendar_detail_no_reminder)
+            else reminders.joinToString("\n") { it.format(formatter) }, color, secondaryColor)
+        draft.location?.takeIf(String::isNotBlank)?.let { DetailRow(stringResource(R.string.calendar_detail_location), it, color, secondaryColor) }
+        draft.notes?.takeIf(String::isNotBlank)?.let { DetailRow(stringResource(R.string.calendar_detail_notes), it, color, secondaryColor) }
     }
 }
 

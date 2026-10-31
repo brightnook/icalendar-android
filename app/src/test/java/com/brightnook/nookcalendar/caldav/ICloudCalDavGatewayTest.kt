@@ -763,7 +763,7 @@ class ICloudCalDavGatewayTest {
     }
 
     @Test
-    fun publicGatewaySurfaceExposesReadOperationsOnly() {
+    fun publicGatewaySurfaceExposesOnlyApprovedConditionalOperations() {
         assertEquals(
             setOf(
                 "authenticate",
@@ -773,12 +773,102 @@ class ICloudCalDavGatewayTest {
                 "createResource",
                 "updateResource",
                 "deleteResource",
+                "moveResource",
+                "getResource",
             ),
             CalDavGateway::class.java.declaredMethods
                 .filterNot { it.name.contains('$') }
                 .map { it.name.substringBefore('-') }
                 .toSet(),
         )
+    }
+
+    @Test
+    fun moveResourceIsConditionalAndNeverOverwritesDestination() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setResponseCode(201).addHeader("ETag", "\"moved\""))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val source = calendar(principal.sessionId).copy(isWritable = true)
+        val destination = source.copy(id = "home", href = "/calendars/owner/home/")
+        val moved = gateway.moveResource(source,
+            RemoteResource(source.href + "event.ics", "\"old\"", VALID_ICS), destination)
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertEquals("MOVE", request.method)
+        assertEquals("\"old\"", request.getHeader("If-Match"))
+        assertEquals("F", request.getHeader("Overwrite"))
+        assertEquals(server.url("/calendars/owner/home/event.ics").toString(), request.getHeader("Destination"))
+        assertEquals(0L, request.bodySize)
+        assertEquals(destination.href + "event.ics", moved.href)
+        assertEquals("\"moved\"", moved.etag)
+    }
+
+    @Test
+    fun moveResourceRejectsMultiStatusAndPreconditionFailures() = runTest {
+        for (code in listOf(207, 405, 412)) {
+            server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+            server.enqueue(MockResponse().setResponseCode(code))
+            val gateway = gateway()
+            val principal = gateway.authenticate(credentials)
+            val source = calendar(principal.sessionId).copy(isWritable = true)
+            val destination = source.copy(id = "home", href = "/calendars/owner/home/")
+            if (code == 412) {
+                assertSuspendThrows<CalDavFailure.Conflict> {
+                    gateway.moveResource(source, RemoteResource(source.href + "event.ics", "\"old\"", VALID_ICS), destination)
+                }
+            } else {
+                assertSuspendThrows<CalDavFailure.InvalidServerData> {
+                    gateway.moveResource(source, RemoteResource(source.href + "event.ics", "\"old\"", VALID_ICS), destination)
+                }
+            }
+            server.takeRequest()
+            assertEquals("MOVE", server.takeRequest().method)
+        }
+    }
+
+    @Test
+    fun resourceReadBackMapsBodyDisconnectToNetworkFailure() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setBody(VALID_ICS.repeat(300))
+            .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val source = calendar(principal.sessionId)
+        assertSuspendThrows<CalDavFailure.NetworkUnavailable> { gateway.getResource(source, source.href + "event.ics") }
+    }
+
+    @Test
+    fun resourceReadBackDistinguishesMissingFromExisting() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        server.enqueue(MockResponse().setResponseCode(200).addHeader("ETag", "\"read\"").setBody(VALID_ICS))
+        server.enqueue(MockResponse().setResponseCode(404))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val calendar = calendar(principal.sessionId)
+        val read = gateway.getResource(calendar, calendar.href + "event.ics")
+        assertEquals(VALID_ICS, read?.calendarData)
+        assertEquals("\"read\"", read?.etag)
+        assertNull(gateway.getResource(calendar, calendar.href + "missing.ics"))
+        server.takeRequest()
+        assertEquals("GET", server.takeRequest().method)
+        assertEquals("GET", server.takeRequest().method)
+    }
+
+    @Test
+    fun readAndMoveRejectResourcesOutsideSourceCollectionWithoutSendingRequests() = runTest {
+        server.enqueue(xmlResponse(principalResponse("/principals/users/owner/")))
+        val gateway = gateway()
+        val principal = gateway.authenticate(credentials)
+        val source = calendar(principal.sessionId).copy(isWritable = true)
+        val destination = source.copy(id = "home", href = "/calendars/owner/home/")
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.getResource(source, "/calendars/owner/other/private.ics")
+        }
+        assertSuspendThrows<CalDavFailure.InvalidServerData> {
+            gateway.moveResource(source, RemoteResource("../other/private.ics", "\"old\"", VALID_ICS), destination)
+        }
+        assertEquals(1, server.requestCount)
     }
 
     @Test

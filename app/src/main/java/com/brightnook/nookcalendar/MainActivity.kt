@@ -3,9 +3,12 @@ package com.brightnook.nookcalendar
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.SideEffect
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -13,6 +16,8 @@ import androidx.compose.runtime.setValue
 import com.brightnook.nookcalendar.ui.AppRoot
 import com.brightnook.nookcalendar.ui.LocalizedAppContent
 import com.brightnook.nookcalendar.domain.AppSettings
+import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
+import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
 import com.brightnook.nookcalendar.ui.main.CalendarLaunchTarget
 import com.brightnook.nookcalendar.ui.main.CalendarLaunchTargetDelivery
 import com.brightnook.nookcalendar.widget.WidgetIntentFactory
@@ -26,6 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         launchTargetDelivery = CalendarLaunchTargetDelivery.fromSavedState(
             savedInstanceState?.getStringArrayList(STATE_DELIVERED_TARGETS).orEmpty(),
         )
@@ -39,6 +45,17 @@ class MainActivity : AppCompatActivity() {
             val target by launchTarget.collectAsState()
             val calendarApplication = application as CalendarApplication
             val settings by calendarApplication.container.settingsStore.settings.collectAsState(initial = AppSettings())
+            val themePresentation = calendarThemePresentation(
+                settings.theme,
+                settings.theme.assetKey?.let(calendarApplication.container.themeAssetStore::fileFor),
+            )
+            SideEffect {
+                val useDarkIcons = themePresentation.resolvedMode == ThemeBackgroundMode.WHITE
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = useDarkIcons
+                    isAppearanceLightNavigationBars = useDarkIcons
+                }
+            }
             LocalizedAppContent(settings.language) {
                 MaterialTheme {
                 AppRoot(

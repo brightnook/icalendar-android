@@ -51,7 +51,8 @@ class EventEditorViewModel(
                 _uiState.value = if (detail == null) {
                     _uiState.value.copy(isLoading = false, error = EventEditorError.NotFound)
                 } else {
-                    _uiState.value.copy(draft = detail.toDraft(), isLoading = false)
+                    _uiState.value.copy(draft = detail.toDraft(), isLoading = false,
+                        hasPendingSync = detail.pendingSyncState != null)
                 }
             }
         }
@@ -61,13 +62,13 @@ class EventEditorViewModel(
     fun updateLocation(value: String) = updateDraft { copy(location = value) }
     fun updateNotes(value: String) = updateDraft { copy(notes = value) }
     fun updateDraft(transform: EventDraft.() -> EventDraft) {
-        if (_uiState.value.isSaving || _uiState.value.isDeleting) return
+        if (_uiState.value.isSaving || _uiState.value.isDeleting || _uiState.value.hasPendingSync) return
         _uiState.value = _uiState.value.copy(draft = _uiState.value.draft.transform(), error = null)
     }
 
     fun save() {
         val state = _uiState.value
-        if (state.isSaving || state.isDeleting) return
+        if (state.isSaving || state.isDeleting || state.isLoading || state.hasPendingSync) return
         val validation = validate(state.draft)
         if (validation != null) {
             _uiState.value = state.copy(error = validation)
@@ -96,6 +97,7 @@ class EventEditorViewModel(
     fun delete() {
         val id = instanceId ?: return
         val state = _uiState.value
+        if (state.isLoading || state.hasPendingSync) return
         if (state.isSaving || state.isDeleting) return
         if (!isPremium()) {
             _uiState.value = state.copy(error = EventEditorError.PremiumRequired)

@@ -292,6 +292,9 @@ private fun MainCalendarDestination(
     val context = LocalContext.current
     val viewModel: MainCalendarViewModel = viewModel(key = "main-calendar", factory = factory)
     val uiState by viewModel.uiState.collectAsState()
+    val conflictScope = rememberCoroutineScope()
+    var resolvingConflict by remember { mutableStateOf(false) }
+    var conflictResolutionFailed by remember(uiState.openEvent?.instanceId) { mutableStateOf(false) }
     val zoneId by zoneIds.collectAsState()
     val appSettings by settingsStore.settings.collectAsState(initial = AppSettings())
     var managedWidgets by remember { mutableStateOf(emptyList<WidgetManagementItem>()) }
@@ -404,6 +407,24 @@ private fun MainCalendarDestination(
         onOpenSettings = { onSettingsOpenChanged(true) },
         onOpenEvent = viewModel::openEvent,
         onCloseEvent = viewModel::closeEvent,
+        resolvingConflict = resolvingConflict,
+        conflictResolutionFailed = conflictResolutionFailed,
+        onResolveConflict = { instanceId, keepLocal ->
+            if (!resolvingConflict) conflictScope.launch {
+                resolvingConflict = true
+                conflictResolutionFailed = false
+                try {
+                    val result = eventEditingRepository.resolveConflict(instanceId, keepLocal)
+                    conflictResolutionFailed = result != com.brightnook.nookcalendar.domain.EventEditingResult.Success
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    conflictResolutionFailed = true
+                } finally {
+                    resolvingConflict = false
+                }
+            }
+        },
         onOpenExternalAction = { action -> openSafeExternalAction(context, action) },
         onToday = viewModel::showToday,
         onToggleViewMode = viewModel::toggleViewMode,

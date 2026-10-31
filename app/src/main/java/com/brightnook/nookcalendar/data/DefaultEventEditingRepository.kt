@@ -52,9 +52,17 @@ class DefaultEventEditingRepository(
         if (source.isRecurring) return@perform EventEditingResult.RecurringUnsupported
         if (!source.calendar.isWritable) return@perform EventEditingResult.ReadOnly
         val etag = source.resource.etag?.takeIf(String::isNotBlank) ?: return@perform EventEditingResult.Conflict
-        val calendar = remoteCalendar(source.calendar.id) ?: return@perform EventEditingResult.ReadOnly
-        val data = writer.write(draft.copy(calendarId = source.calendar.id), source.uid, now())
-        gateway.updateResource(calendar, RemoteResource(source.resource.href, etag, data))
+        val calendars = remoteCalendars()
+        val calendar = calendars.firstOrNull { it.isWritable && stableCalendarId(it.href) == source.calendar.id }
+            ?: return@perform EventEditingResult.ReadOnly
+        val target = calendars.firstOrNull { it.isWritable && stableCalendarId(it.href) == draft.calendarId }
+            ?: return@perform EventEditingResult.ReadOnly
+        val data = writer.write(draft, source.uid, now())
+        val updated = gateway.updateResource(calendar, RemoteResource(source.resource.href, etag, data))
+        if (draft.calendarId != source.calendar.id) {
+            val confirmed = gateway.getResource(calendar, updated.href) ?: return@perform EventEditingResult.NotFound
+            gateway.moveResource(calendar, confirmed, target)
+        }
         refreshAfterWrite()
     }
 
@@ -72,11 +80,15 @@ class DefaultEventEditingRepository(
         calendarRepository.findEventWriteSource(instanceId)
 
     private suspend fun remoteCalendar(calendarId: String): RemoteCalendar? {
-        val credentials = credentialsStore.load() ?: throw MissingCredentials
-        val principal = gateway.authenticate(credentials)
-        return gateway.discoverCalendars(principal).firstOrNull {
+        return remoteCalendars().firstOrNull {
             it.isWritable && stableCalendarId(it.href) == calendarId
         }
+    }
+
+    private suspend fun remoteCalendars(): List<RemoteCalendar> {
+        val credentials = credentialsStore.load() ?: throw MissingCredentials
+        val principal = gateway.authenticate(credentials)
+        return gateway.discoverCalendars(principal)
     }
 
     private suspend fun refreshAfterWrite(): EventEditingResult = when (syncCoordinator.sync(SyncRequest.Refresh)) {

@@ -16,8 +16,9 @@ import androidx.sqlite.execSQL
         WidgetConfigEntity::class,
         WidgetCalendarCrossRef::class,
         CalendarResourceEntity::class,
+        EventOutboxEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class CalendarDatabase : RoomDatabase() {
@@ -26,8 +27,14 @@ abstract class CalendarDatabase : RoomDatabase() {
     abstract fun syncStateDao(): SyncStateDao
     abstract fun widgetConfigDao(): WidgetConfigDao
     abstract fun calendarResourceDao(): CalendarResourceDao
+    abstract fun eventOutboxDao(): EventOutboxDao
 
     companion object {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL("CREATE TABLE IF NOT EXISTS event_outbox (instanceId TEXT NOT NULL, accountKey TEXT NOT NULL, uid TEXT NOT NULL, sourceCalendarId TEXT NOT NULL, sourceHref TEXT, baseEtag TEXT, draftJson TEXT NOT NULL, calendarData TEXT NOT NULL, state TEXT NOT NULL, phase TEXT NOT NULL, resultHref TEXT, resultEtag TEXT, remoteJson TEXT, remoteData TEXT, remoteEtag TEXT, remoteHref TEXT, remoteUid TEXT, remoteCalendarId TEXT, remoteMissing INTEGER NOT NULL, originalCalendarId TEXT, originalHref TEXT, PRIMARY KEY(instanceId))")
+            }
+        }
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(connection: SQLiteConnection) {
                 connection.execSQL("ALTER TABLE event_masters ADD COLUMN remoteResourceHref TEXT")

@@ -97,6 +97,10 @@ private fun SwipeAgendaItem(
     contentColor: Color,
     secondaryContentColor: Color,
 ) {
+    if (event.pendingSyncState != null) {
+        AgendaItem(event, calendarName, zoneId, onClick, contentColor, secondaryContentColor)
+        return
+    }
     var revealed by rememberSaveable { mutableStateOf(false) }
     var direction by rememberSaveable { mutableStateOf(-1) }
     val threshold = with(LocalDensity.current) { 48.dp.toPx() }
@@ -172,6 +176,11 @@ private fun AgendaItem(
         )
         Column(Modifier.weight(1f)) {
             Text(event.title, color = contentColor, style = MaterialTheme.typography.titleMedium)
+            event.pendingSyncState?.let { status ->
+                Text(stringResource(status.statusResource()), color = secondaryContentColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.testTag("agenda-sync-${event.instanceId}"))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 calendarName?.let { Text(it, color = contentColor, style = MaterialTheme.typography.labelMedium) }
                 Text(eventTime(event, zoneId), color = contentColor, style = MaterialTheme.typography.bodyMedium)

@@ -19,10 +19,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -47,6 +51,7 @@ import com.brightnook.nookcalendar.R
 import com.brightnook.nookcalendar.domain.EventDraft
 import com.brightnook.nookcalendar.domain.EventReminder
 import com.brightnook.nookcalendar.domain.ThemeSettings
+import com.brightnook.nookcalendar.domain.ThemeBackgroundMode
 import com.brightnook.nookcalendar.ui.theme.CalendarBackground
 import com.brightnook.nookcalendar.ui.theme.CalendarThemePresentation
 import com.brightnook.nookcalendar.ui.theme.calendarThemePresentation
@@ -76,7 +81,7 @@ fun EventEditorScreen(
             title = { Text(stringResource(R.string.event_editor_delete_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.event_editor_delete_message))
+                    Text(stringResource(if (state.hasPendingSync) R.string.event_sync_delete_blocked else R.string.event_editor_delete_message))
                     if (!state.isLoading) Text(state.draft.title)
                     state.error?.let {
                         Text(stringResource(it.messageResource()), color = MaterialTheme.colorScheme.error)
@@ -86,7 +91,7 @@ fun EventEditorScreen(
             },
             confirmButton = {
                 TextButton(onClick = onDelete,
-                    enabled = !state.isLoading && !state.isDeleting && !state.isSaving) {
+                    enabled = !state.isLoading && !state.isDeleting && !state.isSaving && !state.hasPendingSync) {
                     Text(stringResource(R.string.event_editor_delete))
                 }
             },
@@ -107,17 +112,7 @@ fun EventEditorScreen(
     }
     val draft = state.draft
 
-    val editorColorScheme = MaterialTheme.colorScheme.copy(
-        background = themePresentation.backgroundColor,
-        surface = themePresentation.settingsSectionColor,
-        surfaceVariant = themePresentation.settingsSectionColor,
-        onBackground = themePresentation.contentColor,
-        onSurface = themePresentation.contentColor,
-        onSurfaceVariant = themePresentation.secondaryContentColor,
-        primary = themePresentation.actionContentColor,
-        outline = themePresentation.outlineColor,
-        error = themePresentation.errorColor,
-    )
+    val editorColorScheme = eventEditorColorScheme(themePresentation)
     CalendarBackground(themePresentation) {
         MaterialTheme(colorScheme = editorColorScheme) {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -137,7 +132,7 @@ fun EventEditorScreen(
                         )
                         TextButton(
                             onClick = onSave,
-                            enabled = !state.isSaving && !state.isDeleting,
+                            enabled = !state.isSaving && !state.isDeleting && !state.isLoading && !state.hasPendingSync,
                             modifier = Modifier.testTag("event-editor-save"),
                         ) { Text(stringResource(if (state.isSaving) R.string.event_editor_saving else R.string.event_editor_save)) }
                     }
@@ -152,6 +147,8 @@ fun EventEditorScreen(
                         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                if (state.hasPendingSync) Text(stringResource(R.string.event_sync_delete_blocked),
+                    modifier = Modifier.testTag("event-editor-pending-warning"))
                 OutlinedTextField(
                     value = draft.title,
                     onValueChange = { onUpdateDraft(draft.copy(title = it)) },
@@ -243,9 +240,16 @@ fun EventEditorScreen(
                         if (isEditing) {
                             Button(
                                 onClick = { deleteConfirmationOpen = true },
-                                enabled = !state.isSaving && !state.isDeleting,
+                                enabled = !state.isSaving && !state.isDeleting && !state.hasPendingSync,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = editorColorScheme.errorContainer,
+                                    contentColor = editorColorScheme.onErrorContainer,
+                                    disabledContainerColor = editorColorScheme.surfaceContainerHighest,
+                                    disabledContentColor = editorColorScheme.onSurfaceVariant,
+                                ),
                                 modifier = Modifier.fillMaxWidth().testTag("event-editor-delete"),
                             ) { Text(stringResource(R.string.event_editor_delete)) }
+                            if (state.hasPendingSync) Text(stringResource(R.string.event_sync_delete_blocked))
                         }
                     }
                 }
@@ -289,6 +293,24 @@ fun EventEditorScreen(
         )
     }
 }
+
+internal fun eventEditorColorScheme(
+    themePresentation: CalendarThemePresentation,
+): ColorScheme = (if (themePresentation.resolvedMode == ThemeBackgroundMode.WHITE) {
+    lightColorScheme()
+} else {
+    darkColorScheme()
+}).copy(
+    background = themePresentation.backgroundColor,
+    surface = themePresentation.settingsSectionColor,
+    surfaceVariant = themePresentation.settingsSectionColor,
+    onBackground = themePresentation.contentColor,
+    onSurface = themePresentation.contentColor,
+    onSurfaceVariant = themePresentation.secondaryContentColor,
+    primary = themePresentation.actionContentColor,
+    outline = themePresentation.outlineColor,
+    error = themePresentation.errorColor,
+)
 
 @Composable
 private fun DateTimeRow(

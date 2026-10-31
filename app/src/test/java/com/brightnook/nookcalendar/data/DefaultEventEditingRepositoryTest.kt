@@ -60,6 +60,30 @@ class DefaultEventEditingRepositoryTest {
     }
 
     @Test
+    fun changedCalendarMovesUpdatedResourceBeforeRefreshing() = runTest {
+        val actions = mutableListOf<String>()
+        val target = remoteCalendar.copy(id = "home", href = "/calendars/test/home/")
+        val gateway = FakeGateway(remoteCalendar, actions).apply { calendars = listOf(remoteCalendar, target) }
+        val subject = subject(gateway, FakeSync(actions), FakeWidgets(actions))
+
+        assertEquals(EventEditingResult.Success,
+            subject.update("instance", draft.copy(calendarId = stableCalendarId(target.href))))
+        assertEquals(listOf("update", "get", "move", "sync", "widgets"), actions)
+        assertEquals(target, gateway.moveTarget)
+        assertEquals("\"confirmed\"", gateway.movedResource?.etag)
+    }
+
+    @Test
+    fun invalidTargetDoesNotWriteToOriginalCalendar() = runTest {
+        val actions = mutableListOf<String>()
+        val gateway = FakeGateway(remoteCalendar, actions)
+        val subject = subject(gateway, FakeSync(actions), FakeWidgets(actions))
+        assertEquals(EventEditingResult.ReadOnly,
+            subject.update("instance", draft.copy(calendarId = "unknown")))
+        assertTrue(actions.isEmpty())
+    }
+
+    @Test
     fun updateConflictDoesNotRefreshLocalState() = runTest {
         val actions = mutableListOf<String>()
         val gateway = FakeGateway(remoteCalendar, actions).apply { updateFailure = CalDavFailure.Conflict() }
@@ -121,10 +145,14 @@ private class FakeCredentialsStore(private val credentials: Credentials?) : Cred
 }
 
 private class FakeGateway(private val calendar: RemoteCalendar, private val actions: MutableList<String>) : CalDavGateway {
+    var calendars = listOf(calendar)
+    var moveTarget: RemoteCalendar? = null
+    var movedResource: RemoteResource? = null
+    private var updatedResource: RemoteResource? = null
     var updateFailure: Throwable? = null
     var createdHref = ""
     override suspend fun authenticate(credentials: Credentials) = Principal("/principal", "session")
-    override suspend fun discoverCalendars(principal: Principal) = listOf(calendar)
+    override suspend fun discoverCalendars(principal: Principal) = calendars
     override suspend fun fetchRange(calendar: RemoteCalendar, range: TimeRange) = RemoteSnapshot(emptyList(), null)
     override suspend fun fetchDelta(calendar: RemoteCalendar, syncToken: String) = RemoteDelta(emptyList(), emptyList(), null)
     override suspend fun createResource(calendar: RemoteCalendar, href: String, calendarData: String): RemoteResource {
@@ -133,9 +161,17 @@ private class FakeGateway(private val calendar: RemoteCalendar, private val acti
     }
     override suspend fun updateResource(calendar: RemoteCalendar, resource: RemoteResource): RemoteResource {
         actions += "update"; updateFailure?.let { throw it }
-        return resource.copy(etag = "\"new\"")
+        return resource.copy(etag = "\"new\"").also { updatedResource = it }
+    }
+    override suspend fun getResource(calendar: RemoteCalendar, href: String): RemoteResource? {
+        actions += "get"
+        return updatedResource?.copy(etag = "\"confirmed\"")
     }
     override suspend fun deleteResource(calendar: RemoteCalendar, href: String, etag: String) { actions += "delete" }
+    override suspend fun moveResource(calendar: RemoteCalendar, resource: RemoteResource, destination: RemoteCalendar): RemoteResource {
+        actions += "move"; moveTarget = destination; movedResource = resource
+        return resource.copy(href = destination.href + "existing.ics")
+    }
 }
 
 private class FakeSync(private val actions: MutableList<String>, private val result: SyncResult = SyncResult.Success()) : SyncCoordinator {

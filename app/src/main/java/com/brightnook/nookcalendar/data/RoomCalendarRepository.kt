@@ -22,8 +22,14 @@ import java.security.MessageDigest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 
-class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarRepository {
+class RoomCalendarRepository(
+    private val database: CalendarDatabase,
+    private val remindersRequireAccount: Boolean = false,
+    private val accountKey: suspend () -> String? = { null },
+) : CalendarRepository {
     private val calendarDao = database.calendarDao()
     private val eventDao = database.eventDao()
     private val syncStateDao = database.syncStateDao()
@@ -44,7 +50,9 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
             endEpochMillis = range.endExclusive.toEpochMilli(),
             startDate = dates.first.toString(),
             endDateExclusive = dates.second.toString(),
-        ).map { rows -> rows.map(EventInstanceRow::toDomain) }
+        ).combine(database.eventOutboxDao().observeAll()) { rows, pending ->
+            overlay(rows.map(EventInstanceRow::toDomain), pending, range, calendarIds)
+        }
     }
 
     override fun observeDay(day: LocalDate, zoneId: ZoneId): Flow<List<EventInstance>> {
@@ -55,11 +63,43 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
             endEpochMillis = end.toEpochMilli(),
             startDate = day.toString(),
             endDateExclusive = day.plusDays(1).toString(),
-        ).map { rows -> rows.map(EventInstanceRow::toDomain) }
+        ).combine(database.eventOutboxDao().observeAll()) { rows, pending ->
+            val visible = calendarDao.observeAll().first().filter { it.isVisible }.map { it.id }.toSet()
+            overlay(rows.map(EventInstanceRow::toDomain), pending, TimeRange(start, end, zoneId), visible)
+        }
     }
 
     override fun observeEvent(instanceId: String): Flow<EventDetail?> =
-        eventDao.observeEvent(instanceId).map { it?.toDomain() }
+        eventDao.observeEvent(instanceId).combine(database.eventOutboxDao().observeAll()) { row, pending ->
+            val account = accountKey()
+            val queued = pending.firstOrNull { it.instanceId == instanceId && it.accountKey == account }
+            if (queued?.phase == "REMOTE_DELETED" && queued.state != "CONFLICT") null else if (queued == null) row?.toDomain() else {
+                val id = decodeDraft(queued.draftJson).calendarId
+                val calendar = calendarDao.find(id)?.toDomain() ?: CalendarSummary(id, "", 0, true)
+                queued.detail(calendar)
+            }
+        }
+
+    private suspend fun overlay(rows: List<EventInstance>, pending: List<EventOutboxEntity>, range: TimeRange, ids: Set<String>): List<EventInstance> {
+        val account = accountKey()
+        val active = pending.filter { it.accountKey == account }
+        val remote = rows.filter { row ->
+            val event = eventDao.findEvent(row.eventId)
+            event == null || active.none { it.shadows(event) }
+        }
+        val local = active.mapNotNull { queued ->
+            if (queued.phase == "REMOTE_DELETED" && queued.state != "CONFLICT") return@mapNotNull null
+            val draft = decodeDraft(queued.draftJson)
+            if (draft.calendarId !in ids) return@mapNotNull null
+            val item = queued.instance(calendarDao.find(draft.calendarId)?.colorArgb ?: 0)
+            val overlaps = if (item.isAllDay) {
+                val bounds = range.localDateBounds()
+                item.startDate!!.isBefore(bounds.second) && item.endDateExclusive!!.isAfter(bounds.first)
+            } else item.startInstant!!.isBefore(range.endExclusive) && item.endInstant!!.isAfter(range.start)
+            item.takeIf { overlaps }
+        }
+        return remote + local
+    }
 
     override suspend fun findEventWriteSource(instanceId: String): EventWriteSource? {
         val instance = eventDao.findInstance(instanceId) ?: return null
@@ -75,8 +115,15 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
         )
     }
 
-    override suspend fun upcomingReminders(after: Instant): List<ScheduledReminder> =
-        eventDao.reminderSources().flatMap { source ->
+    override suspend fun upcomingReminders(after: Instant): List<ScheduledReminder> {
+        val account = accountKey()
+        if (remindersRequireAccount && account == null) return emptyList()
+        val active = database.eventOutboxDao().all().filter { it.accountKey == account }
+        val remote = eventDao.reminderSources().filter { source ->
+            val instance = eventDao.findInstance(source.instanceId)
+            val event = instance?.let { eventDao.findEvent(it.eventId) }
+            event == null || active.none { it.shadows(event) }
+        }.flatMap { source ->
             val start = if (source.isAllDay) {
                 LocalDate.parse(requireNotNull(source.startDate)).atStartOfDay(ZoneId.systemDefault()).toInstant()
             } else {
@@ -104,6 +151,24 @@ class RoomCalendarRepository(private val database: CalendarDatabase) : CalendarR
                 )
             }
         }
+        val local = active.flatMap { queued ->
+            if (queued.phase == "REMOTE_DELETED" && queued.state != "CONFLICT") return@flatMap emptyList()
+            val draft = decodeDraft(queued.draftJson)
+            if (calendarDao.find(draft.calendarId)?.isVisible != true) return@flatMap emptyList()
+            val start = draft.startInstant ?: draft.startDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val end = draft.endInstant ?: draft.endDateExclusive!!.atStartOfDay(ZoneId.systemDefault()).toInstant()
+            draft.reminders.mapIndexedNotNull { index, reminder ->
+                val trigger = when (reminder) {
+                    is EventReminder.Absolute -> reminder.instant
+                    is EventReminder.RelativeToStart -> start.plus(reminder.offset)
+                    is EventReminder.RelativeToEnd -> end.plus(reminder.offset)
+                }
+                if (!trigger.isAfter(after)) null else ScheduledReminder(stableReminderId(queued.instanceId, index),
+                    queued.instanceId, start.atZone(ZoneId.systemDefault()).toLocalDate(), trigger, draft.title, draft.location)
+            }
+        }
+        return remote + local
+    }
 
     override suspend fun getSyncState(calendarId: String): CalendarSyncState = CalendarSyncState(
         syncToken = syncStateDao.find(calendarId)?.syncToken,

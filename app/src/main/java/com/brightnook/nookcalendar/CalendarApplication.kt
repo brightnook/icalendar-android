@@ -35,6 +35,7 @@ class CalendarApplication : Application(), Configuration.Provider {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         container.syncSchedulerReadiness
+        com.brightnook.nookcalendar.sync.EventOutboxWorker.enqueue(this)
         container.reminderScheduler.initialize()
         CoroutineScope(Dispatchers.IO).launch { container.reminderScheduler.reconcile() }
     }

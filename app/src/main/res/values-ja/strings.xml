@@ -131,13 +131,13 @@
     <string name="settings_operation_failed">この設定変更を完了できませんでした。</string>
     <string name="settings_saved">設定を保存しました</string>
     <string name="settings_clear_history_title">古い履歴を消去しますか？</string>
-    <string name="settings_clear_history_message">今月より前の予定は削除されます。現在および今後の予定は残ります。</string>
+    <string name="settings_clear_history_message">今月より前のキャッシュ済みの予定を削除します。現在・今後の予定と未同期のローカル変更は残ります。</string>
     <string name="settings_clear_history_confirm">履歴を消去</string>
     <string name="settings_clear_cache_title">キャッシュしたカレンダーデータを削除しますか？</string>
-    <string name="settings_clear_cache_message">ローカルにキャッシュされたすべてのカレンダーと予定が削除されます。</string>
+    <string name="settings_clear_cache_message">iCloudから取得したカレンダーと予定のキャッシュを削除します。未同期のローカル変更は保持され、カレンダーを再同期すると再表示されます。</string>
     <string name="settings_clear_cache_confirm">キャッシュを削除</string>
     <string name="settings_logout_title">サインアウトしますか？</string>
-    <string name="settings_logout_message">このデバイスに保存されたiCloud認証情報が削除されます。ローカルにキャッシュされたカレンダーデータは残ります。</string>
+    <string name="settings_logout_message">保存されたiCloud認証情報を削除します。カレンダーのキャッシュと未同期のローカル変更は端末に残ります。同じアカウントに再ログインすると、未同期の内容を送信できます。</string>
     <string name="settings_logout_confirm">サインアウト</string>
     <string name="settings_delete">削除</string>
     <string name="settings_cancel">キャンセル</string>
@@ -193,4 +193,19 @@
     <string name="event_editor_error_network">iCloud に接続できません。入力内容は保持されています。</string>
     <string name="event_editor_error_invalid">予定の内容を確認してもう一度お試しください。</string>
     <string name="event_editor_saved_refresh_pending">iCloud に保存しました。この端末を更新してください。</string>
+    <string name="event_sync_pending">端末に保存済み · 同期待ち</string>
+    <string name="event_sync_sending">端末に保存済み · iCloud に送信中</string>
+    <string name="event_sync_failed">端末に保存済み · 同期に失敗</string>
+    <string name="event_sync_conflict">端末に保存済み · iCloud と競合</string>
+    <string name="event_sync_local_warning">変更はこの端末に保存されていますが、iCloud への反映はまだ確認されていません。同期の問題を解決するまで削除できません。</string>
+    <string name="event_sync_retry">同期を再試行</string>
+    <string name="event_sync_delete_blocked">未同期の変更があります。同期の問題を解決してから編集または削除してください。</string>
+    <string name="event_conflict_explanation">編集後に iCloud の予定が変更されました。両方の内容を比較し、残すバージョンを選んでください。</string>
+    <string name="event_conflict_local">端末に保存した内容</string>
+    <string name="event_conflict_remote">現在の iCloud の内容</string>
+    <string name="event_conflict_remote_missing">この予定は iCloud に存在しません。</string>
+    <string name="event_conflict_keep_local">端末の内容を残して再試行</string>
+    <string name="event_conflict_use_remote">iCloud の内容を使用</string>
+    <string name="event_conflict_discard_confirmation">未同期の変更を破棄して、現在の iCloud の内容を使用しますか？ iCloud で削除済みの場合、この端末からも予定が消えます。この操作は取り消せません。</string>
+    <string name="event_conflict_resolution_failed">競合を解決できませんでした。端末の変更は保存されています。もう一度お試しください。</string>
 </resources>

@@ -131,13 +131,13 @@
     <string name="settings_operation_failed">This settings change could not be completed.</string>
     <string name="settings_saved">Settings saved</string>
     <string name="settings_clear_history_title">Clear older history?</string>
-    <string name="settings_clear_history_message">Events before this month will be removed. Current and future events will stay.</string>
+    <string name="settings_clear_history_message">Cached events before this month will be removed. Current, future and unsynced local changes will stay.</string>
     <string name="settings_clear_history_confirm">Clear history</string>
     <string name="settings_clear_cache_title">Delete cached calendar data?</string>
-    <string name="settings_clear_cache_message">All locally cached calendars and events will be removed.</string>
+    <string name="settings_clear_cache_message">Cached calendars and events downloaded from iCloud will be removed. Unsynced local changes will be kept; sync your calendars again to display them.</string>
     <string name="settings_clear_cache_confirm">Delete cache</string>
     <string name="settings_logout_title">Sign out?</string>
-    <string name="settings_logout_message">Your saved iCloud credentials will be removed. Locally cached calendar data will remain on this device.</string>
+    <string name="settings_logout_message">Your saved iCloud credentials will be removed. Cached calendars and unsynced local changes will remain on this device. Sign in to the same account to resume pending uploads.</string>
     <string name="settings_logout_confirm">Sign out</string>
     <string name="settings_delete">Delete</string>
     <string name="settings_cancel">Cancel</string>
@@ -193,4 +193,19 @@
     <string name="event_editor_error_network">Could not reach iCloud. Your changes are still here.</string>
     <string name="event_editor_error_invalid">Check the event information and try again.</string>
     <string name="event_editor_saved_refresh_pending">Saved to iCloud. Refresh to update this device.</string>
+    <string name="event_sync_pending">Saved locally · Waiting to sync</string>
+    <string name="event_sync_sending">Saved locally · Sending to iCloud</string>
+    <string name="event_sync_failed">Saved locally · Sync failed</string>
+    <string name="event_sync_conflict">Saved locally · iCloud conflict</string>
+    <string name="event_sync_local_warning">These changes are saved on this device but are not yet confirmed in iCloud. Deletion is unavailable until synchronization is resolved.</string>
+    <string name="event_sync_retry">Retry synchronization</string>
+    <string name="event_sync_delete_blocked">This event has unsynced changes. Resolve synchronization before editing or deleting it.</string>
+    <string name="event_conflict_explanation">iCloud has changed since this event was edited. Compare both versions and choose which one to keep.</string>
+    <string name="event_conflict_local">Your saved version</string>
+    <string name="event_conflict_remote">Current iCloud version</string>
+    <string name="event_conflict_remote_missing">This event is no longer available in iCloud.</string>
+    <string name="event_conflict_keep_local">Keep my version and retry</string>
+    <string name="event_conflict_use_remote">Use iCloud version</string>
+    <string name="event_conflict_discard_confirmation">Discard your unsynced changes and use the current iCloud version? If the event was deleted in iCloud, it will also disappear here. This cannot be undone.</string>
+    <string name="event_conflict_resolution_failed">Could not resolve the conflict. Your local changes are still saved. Try again.</string>
 </resources>

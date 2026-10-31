@@ -21,6 +21,7 @@ class LocalAccountManager(
     private val syncScheduler: SyncScheduler,
     scope: CoroutineScope,
     private val automaticSyncStatusStore: AutomaticSyncStatusStore = NoOpAutomaticSyncStatusStore,
+    private val onAccountChanged: suspend () -> Unit = {},
 ) : AccountManager {
     private val transitions = Mutex()
     private val mutableAuthenticationState = MutableStateFlow<AccountAuthenticationState>(AccountAuthenticationState.Loading)
@@ -49,6 +50,7 @@ class LocalAccountManager(
 
     override suspend fun markAuthenticated(appleId: String) {
         transitions.withLock {
+            onAccountChanged()
             automaticSyncStatusStore.recordAuthenticationRequired(false)
             mutableAuthenticationState.value = AccountAuthenticationState.Authenticated(appleId.maskAppleId())
         }
@@ -57,6 +59,7 @@ class LocalAccountManager(
     override suspend fun logout(clearCache: Boolean): Boolean = transitions.withLock {
         syncScheduler.cancelAll()
         credentialsStore.clear()
+        onAccountChanged()
         mutableAuthenticationState.value = AccountAuthenticationState.SignedOut
         automaticSyncStatusStore.recordAuthenticationRequired(false)
         if (!clearCache) return@withLock true

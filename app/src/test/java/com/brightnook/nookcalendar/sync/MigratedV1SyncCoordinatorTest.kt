@@ -138,6 +138,7 @@ class MigratedV1SyncCoordinatorTest {
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         database = opened

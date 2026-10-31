@@ -11,6 +11,7 @@ data class EventEditorState(
     val isDeleting: Boolean = false,
     val error: EventEditorError? = null,
     val completed: Boolean = false,
+    val hasPendingSync: Boolean = false,
 )
 
 enum class EventEditorError {

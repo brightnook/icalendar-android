@@ -63,6 +63,7 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -128,6 +129,7 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         val migrated = database.openHelper.writableDatabase
@@ -171,6 +173,7 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         database.openHelper.writableDatabase.query("SELECT reminders FROM event_masters WHERE id = 'event'").use { cursor ->
@@ -212,6 +215,7 @@ class CalendarDatabaseMigrationTest {
             .addMigrations(CalendarDatabase.MIGRATION_5_6)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
 
@@ -248,6 +252,7 @@ class CalendarDatabaseMigrationTest {
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries().build()
         try {
             database.openHelper.writableDatabase.query(
@@ -295,6 +300,7 @@ class CalendarDatabaseMigrationTest {
 
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         try {
@@ -317,6 +323,46 @@ class CalendarDatabaseMigrationTest {
             database.close()
             context.deleteDatabase(DATABASE_NAME)
         }
+    }
+
+    @Test
+    fun migrationEightToNinePreservesCacheAndWidgetSettingsAndOutboxSurvivesReopen() = kotlinx.coroutines.test.runTest {
+        context.deleteDatabase(DATABASE_NAME)
+        val path = context.getDatabasePath(DATABASE_NAME).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).use { legacy ->
+            val schema = JSONObject(context.assets.open("com.brightnook.nookcalendar.data.CalendarDatabase/8.json")
+                .bufferedReader().use { it.readText() }).getJSONObject("database")
+            schema.getJSONArray("entities").let { entities -> repeat(entities.length()) { position ->
+                val entity = entities.getJSONObject(position)
+                legacy.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                entity.optJSONArray("indices")?.let { indices -> repeat(indices.length()) {
+                    legacy.execSQL(indices.getJSONObject(it).getString("createSql").replace("\${TABLE_NAME}", entity.getString("tableName")))
+                } }
+            } }
+            schema.getJSONArray("setupQueries").let { queries -> repeat(queries.length()) { legacy.execSQL(queries.getString(it)) } }
+            legacy.execSQL("INSERT INTO calendars VALUES ('work', 'Work', 123, 1, 1)")
+            legacy.execSQL("INSERT INTO widget_configuration VALUES (99, 30, 1, 7)")
+            legacy.execSQL("INSERT INTO calendar_resources VALUES ('work', '/work/item.ics', '\"old\"', 'cached-ics', 12345)")
+            legacy.version = 8
+        }
+        fun open() = Room.databaseBuilder(context, CalendarDatabase::class.java, DATABASE_NAME)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9).allowMainThreadQueries().build()
+        val row = EventOutboxEntity("draft", "account-hash", "stable-uid", "work", null, null,
+            "durable-draft", "durable-ics", state = "FAILED", phase = "PUT_UNKNOWN")
+        open().let { database ->
+            try {
+                assertEquals("Work", database.calendarDao().find("work")!!.name)
+                assertEquals("cached-ics", database.calendarResourceDao().find("work", "/work/item.ics")!!.calendarData)
+                database.openHelper.writableDatabase.query("SELECT displayOrdinal FROM widget_configuration WHERE appWidgetId = 99").use {
+                    assertEquals(true, it.moveToFirst()); assertEquals(7, it.getInt(0))
+                }
+                database.eventOutboxDao().insert(row)
+            } finally { database.close() }
+        }
+        open().let { database ->
+            try { assertEquals(row, database.eventOutboxDao().find("draft")) } finally { database.close() }
+        }
+        context.deleteDatabase(DATABASE_NAME)
     }
 
     private companion object {

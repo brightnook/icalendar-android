@@ -41,6 +41,7 @@ class WidgetOrdinalMigrationTest {
         val database = Room.databaseBuilder(context, CalendarDatabase::class.java, name)
             .addMigrations(CalendarDatabase.MIGRATION_6_7)
             .addMigrations(CalendarDatabase.MIGRATION_7_8)
+            .addMigrations(CalendarDatabase.MIGRATION_8_9)
             .allowMainThreadQueries().build()
         try {
             database.openHelper.writableDatabase.query(

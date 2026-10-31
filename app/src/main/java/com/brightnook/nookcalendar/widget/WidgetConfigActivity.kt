@@ -11,6 +11,7 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
@@ -30,6 +31,7 @@ class WidgetConfigActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setResult(RESULT_CANCELED)
         appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
@@ -90,11 +92,13 @@ class WidgetConfigActivity : ComponentActivity() {
             addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         ViewCompat.setOnApplyWindowInsetsListener(scrollView) { _, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val systemBars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
             root.setPadding(
-                48,
+                systemBars.left + 48,
                 widgetConfigurationTopPadding(systemBars.top, contentPaddingPx = 48),
-                48,
+                systemBars.right + 48,
                 systemBars.bottom + 48,
             )
             insets

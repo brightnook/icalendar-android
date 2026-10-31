@@ -255,6 +255,81 @@ class ICloudCalDavGateway private constructor(
         executeWrite(request)
     }
 
+    override suspend fun getResource(calendar: RemoteCalendar, href: String): RemoteResource? = sessionMutex.withLock {
+        val session = session(calendar.sessionId)
+        val collection = urlPolicy.resolve(baseUrl, calendar.href)
+        val resourceUrl = urlPolicy.resolve(collection, href)
+        requireResourceMember(collection, resourceUrl)
+        val request = Request.Builder().url(resourceUrl)
+            .header("Authorization", basicAuthorization(session.credentials)).get().build()
+        suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(request)
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) continuation.resumeWith(
+                        Result.failure(CalDavFailure.NetworkUnavailable(NetworkFailureDetail.from(e))),
+                    )
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    if (!continuation.isActive) { response.close(); return }
+                    try {
+                        val result = response.use {
+                            if (it.code == 404) null else {
+                                val data = readResponse(it)
+                                validateCalendarData(data)
+                                RemoteResource(normalizedHref(resourceUrl), it.header("ETag"), data)
+                            }
+                        }
+                        continuation.resume(result) { _, _, _ -> }
+                    } catch (failure: Throwable) {
+                        if (continuation.isActive) {
+                            val mapped = when (failure) {
+                                is CalDavFailure -> failure
+                                is IOException -> CalDavFailure.NetworkUnavailable(NetworkFailureDetail.from(failure))
+                                else -> CalDavFailure.InvalidServerData()
+                            }
+                            continuation.resumeWith(Result.failure(mapped))
+                        }
+                    }
+                }
+            })
+        }
+    }
+
+    override suspend fun moveResource(
+        calendar: RemoteCalendar,
+        resource: RemoteResource,
+        destination: RemoteCalendar,
+    ): RemoteResource = sessionMutex.withLock {
+        if (calendar.sessionId != destination.sessionId || !calendar.isWritable || !destination.isWritable) invalid()
+        val session = session(calendar.sessionId)
+        val etag = resource.etag?.takeIf(String::isNotBlank) ?: invalid()
+        val collection = urlPolicy.resolve(baseUrl, calendar.href)
+        val sourceUrl = urlPolicy.resolve(collection, resource.href)
+        requireResourceMember(collection, sourceUrl)
+        val destinationCollection = urlPolicy.resolve(baseUrl, destination.href)
+        if (sourceUrl.scheme != destinationCollection.scheme || sourceUrl.host != destinationCollection.host ||
+            sourceUrl.port != destinationCollection.port || !destinationCollection.encodedPath.endsWith('/')) invalid()
+        val targetUrl = destinationCollection.newBuilder().addPathSegment(sourceUrl.pathSegments.last()).build()
+        if (targetUrl == sourceUrl) invalid()
+        val request = Request.Builder().url(sourceUrl)
+            .header("Authorization", basicAuthorization(session.credentials))
+            .header("If-Match", etag)
+            .header("Destination", targetUrl.toString())
+            .header("Overwrite", "F")
+            .method("MOVE", null).build()
+        val movedEtag = executeWrite(request, setOf(201, 204))
+        resource.copy(href = normalizedHref(targetUrl), etag = movedEtag)
+    }
+
+    private fun requireResourceMember(collection: HttpUrl, resource: HttpUrl) {
+        if (collection.scheme != resource.scheme || collection.host != resource.host || collection.port != resource.port ||
+            !collection.encodedPath.endsWith('/') ||
+            resource.encodedPath.substringBeforeLast('/') + "/" != collection.encodedPath ||
+            resource.pathSegments.last().isBlank() || resource.query != null || resource.fragment != null) invalid()
+    }
+
     private suspend fun propfind(
         url: HttpUrl,
         depth: String,
@@ -340,7 +415,7 @@ class ICloudCalDavGateway private constructor(
         })
     }
 
-    private suspend fun executeWrite(request: Request): String? = suspendCancellableCoroutine { continuation ->
+    private suspend fun executeWrite(request: Request, successCodes: Set<Int>? = null): String? = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
@@ -367,6 +442,7 @@ class ICloudCalDavGateway private constructor(
                             !in 200..299 -> invalid()
                         }
                         if (it.body.contentLength() > MAX_RESPONSE_BYTES) invalid()
+                        if (successCodes != null && it.code !in successCodes) invalid()
                         it.header("ETag")
                     }
                     continuation.resume(result) { _, _, _ -> }

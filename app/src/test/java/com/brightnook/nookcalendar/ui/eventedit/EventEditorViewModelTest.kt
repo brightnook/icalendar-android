@@ -5,6 +5,7 @@ import com.brightnook.nookcalendar.domain.EventDetail
 import com.brightnook.nookcalendar.domain.EventDraft
 import com.brightnook.nookcalendar.domain.EventEditingRepository
 import com.brightnook.nookcalendar.domain.EventEditingResult
+import com.brightnook.nookcalendar.domain.PendingEventSyncState
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -101,6 +102,53 @@ class EventEditorViewModelTest {
         assertEquals(0, repository.createCalls)
     }
 
+    @Test
+    fun pendingEventCannotBeDeletedEvenFromDirectDeleteRoute() = runTest(dispatcher) {
+        val repository = FakeEditingRepository(calendar).apply {
+            detail = EventDetail("one", "event", "work", "Work", 0, "Local draft", null, null,
+                false, Instant.parse("2026-10-31T01:00:00Z"), Instant.parse("2026-10-31T02:00:00Z"),
+                null, null, "UTC", null, pendingSyncState = PendingEventSyncState.FAILED)
+        }
+        val viewModel = EventEditorViewModel(repository, LocalDate.of(2026, 10, 31), "one",
+            { true }, { true }, ZoneId.of("UTC"))
+        viewModel.delete() // Loading detail must not allow a deletion either.
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.hasPendingSync)
+        viewModel.delete()
+        advanceUntilIdle()
+        assertEquals(0, repository.deleteCalls)
+        assertFalse(viewModel.uiState.value.completed)
+    }
+
+    @Test
+    fun durableSaveSuccessCompletesEditor() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.updateTitle("Local draft")
+        viewModel.save()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.completed)
+        assertFalse(viewModel.uiState.value.isSaving)
+    }
+
+    @Test
+    fun pendingEventCannotChangeDraftOrSaveAgain() = runTest(dispatcher) {
+        val repository = FakeEditingRepository(calendar).apply {
+            detail = EventDetail("one", "event", "work", "Work", 0, "Queued draft", null, null,
+                false, Instant.parse("2026-10-31T01:00:00Z"), Instant.parse("2026-10-31T02:00:00Z"),
+                null, null, "UTC", null, pendingSyncState = PendingEventSyncState.PENDING)
+        }
+        val viewModel = EventEditorViewModel(repository, LocalDate.of(2026, 10, 31), "one",
+            { true }, { true }, ZoneId.of("UTC"))
+        advanceUntilIdle()
+        viewModel.updateTitle("Must not replace queued draft")
+        viewModel.save()
+        advanceUntilIdle()
+        assertEquals("Queued draft", viewModel.uiState.value.draft.title)
+        assertEquals(0, repository.updateCalls)
+        assertFalse(viewModel.uiState.value.completed)
+    }
+
     private fun viewModel(
         repository: FakeEditingRepository = FakeEditingRepository(calendar),
         selectedDate: LocalDate = LocalDate.of(2026, 9, 14),
@@ -119,10 +167,13 @@ class EventEditorViewModelTest {
 
 private class FakeEditingRepository(private val calendar: CalendarSummary) : EventEditingRepository {
     var createCalls = 0
+    var updateCalls = 0
+    var deleteCalls = 0
+    var detail: EventDetail? = null
     var nextResult: EventEditingResult = EventEditingResult.Success
     override fun observeWritableCalendars(): Flow<List<CalendarSummary>> = flowOf(listOf(calendar))
-    override fun observeEvent(instanceId: String): Flow<EventDetail?> = flowOf(null)
+    override fun observeEvent(instanceId: String): Flow<EventDetail?> = flowOf(detail)
     override suspend fun create(draft: EventDraft): EventEditingResult { createCalls++; return nextResult }
-    override suspend fun update(instanceId: String, draft: EventDraft) = nextResult
-    override suspend fun delete(instanceId: String) = nextResult
+    override suspend fun update(instanceId: String, draft: EventDraft): EventEditingResult { updateCalls++; return nextResult }
+    override suspend fun delete(instanceId: String): EventEditingResult { deleteCalls++; return nextResult }
 }

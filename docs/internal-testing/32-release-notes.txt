@@ -1,0 +1,18 @@
+<en-US>
+Save new and edited events locally, then upload to iCloud in the background.
+Unsynced changes survive restarts. Retry failed uploads manually and resolve conflicts explicitly.
+Fixed moving events between calendars.
+Improved dark/image theme readability for time pickers, menus and Delete buttons, plus system-bar display.
+</en-US>
+<ja-JP>
+予定の新規作成・編集を端末に保存し、バックグラウンドでiCloudへ送信するようにしました。
+再起動後も未同期の変更を保持します。送信失敗時の手動再試行と、競合時の選択に対応しました。
+予定を別のカレンダーへ移動できない問題を修正しました。
+黒・画像テーマでの時刻選択、メニュー、削除ボタンの視認性と、システムバー表示を改善しました。
+</ja-JP>
+<zh-CN>
+新建和编辑日程先保存本机，再在后台提交到 iCloud。
+重启后仍保留未同步修改，支持失败后手动重试及冲突选择。
+修复更换日程所属日历未生效的问题。
+改善黑色和自定义图片主题下时间控件、下拉框及删除按钮的可读性，并优化系统栏显示。
+</zh-CN>

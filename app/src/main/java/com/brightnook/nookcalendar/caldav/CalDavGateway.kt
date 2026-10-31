@@ -21,4 +21,11 @@ interface CalDavGateway {
 
     suspend fun deleteResource(calendar: RemoteCalendar, href: String, etag: String): Unit =
         throw UnsupportedOperationException("Calendar resource deletion is not supported")
+
+    /** Conditional server-side move; never replaces an existing destination resource. */
+    suspend fun moveResource(calendar: RemoteCalendar, resource: RemoteResource, destination: RemoteCalendar): RemoteResource =
+        throw CalDavFailure.InvalidServerData()
+
+    suspend fun getResource(calendar: RemoteCalendar, href: String): RemoteResource? =
+        throw CalDavFailure.InvalidServerData()
 }

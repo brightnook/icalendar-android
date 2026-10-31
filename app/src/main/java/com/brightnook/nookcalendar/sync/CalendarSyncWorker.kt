@@ -19,7 +19,8 @@ class CalendarSyncWorker @JvmOverloads constructor(
     private val now: () -> Instant = Instant::now,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
-        val result = coordinator.sync(SyncRequest.Refresh)
+        val result = if (inputData.getBoolean(INPUT_IS_AUTOMATIC, false) || runAttemptCount > 0) coordinator.sync(SyncRequest.Refresh)
+            else coordinator.syncManually(SyncRequest.Refresh)
         if (
             (result is SyncResult.Success || result is SyncResult.PartialSuccess) &&
             result.counts.eventDataChanged

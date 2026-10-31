@@ -131,6 +131,9 @@ fun MainCalendarScreen(
     onCreateEvent: () -> Unit = {},
     onEditEvent: (String) -> Unit = {},
     onDeleteEvent: (String) -> Unit = {},
+    onResolveConflict: (String, Boolean) -> Unit = { _, _ -> },
+    resolvingConflict: Boolean = false,
+    conflictResolutionFailed: Boolean = false,
 ) {
     val agendaListState = rememberLazyListState()
     val context = LocalContext.current
@@ -305,6 +308,11 @@ fun MainCalendarScreen(
                 actionContentColor = modalPresentation.actionContentColor,
                 premium = monetization.purchaseState == PurchaseUiState.OWNED,
                 onEdit = { onEditEvent(detail.instanceId) },
+                onRetrySync = onRefresh,
+                onResolveConflict = { keepLocal -> onResolveConflict(detail.instanceId, keepLocal) },
+                resolvingConflict = resolvingConflict,
+                conflictResolutionFailed = conflictResolutionFailed,
+                calendarNames = state.calendars.associate { it.id to it.name },
             )
         }
     }
