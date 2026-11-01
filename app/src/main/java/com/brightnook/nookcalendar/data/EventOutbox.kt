@@ -78,8 +78,12 @@ internal fun EventOutboxEntity.instance(color: Int): EventInstance = decodeDraft
 internal fun EventOutboxEntity.detail(calendar: CalendarSummary): EventDetail = decodeDraft(draftJson).let { d ->
     EventDetail(instanceId, "local:$uid", d.calendarId, calendar.name, calendar.colorArgb, d.title, d.location,
         d.notes, d.isAllDay, d.startInstant, d.endInstant, d.startDate, d.endDateExclusive, d.timeZoneId,
-        null, d.reminders, PendingEventSyncState.valueOf(state), remoteJson?.let(::decodeDraft))
+        null, d.reminders, PendingEventSyncState.valueOf(state), remoteJson?.let(::decodeDraft),
+        pendingDeletion = phase in setOf("DELETE_READY", "DELETE_UNKNOWN", "DELETE_CONFIRMED"))
 }
+
+internal fun EventOutboxEntity.isHiddenDeletion(): Boolean =
+    phase in setOf("DELETE_READY", "DELETE_UNKNOWN", "DELETE_CONFIRMED", "REMOTE_DELETED") && state in setOf("PENDING", "SYNCING")
 
 /** UID is only unique within a resource identity, not across imported/shared collections. */
 internal fun EventOutboxEntity.shadows(event: EventEntity): Boolean {

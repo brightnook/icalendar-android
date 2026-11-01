@@ -73,7 +73,7 @@ class RoomCalendarRepository(
         eventDao.observeEvent(instanceId).combine(database.eventOutboxDao().observeAll()) { row, pending ->
             val account = accountKey()
             val queued = pending.firstOrNull { it.instanceId == instanceId && it.accountKey == account }
-            if (queued?.phase == "REMOTE_DELETED" && queued.state != "CONFLICT") null else if (queued == null) row?.toDomain() else {
+            if (queued?.isHiddenDeletion() == true) null else if (queued == null) row?.toDomain() else {
                 val id = decodeDraft(queued.draftJson).calendarId
                 val calendar = calendarDao.find(id)?.toDomain() ?: CalendarSummary(id, "", 0, true)
                 queued.detail(calendar)
@@ -88,7 +88,7 @@ class RoomCalendarRepository(
             event == null || active.none { it.shadows(event) }
         }
         val local = active.mapNotNull { queued ->
-            if (queued.phase == "REMOTE_DELETED" && queued.state != "CONFLICT") return@mapNotNull null
+            if (queued.isHiddenDeletion()) return@mapNotNull null
             val draft = decodeDraft(queued.draftJson)
             if (draft.calendarId !in ids) return@mapNotNull null
             val item = queued.instance(calendarDao.find(draft.calendarId)?.colorArgb ?: 0)
@@ -152,7 +152,7 @@ class RoomCalendarRepository(
             }
         }
         val local = active.flatMap { queued ->
-            if (queued.phase == "REMOTE_DELETED" && queued.state != "CONFLICT") return@flatMap emptyList()
+            if (queued.isHiddenDeletion()) return@flatMap emptyList()
             val draft = decodeDraft(queued.draftJson)
             if (calendarDao.find(draft.calendarId)?.isVisible != true) return@flatMap emptyList()
             val start = draft.startInstant ?: draft.startDate!!.atStartOfDay(ZoneId.systemDefault()).toInstant()

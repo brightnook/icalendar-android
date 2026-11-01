@@ -27,7 +27,7 @@ class EventOutboxProcessor(
         val rows = dao.all().filter { it.accountKey == account }
         for (stored in rows) {
             if (stored.state == "CONFLICT") continue
-            if (!manual && stored.phase in setOf("ACKNOWLEDGED", "REMOTE_DELETED")) continue
+            if (!manual && stored.phase in setOf("ACKNOWLEDGED", "REMOTE_DELETED", "DELETE_CONFIRMED")) continue
             // An interrupted attempt is ambiguous; do not silently retry writes in a background loop.
             if (stored.state == "SYNCING" && !manual) { dao.update(stored.copy(state = "FAILED")); continue }
             if (stored.state == "FAILED" && !manual) continue
@@ -59,7 +59,7 @@ class EventOutboxProcessor(
         }
 
         stillAccount()
-        if (row.phase in setOf("ACKNOWLEDGED", "REMOTE_DELETED")) {
+        if (row.phase in setOf("ACKNOWLEDGED", "REMOTE_DELETED", "DELETE_CONFIRMED")) {
             val acknowledged = row.phase == "ACKNOWLEDGED"
             val actualCalendarId = if (acknowledged) draft.calendarId else row.sourceCalendarId
             val actualHref = (if (acknowledged) row.resultHref else row.sourceHref)
@@ -81,6 +81,30 @@ class EventOutboxProcessor(
         }
         val source = calendars.firstOrNull { stableCalendarId(it.href) == row.sourceCalendarId && it.isWritable }
             ?: error("Source unavailable")
+        if (row.phase in setOf("DELETE_READY", "DELETE_UNKNOWN")) {
+            val deleteHref = row.sourceHref ?: error("Delete source unavailable")
+            val current = gateway.getResource(source, deleteHref)
+            if (current == null) {
+                save(row.copy(phase = "DELETE_CONFIRMED", state = "PENDING"))
+                return
+            }
+            if (!strongEtag(current.etag) || current.etag != row.baseEtag) {
+                conflict(current)
+                return
+            }
+            stillAccount()
+            save(row.copy(phase = "DELETE_UNKNOWN"))
+            try {
+                gateway.deleteResource(source, deleteHref, current.etag!!)
+            } catch (_: CalDavFailure.Conflict) {
+                val latest = gateway.getResource(source, deleteHref)
+                if (latest == null) save(row.copy(phase = "DELETE_CONFIRMED", state = "PENDING")) else conflict(latest)
+                return
+            }
+            val remaining = gateway.getResource(source, deleteHref)
+            if (remaining == null) save(row.copy(phase = "DELETE_CONFIRMED", state = "PENDING")) else conflict(remaining)
+            return
+        }
         val destination = calendars.firstOrNull { stableCalendarId(it.href) == draft.calendarId && it.isWritable }
             ?: error("Destination unavailable")
         val href = row.sourceHref ?: URI(source.href).resolve("${row.uid}.ics").toString()
@@ -156,8 +180,8 @@ class EventOutboxProcessor(
     /** Only retire a draft when the canonical cached resource proves the acknowledged write is represented. */
     suspend fun reconcile() = mutex.withLock {
         val account = credentials.outboxAccountKey() ?: return@withLock
-        dao.all().filter { it.accountKey == account && it.state == "PENDING" && it.phase in setOf("ACKNOWLEDGED", "REMOTE_DELETED") }.forEach { row ->
-            if (row.phase == "REMOTE_DELETED") {
+        dao.all().filter { it.accountKey == account && it.state == "PENDING" && it.phase in setOf("ACKNOWLEDGED", "REMOTE_DELETED", "DELETE_CONFIRMED") }.forEach { row ->
+            if (row.phase in setOf("REMOTE_DELETED", "DELETE_CONFIRMED")) {
                 if (row.sourceHref == null || database.calendarResourceDao().find(row.sourceCalendarId, row.sourceHref) == null) {
                     database.withTransaction {
                         row.sourceHref?.let { database.eventDao().deleteEventsByResourceHref(row.sourceCalendarId, setOf(it)) }

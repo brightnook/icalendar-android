@@ -201,6 +201,9 @@
     <string name="event_sync_retry">重试同步</string>
     <string name="event_sync_delete_blocked">此日程有尚未同步的更改。请先解决同步问题，再编辑或删除日程。</string>
     <string name="event_conflict_explanation">编辑后，iCloud 中的日程已发生变化。请比较两个版本，选择要保留的版本。</string>
+    <string name="event_delete_conflict_explanation">请求删除后，iCloud 中的日程发生了变化。请先查看内容，再决定是否删除。</string>
+    <string name="event_delete_conflict_action">删除 iCloud 日程</string>
+    <string name="event_delete_conflict_confirm">确定从 iCloud 删除已更改的日程吗？其他设备上的日程也会被删除。</string>
     <string name="event_conflict_local">本机保存的版本</string>
     <string name="event_conflict_remote">iCloud 当前版本</string>
     <string name="event_conflict_remote_missing">此日程在 iCloud 中已不存在。</string>

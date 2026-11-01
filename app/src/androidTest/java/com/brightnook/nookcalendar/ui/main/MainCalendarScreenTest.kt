@@ -589,6 +589,20 @@ class MainCalendarScreenTest {
     }
 
     @Test
+    fun upwardDragAtExpandedDetailBoundaryKeepsToolbarInPlace() {
+        setScreen(state(openEvent = detail("boundary")))
+        val body = composeRule.onNodeWithTag("event-detail-body")
+        body.performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+        val top = composeRule.onNodeWithTag("event-detail-close").fetchSemanticsNode().boundsInRoot.top
+        body.performTouchInput { down(center); moveBy(Offset(0f, -180f)) }
+        composeRule.waitForIdle()
+        val duringDrag = composeRule.onNodeWithTag("event-detail-close").fetchSemanticsNode().boundsInRoot.top
+        body.performTouchInput { up() }
+        assertTrue("Expanded detail toolbar moved during an upward boundary drag", kotlin.math.abs(top - duringDrag) < 2f)
+    }
+
+    @Test
     fun launchTargetResultUsesTheSameSelectedDateAndDetailSheetSemantics() {
         val targetDate = LocalDate.of(2026, 10, 8)
         setScreen(

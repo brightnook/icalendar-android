@@ -201,6 +201,9 @@
     <string name="event_sync_retry">同期を再試行</string>
     <string name="event_sync_delete_blocked">未同期の変更があります。同期の問題を解決してから編集または削除してください。</string>
     <string name="event_conflict_explanation">編集後に iCloud の予定が変更されました。両方の内容を比較し、残すバージョンを選んでください。</string>
+    <string name="event_delete_conflict_explanation">削除を依頼した後、iCloud の予定が変更されました。内容を確認してから削除するか選んでください。</string>
+    <string name="event_delete_conflict_action">iCloud の予定を削除</string>
+    <string name="event_delete_conflict_confirm">変更された予定を iCloud から削除しますか？ほかのデバイスからも削除されます。</string>
     <string name="event_conflict_local">端末に保存した内容</string>
     <string name="event_conflict_remote">現在の iCloud の内容</string>
     <string name="event_conflict_remote_missing">この予定は iCloud に存在しません。</string>

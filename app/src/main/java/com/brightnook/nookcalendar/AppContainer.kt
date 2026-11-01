@@ -85,7 +85,7 @@ class AppContainer(val application: Application) {
                 val account = credentialsStore.outboxAccountKey()
                 if (account != null && database.eventOutboxDao().all().any {
                         it.accountKey == account && it.state in setOf("PENDING", "SYNCING") &&
-                            it.phase !in setOf("ACKNOWLEDGED", "REMOTE_DELETED")
+                            it.phase !in setOf("ACKNOWLEDGED", "REMOTE_DELETED", "DELETE_CONFIRMED")
                     }) EventOutboxWorker.enqueue(application)
             })
     }

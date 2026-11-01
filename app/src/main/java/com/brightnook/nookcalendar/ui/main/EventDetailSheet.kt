@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -142,6 +143,19 @@ fun EventDetailContent(
     calendarNames: Map<String, String> = emptyMap(),
 ) {
     var confirmUseRemote by remember(detail.instanceId, detail.pendingSyncState) { mutableStateOf(false) }
+    var confirmDeleteConflict by remember(detail.instanceId, detail.pendingSyncState) { mutableStateOf(false) }
+    if (confirmDeleteConflict) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteConflict = false },
+            title = { Text(stringResource(R.string.event_delete_conflict_action)) },
+            text = { Text(stringResource(R.string.event_delete_conflict_confirm)) },
+            confirmButton = { TextButton(onClick = { confirmDeleteConflict = false; onResolveConflict(true) },
+                enabled = !resolvingConflict, modifier = Modifier.testTag("event-delete-conflict-confirm")) { Text(stringResource(R.string.event_delete_conflict_action)) } },
+            dismissButton = { TextButton(onClick = { confirmDeleteConflict = false }, modifier = Modifier.testTag("event-delete-conflict-cancel")) {
+                Text(stringResource(R.string.event_editor_cancel))
+            } },
+        )
+    }
     if (confirmUseRemote) {
         AlertDialog(
             onDismissRequest = { confirmUseRemote = false },
@@ -163,6 +177,7 @@ fun EventDetailContent(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight(0.9f)
+            .statusBarsPadding()
             .navigationBarsPadding()
             .testTag(EVENT_DETAIL_CONTENT_TAG),
     ) {
@@ -195,7 +210,7 @@ fun EventDetailContent(
                 }
             }
             if (status == PendingEventSyncState.CONFLICT) {
-                Text(stringResource(R.string.event_conflict_explanation), color = secondaryContentColor)
+                Text(stringResource(if (detail.pendingDeletion) R.string.event_delete_conflict_explanation else R.string.event_conflict_explanation), color = secondaryContentColor)
                 Text(stringResource(R.string.event_conflict_local), color = contentColor,
                     style = MaterialTheme.typography.titleSmall)
                 ConflictDraftSummary(EventDraft(
@@ -208,9 +223,9 @@ fun EventDetailContent(
                     style = MaterialTheme.typography.titleSmall)
                 detail.remoteConflict?.let { ConflictDraftSummary(it, zoneId, contentColor, secondaryContentColor, calendarNames) }
                     ?: Text(stringResource(R.string.event_conflict_remote_missing), color = secondaryContentColor)
-                TextButton(onClick = { onResolveConflict(true) }, enabled = !resolvingConflict,
+                TextButton(onClick = { if (detail.pendingDeletion) confirmDeleteConflict = true else onResolveConflict(true) }, enabled = !resolvingConflict,
                     modifier = Modifier.testTag("event-conflict-keep-local")) {
-                    Text(stringResource(R.string.event_conflict_keep_local), color = actionContentColor)
+                    Text(stringResource(if (detail.pendingDeletion) R.string.event_delete_conflict_action else R.string.event_conflict_keep_local), color = actionContentColor)
                 }
                 TextButton(onClick = { confirmUseRemote = true }, enabled = !resolvingConflict,
                     modifier = Modifier.testTag("event-conflict-use-remote")) {

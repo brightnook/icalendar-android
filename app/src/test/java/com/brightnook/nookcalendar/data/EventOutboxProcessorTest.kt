@@ -67,6 +67,103 @@ class EventOutboxProcessorTest {
         assertEquals(draft, decodeDraft(db.eventOutboxDao().all().single().draftJson))
     }
 
+    @Test fun deletingExistingEventIsSavedLocallyWithoutWaitingForNetwork() = runTest {
+        val href = remote.href + "existing.ics"
+        val original = RemoteResource(href, "\"old\"", IcsEventWriter().write(draft, "existing", Instant.now()))
+        snapshot(original)
+        val id = repository.observeAgenda(range(), setOf(calendarId)).first().single().instanceId
+
+        assertEquals(EventEditingResult.Success, queue.delete(id))
+        assertEquals(0, gateway.writes)
+        assertEquals(1, db.eventOutboxDao().all().size)
+        assertTrue(repository.observeAgenda(range(), setOf(calendarId)).first().isEmpty())
+    }
+
+    @Test fun failedDeletionRemainsVisibleAndManualSyncCanRetry() = runTest {
+        val href = remote.href + "existing.ics"
+        val original = RemoteResource(href, "\"old\"", IcsEventWriter().write(draft, "existing", Instant.now()))
+        snapshot(original); gateway.resources[href] = original
+        val id = repository.observeAgenda(range(), setOf(calendarId)).first().single().instanceId
+        assertEquals(EventEditingResult.Success, queue.delete(id))
+        gateway.failDelete = true
+        processor.process()
+        assertEquals(PendingEventSyncState.FAILED, repository.observeEvent(id).first()!!.pendingSyncState)
+        assertNotNull(gateway.resources[href])
+        gateway.failDelete = false
+        processor.process(manual = true)
+        assertNull(gateway.resources[href])
+    }
+
+    @Test fun deletionDoesNotRemoveAnEventChangedOnAnotherDevice() = runTest {
+        val href = remote.href + "existing.ics"
+        val original = RemoteResource(href, "\"old\"", IcsEventWriter().write(draft, "existing", Instant.now()))
+        snapshot(original); gateway.resources[href] = original
+        val id = repository.observeAgenda(range(), setOf(calendarId)).first().single().instanceId
+        assertEquals(EventEditingResult.Success, queue.delete(id))
+        val changed = original.copy(etag = "\"new\"", calendarData =
+            IcsEventWriter().write(draft.copy(title = "Changed elsewhere"), "existing", Instant.now()))
+        gateway.resources[href] = changed
+        processor.process()
+        assertEquals(changed, gateway.resources[href])
+        assertEquals(PendingEventSyncState.CONFLICT, repository.observeEvent(id).first()!!.pendingSyncState)
+        assertEquals(EventEditingResult.Success, queue.resolveConflict(id, true))
+        processor.process()
+        assertNull(gateway.resources[href])
+    }
+
+    @Test fun lostDeleteResponseIsReadBackWithoutDeletingAnotherVersion() = runTest {
+        val href = remote.href + "existing.ics"
+        val original = RemoteResource(href, "\"old\"", IcsEventWriter().write(draft, "existing", Instant.now()))
+        snapshot(original); gateway.resources[href] = original
+        val id = repository.observeAgenda(range(), setOf(calendarId)).first().single().instanceId
+        assertEquals(EventEditingResult.Success, queue.delete(id))
+        gateway.loseDeleteResponse = true
+        processor.process()
+        assertEquals(PendingEventSyncState.FAILED, repository.observeEvent(id).first()!!.pendingSyncState)
+        assertNull(gateway.resources[href])
+        gateway.loseDeleteResponse = false
+        processor.process(manual = true)
+        assertEquals(1, gateway.deletes)
+        assertTrue(repository.observeAgenda(range(), setOf(calendarId)).first().isEmpty())
+    }
+
+    @Test fun choosingCloudVersionCancelsDeletionAfterConflict() = runTest {
+        val href = remote.href + "existing.ics"
+        val original = RemoteResource(href, "\"old\"", IcsEventWriter().write(draft, "existing", Instant.now()))
+        snapshot(original); gateway.resources[href] = original
+        val id = repository.observeAgenda(range(), setOf(calendarId)).first().single().instanceId
+        assertEquals(EventEditingResult.Success, queue.delete(id))
+        val changed = original.copy(etag = "\"new\"", calendarData =
+            IcsEventWriter().write(draft.copy(title = "Changed elsewhere"), "existing", Instant.now()))
+        gateway.resources[href] = changed
+        processor.process()
+        assertEquals(EventEditingResult.Success, queue.resolveConflict(id, false))
+        snapshot(changed); processor.reconcile()
+        assertTrue(db.eventOutboxDao().all().isEmpty())
+        assertEquals("Changed elsewhere", repository.observeAgenda(range(), setOf(calendarId)).first().single().title)
+        assertEquals(changed, gateway.resources[href])
+    }
+
+    @Test fun remotelyRecreatedEventAfterDeleteRequiresExplicitDeleteConfirmation() = runTest {
+        val href = remote.href + "existing.ics"
+        val original = RemoteResource(href, "\"old\"", IcsEventWriter().write(draft, "existing", Instant.now()))
+        snapshot(original); gateway.resources[href] = original
+        val id = repository.observeAgenda(range(), setOf(calendarId)).first().single().instanceId
+        assertEquals(EventEditingResult.Success, queue.delete(id))
+        processor.process()
+        val recreated = original.copy(etag = "\"recreated\"", calendarData =
+            IcsEventWriter().write(draft.copy(title = "Recreated elsewhere"), "existing", Instant.now()))
+        gateway.resources[href] = recreated
+        processor.process(manual = true)
+        val conflict = repository.observeEvent(id).first()!!
+        assertEquals(PendingEventSyncState.CONFLICT, conflict.pendingSyncState)
+        assertTrue(conflict.pendingDeletion)
+        assertEquals(recreated, gateway.resources[href])
+        assertEquals(EventEditingResult.Success, queue.resolveConflict(id, true))
+        processor.process()
+        assertNull(gateway.resources[href])
+    }
+
     @Test fun failedUploadWaitsForManualRetry() = runTest {
         queue.create(draft); gateway.failCreate = true
         processor.process()
@@ -407,11 +504,19 @@ class EventOutboxProcessorTest {
         var discovered = listOf(remote, target)
         var writes = 0; var moves = 0; var failCreate = false; var loseResponse = false; var loseMoveResponse = false
         var changeAfterMove = false
+        var failDelete = false; var loseDeleteResponse = false; var deletes = 0
         override suspend fun authenticate(credentials: Credentials) = Principal("/principal/", "session")
         override suspend fun discoverCalendars(principal: Principal) = discovered
         override suspend fun fetchRange(calendar: RemoteCalendar, range: TimeRange) = error("unused")
         override suspend fun fetchDelta(calendar: RemoteCalendar, syncToken: String) = error("unused")
         override suspend fun getResource(calendar: RemoteCalendar, href: String) = resources[href]
+        override suspend fun deleteResource(calendar: RemoteCalendar, href: String, etag: String) {
+            if (failDelete) throw CalDavFailure.NetworkUnavailable()
+            check(resources[href]?.etag == etag)
+            deletes++
+            resources.remove(href)
+            if (loseDeleteResponse) throw CalDavFailure.NetworkUnavailable()
+        }
         override suspend fun createResource(calendar: RemoteCalendar, href: String, calendarData: String): RemoteResource {
             writes++; if (failCreate) throw CalDavFailure.NetworkUnavailable()
             val result = RemoteResource(calendar.href + href, "\"saved\"", calendarData)

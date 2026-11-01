@@ -97,6 +97,7 @@ data class EventDetail(
     val reminders: List<EventReminder> = emptyList(),
     val pendingSyncState: PendingEventSyncState? = null,
     val remoteConflict: EventDraft? = null,
+    val pendingDeletion: Boolean = false,
 ) {
     init {
         requireValidEventTimes(

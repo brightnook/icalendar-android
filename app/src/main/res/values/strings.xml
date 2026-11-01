@@ -201,6 +201,9 @@
     <string name="event_sync_retry">Retry synchronization</string>
     <string name="event_sync_delete_blocked">This event has unsynced changes. Resolve synchronization before editing or deleting it.</string>
     <string name="event_conflict_explanation">iCloud has changed since this event was edited. Compare both versions and choose which one to keep.</string>
+    <string name="event_delete_conflict_explanation">This event changed in iCloud after you requested deletion. Review it before deciding whether to delete it.</string>
+    <string name="event_delete_conflict_action">Delete iCloud event</string>
+    <string name="event_delete_conflict_confirm">Delete the changed event from iCloud? This affects your other devices.</string>
     <string name="event_conflict_local">Your saved version</string>
     <string name="event_conflict_remote">Current iCloud version</string>
     <string name="event_conflict_remote_missing">This event is no longer available in iCloud.</string>

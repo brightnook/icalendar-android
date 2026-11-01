@@ -44,8 +44,24 @@ class QueuedEventEditingRepository(
     }
 
     override suspend fun delete(instanceId: String): EventEditingResult {
-        if (database.eventOutboxDao().find(instanceId) != null) return EventEditingResult.Conflict
-        return online.delete(instanceId)
+        val account = credentials.outboxAccountKey() ?: return EventEditingResult.AuthenticationRequired
+        val result = database.withTransaction {
+            if (database.eventOutboxDao().find(instanceId) != null) return@withTransaction EventEditingResult.Conflict
+            val source = repository.findEventWriteSource(instanceId) ?: return@withTransaction EventEditingResult.NotFound
+            if (source.isRecurring) return@withTransaction EventEditingResult.RecurringUnsupported
+            if (!source.calendar.isWritable) return@withTransaction EventEditingResult.ReadOnly
+            if (!strongEtag(source.resource.etag)) return@withTransaction EventEditingResult.Conflict
+            val detail = repository.observeEvent(instanceId).first() ?: return@withTransaction EventEditingResult.NotFound
+            val draft = EventDraft(detail.calendarId, detail.title, detail.location, detail.notes, detail.isAllDay,
+                detail.startInstant, detail.endInstant, detail.startDate, detail.endDateExclusive,
+                detail.originalTimeZoneId, detail.reminders)
+            database.eventOutboxDao().insert(EventOutboxEntity(instanceId, account, source.uid,
+                source.calendar.id, source.resource.href, source.resource.etag, encodeDraft(draft),
+                source.resource.calendarData, phase = "DELETE_READY"))
+            EventEditingResult.Success
+        }
+        if (result == EventEditingResult.Success) runCatching { schedule() }
+        return result
     }
 
     override suspend fun resolveConflict(instanceId: String, keepLocal: Boolean): EventEditingResult {
@@ -53,6 +69,17 @@ class QueuedEventEditingRepository(
         val result = database.withTransaction {
             val row = database.eventOutboxDao().find(instanceId) ?: return@withTransaction EventEditingResult.NotFound
             if (row.accountKey != account || row.state != "CONFLICT") return@withTransaction EventEditingResult.Invalid
+            if (keepLocal && row.phase in setOf("DELETE_READY", "DELETE_UNKNOWN", "DELETE_CONFIRMED")) {
+                if (row.remoteMissing) {
+                    database.eventOutboxDao().update(row.copy(phase = "DELETE_CONFIRMED", state = "PENDING"))
+                } else {
+                    if (row.remoteUid != row.uid || !strongEtag(row.remoteEtag) || row.remoteHref != row.sourceHref)
+                        return@withTransaction EventEditingResult.Conflict
+                    database.eventOutboxDao().update(row.copy(baseEtag = row.remoteEtag, phase = "DELETE_READY",
+                        state = "PENDING", remoteJson = null, remoteData = null, remoteEtag = null))
+                }
+                return@withTransaction EventEditingResult.Success
+            }
             if (!keepLocal) {
                 // Keep remote overlay until a successful read refresh confirms it, so a stale cache cannot reappear.
                 if (row.remoteMissing) {

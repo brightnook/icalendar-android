@@ -77,11 +77,23 @@ class PendingEventUiTest {
         composeRule.onNodeWithTag("event-conflict-confirm-remote").assertDoesNotExist()
     }
 
-    private fun showDetail(status: PendingEventSyncState, onRetry: () -> Unit = {}, onResolve: (Boolean) -> Unit = {}) {
+    @Test fun conflictingDeleteRequiresSecondConfirmation() {
+        val choices = mutableListOf<Boolean>()
+        showDetail(PendingEventSyncState.CONFLICT, pendingDeletion = true, onResolve = { choices.add(it) })
+        composeRule.onNodeWithTag("event-conflict-keep-local").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals(emptyList<Boolean>(), choices) }
+        composeRule.onNodeWithTag("event-delete-conflict-cancel").performClick()
+        composeRule.runOnIdle { assertEquals(emptyList<Boolean>(), choices) }
+        composeRule.onNodeWithTag("event-conflict-keep-local").performScrollTo().performClick()
+        composeRule.onNodeWithTag("event-delete-conflict-confirm").performClick()
+        composeRule.runOnIdle { assertEquals(listOf(true), choices) }
+    }
+
+    private fun showDetail(status: PendingEventSyncState, onRetry: () -> Unit = {}, pendingDeletion: Boolean = false, onResolve: (Boolean) -> Unit = {}) {
         val detail = EventDetail("one", "event", "work", "Work", 0, "Local appointment", null, null,
             false, start, end, null, null, "UTC", null, pendingSyncState = status,
             remoteConflict = EventDraft("work", "Remote appointment", notes = "Changed remotely", isAllDay = false,
-                startInstant = start, endInstant = end))
+                startInstant = start, endInstant = end), pendingDeletion = pendingDeletion)
         composeRule.setContent {
             MaterialTheme {
                 EventDetailContent(detail, ZoneId.of("UTC"), {}, {}, Color.Black, Color.DarkGray,

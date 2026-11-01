@@ -18,6 +18,7 @@ import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import androidx.work.WorkManager
 import org.json.JSONObject
@@ -139,6 +140,12 @@ class LiveOutboxDeviceTest {
             notes = notes, isAllDay = false, startInstant = detail.startInstant,
             endInstant = detail.endInstant!!.plusSeconds(1800), timeZoneId = zone.id)
         assertEquals(EventEditingResult.Success, app.container.eventEditingRepository.update(detail.instanceId, edited))
+        // Observe the automatic path before issuing any manual synchronization.
+        val autoConfirmed = withTimeoutOrNull(90000) {
+            app.container.calendarRepository.observeDay(day, zone).first { items ->
+                items.any { it.title == edited.title && it.pendingSyncState == null }
+            }
+        } != null
         detail = syncAndFind(edited.title)
         val editedCloud = requireNotNull(verifier.getResource(source, href))
         requireOwned(editedCloud.calendarData)
@@ -165,9 +172,12 @@ class LiveOutboxDeviceTest {
         // Ownership was independently verified above, and the queued overlay must be gone before delete.
         assertNull(detail.pendingSyncState)
         assertEquals(EventEditingResult.Success, app.container.eventEditingRepository.delete(detail.instanceId))
+        // Delete is queued locally; explicitly drain it before checking the server.
+        withTimeout(240000) { app.container.syncCoordinator.syncManually(SyncRequest.Refresh) }
         assertNull(verifier.getResource(source, href))
         if (target != null) assertNull(verifier.getResource(target, target.href + "$uid.ics"))
         journal(app).delete()
         println("LIVE_DISPOSABLE_EVENT_DELETE_VERIFIED")
+        assertTrue("Automatic edit upload was not reconciled within 90 seconds", autoConfirmed)
     }
 }

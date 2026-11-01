@@ -16,8 +16,8 @@ class BuildSmokeTest {
 
     @Test
     fun releaseBuildUsesTheNextPlayVersion() {
-        assertEquals("1.0.31", BuildConfig.VERSION_NAME)
-        assertEquals(32, BuildConfig.VERSION_CODE)
+        assertEquals("1.0.32", BuildConfig.VERSION_NAME)
+        assertEquals(33, BuildConfig.VERSION_CODE)
     }
 
     @Test

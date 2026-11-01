@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
@@ -295,6 +296,7 @@ fun MainCalendarScreen(
             containerColor = modalPresentation.containerColor,
             contentColor = modalPresentation.primaryContentColor,
             scrimColor = modalPresentation.scrimColor,
+            contentWindowInsets = { WindowInsets(0) },
             dragHandle = { BottomSheetDefaults.DragHandle(color = modalPresentation.outlineColor) },
         ) {
             EventDetailContent(
